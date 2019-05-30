@@ -1,0 +1,1 @@
+root='C:\Data\Matlab\SCIn';
