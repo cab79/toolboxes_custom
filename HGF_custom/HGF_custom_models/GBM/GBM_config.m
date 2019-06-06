@@ -1,5 +1,10 @@
-function c = GBM_config(S)
+function c = GBM_config(S,varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if nargin>1
+    failed = varargin{1};
+else
+    failed = 0;
+end
 %% Config structure
 c = struct;
 
@@ -24,9 +29,9 @@ c.response.rep = S.perc_modelspec.response.rep;
 c.st = [];
 c.pn=0;
 
-if ~isfield(S,'failed')
-    S.failed=0;
-end
+% if ~isfield(S,'failed')
+%     S.failed=0;
+% end
 
 %% Likelihood function (general)
 switch S.perc_modelspec.likelihood.type 
@@ -41,7 +46,7 @@ switch S.perc_modelspec.likelihood.type
 
         %% Input variance: Alpha
         switch S.perc_modelspec.likelihood.inputvar
-%             case 'uncertain_unequal'
+            %             case 'uncertain_unequal'
 %                 c.like.logal0mu = repmat(log(1),1,c.n_inputcond);
 %                 c.like.logal0sa = repmat(1,1,c.n_inputcond); % unfixed
 %                 c.like.logal0var = true; % this is a variance parameter
@@ -49,11 +54,11 @@ switch S.perc_modelspec.likelihood.type
 %                 c.like.logal1sa = repmat(1,1,c.n_inputcond); % unfixed
 %                 c.like.logal1var = true; % this is a variance parameter
             case 'uncertain'
-                c.like.logal0mu = repmat(log(1),1,max(c.inputfactors)+1);
-                c.like.logal0sa = [1, repmat(1,1,max(c.inputfactors))]; % unfixed
+                c.like.logal0mu = [log(0.5), repmat(log(1),1,length(c.inputfactors))];
+                c.like.logal0sa = [1, repmat(0,1,length(c.inputfactors))]; %repmat(1,1,length(c.inputfactors)+1); % unfixed
                 c.like.logal0var = true; % this is a variance parameter
             case 'certain'
-                c.like.logal0mu = repmat(log(1),1,length(c.inputfactors)+1); 
+                c.like.logal0mu = [log(0.5), repmat(log(1),1,length(c.inputfactors))]; 
                 c.like.logal0sa = repmat(0,1,length(c.inputfactors)+1); % fixed
                 c.like.logal0var = true; % this is a variance parameter
         end
@@ -142,8 +147,8 @@ for m = 1:c.nModels
 
                 % Format: row vector of length n_levels.
                 % Undefined (therefore NaN) at the first level.
-                c.(type).ommu = [NaN, repmat(-3-S.failed, 1, length(c.(type).mu_0mu)-2),-6];
-                c.(type).omsa = [NaN, repmat(4^2, 1, length(c.(type).mu_0mu)-1)];
+                c.(type).ommu = [NaN, repmat(-3, 1, length(c.(type).mu_0mu)-2),-6]; 
+                c.(type).omsa = [NaN, repmat(4^2, 1, length(c.(type).mu_0mu)-1)]; %abs(c.(type).ommu);
             end
 
         case 'state'

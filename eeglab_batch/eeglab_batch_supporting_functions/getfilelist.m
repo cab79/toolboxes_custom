@@ -225,7 +225,7 @@ for g = 1:length(grps)
                     genname = strrep(genname,'_.','.');
                     %genname = regexprep(genname,{'\.','set'},{'','.set'});
                     
-                    if isfield(S.(S.func),'grpdir')
+                    if isfield(S.(S.func),'grpdir') && S.(S.func).grpdir
                         grpdir = grps{g};
                     else
                         grpdir = '';

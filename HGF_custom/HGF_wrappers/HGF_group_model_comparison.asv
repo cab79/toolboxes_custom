@@ -284,13 +284,7 @@ else
         [~,~,out] = VBA_groupBMC_btwGroups_CAB(LMEgrp,options,S.pep_flag);
     end
     if length(S.perc_models)>1
-        pm_out=out;
-        rm_out={};
-    else
-        rm_out=out;
-        pm_out={};
-    end
-    varargout=[varargout {pm_out,rm_out}];
+        varargout=[varargout {out}];
 end
 
 function image_plot(data,S,clims,title_text,XYlabel,family)

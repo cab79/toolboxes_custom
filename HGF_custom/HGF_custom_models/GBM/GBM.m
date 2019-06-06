@@ -454,13 +454,16 @@ for k=2:1:n
     if nModels>1
         
         % set alpha
-        if no_al1
-            al1=al0;
-        end
-        if u(k,1)==0
-            al(k,1,m)=al0(u(k,2));
-        elseif u(k,1)==1
-            al(k,1,m)=al1(u(k,2));
+        al(k,1,m)=al0(1);
+        if n_inputfactors >0
+            % apply gain to alpha according to input factors
+            % alpha multipliers are not variances, but have to be positive
+            if_str = num2str(u(k,2));
+            for nif = 1:n_inputfactors 
+                if strcmp(if_str(inputfactors(nif)),'1')
+                    al(k,1,m)=al(k,1,m) * al0(inputfactors(nif)+1);
+                end
+            end
         end
         
         % joint probability
@@ -482,13 +485,8 @@ for k=2:1:n
         
         % Likelihood functions: one for each
         % possible signal
-        if n_inputcond >1
-            und1 = exp(-(u(k,1) -eta1)^2/(2*al1(u(k,2))));
-            und0 = exp(-(u(k,1) -eta0)^2/(2*al0(u(k,2))));
-        else
-            und1 = exp(-(u(k,1) -eta1)^2/(2*al1));
-            und0 = exp(-(u(k,1) -eta0)^2/(2*al0));
-        end
+        und1 = exp(-(u(k) -eta1)^2/(2*al(k,1,m)));
+        und0 = exp(-(u(k) -eta0)^2/(2*al(k,1,m)));
 
         % Update
         xc(k,1) = xchat(k,1) *und1 /(xchat(k,1) *und1 +(1 -xchat(k,1)) *und0);
