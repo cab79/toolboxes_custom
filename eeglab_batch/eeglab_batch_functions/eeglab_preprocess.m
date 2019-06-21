@@ -6,13 +6,13 @@ switch part
     case 'epoch'
         
     % load directory
-    if ~isfield(S.prep,'loaddir')
-        S.prep.loaddir = S.path.(S.func);
-    end
+    %if ~isfield(S.prep,'loaddir')
+        S.prep.loaddir = fullfile(S.path.(S.func),S.prep.load.suffix{:});
+    %end
 
     % GET FILE LIST
     S.path.file = S.prep.loaddir;
-    S = getfilelist(S);
+    S = getfilelist(S,S.prep.load.suffix);
 
     % change to the input directory
     eval(sprintf('%s', ['cd(''' S.path.prep ''')']));
@@ -124,12 +124,13 @@ switch part
             EEG = pop_epoch( EEG, unique(markers), S.prep.epoch.timewin);
         elseif S.prep.epoch.addmarker && isempty(EEG.epoch)
             Sr = EEG.srate; % sampling rate of data
-            Ndp = Sr*(S.prep.epoch.timewin(2)-S.prep.epoch.timewin(1)+1);% number of data points per epoch
+%             Ndp = Sr*(S.prep.epoch.timewin(2)-S.prep.epoch.timewin(1));% number of data points per epoch
+            Ndp = Sr*S.prep.epoch.timewin(2);% number of data points post-marker
             Tdp = size(EEG.data,2);% total number of data points in file
             Mep = floor(Tdp/Ndp);% max possible number of epochs
             for i = 1:Mep
                 EEG.event(1,i).type = S.prep.epoch.markers{1};
-                EEG.event(1,i).latency = Sr*S.prep.epoch.timewin(1)+(i-1)*Ndp+1;
+                EEG.event(1,i).latency = -Sr*S.prep.epoch.timewin(1)+(i-1)*Ndp;
                 EEG.event(1,i).urevent = S.prep.epoch.markers{1};
             end
             EEG = pop_epoch( EEG, S.prep.epoch.markers(1), S.prep.epoch.timewin);

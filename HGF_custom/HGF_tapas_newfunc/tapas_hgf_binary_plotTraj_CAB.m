@@ -98,15 +98,15 @@ end
 % Input level
 subplot(l+ll,1,l);
 
-if l>1
-    plot(ts, [tapas_sgm(mu_0(2), 1); tapas_sgm(mu(:,2), 1)], 'r', 'LineWidth', 2);
+%if l>1
+    plot(ts, [tapas_sgm(mu_0(2), 1); tapas_sgm(mu(:,2), 1)], 'b', 'LineWidth', 2);
     hold all;
-    plot(0, tapas_sgm(mu_0(2), 1), 'or', 'LineWidth', 2); % prior
-else
-    plot(ts, [mu_0(1); mu(:,1)], 'r', 'LineWidth', 2);
+    plot(0, tapas_sgm(mu_0(2), 1), 'ob', 'LineWidth', 2); % prior
+%else
+    plot(ts, [mu_0(1); mu(:,1)], 'r', 'LineWidth', 1);
     hold all;
-    plot(0, mu_0(1), 'or', 'LineWidth', 2); % prior
-end
+    plot(0, mu_0(1), 'or', 'LineWidth', 1); % prior
+%end
 plot(ts(2:end), r.u(:,1), '.', 'Color', [0 0.6 0]); % inputs
 plot(ts(2:end), wt(:,1), 'k') % implied learning rate 
 if (ploty == true) && ~isempty(find(strcmp(fieldnames(r),'y'))) && ~isempty(r.y)
@@ -127,14 +127,14 @@ if (ploty == true) && ~isempty(find(strcmp(fieldnames(r),'y'))) && ~isempty(r.y)
            '(red) for \rho=', num2str(rho(2:end)), ', \kappa=', ...
            num2str(ka(2:end)), ', \omega=', num2str(om(2:end))], ...
       'FontWeight', 'bold');
-    ylabel('y, u, s(\mu_2)');
+    ylabel('y, u, s(\mu_2), mu_1');
     axis([0 ts(end) -0.15 1.15]);
 else
     title(['Input u (green), learning rate (fine black), and posterior expectation of input s(\mu_2) ', ...
            '(red) for \rho=', num2str(rho(2:end)), ', \kappa=', ...
            num2str(ka(2:end)), ', \omega=', num2str(om(2:end))], ...
       'FontWeight', 'bold');
-    ylabel('u, s(\mu_2)');
+    ylabel('u, s(\mu_2), mu_1');
     axis([0 ts(end) -0.1 1.1]);
 end
 plot(ts(2:end), 0.5, 'k');

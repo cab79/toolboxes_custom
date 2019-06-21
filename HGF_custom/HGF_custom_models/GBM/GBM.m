@@ -288,20 +288,25 @@ for k=2:1:n
 %                     und1 = exp(-(u(k) -eta1)^2/(2*al1));
 %                     und0 = exp(-(u(k) -eta0)^2/(2*al0));
 %                 end
-                und1 = exp(-(u(k) -eta1)^2/(2*al(k,1,m)));
-                und0 = exp(-(u(k) -eta0)^2/(2*al(k,1,m)));
-
-                if AL(m)
-                    if u(k,3)==2
-                        mu0(k,1,m) = muhat(k,1,m) *und1 /(muhat(k,1,m) *und1 +(1 -muhat(k,1,m)) *und0);
-                        mu(k,1,m) = mu0(k,1,m);
-                    elseif u(k,3)==1
-                        mu0(k,1,m) = (1-muhat(k,1,m)) *und1 /(muhat(k,1,m) *und0 +(1 -muhat(k,1,m)) *und1);
-                        mu(k,1,m) = 1-mu0(k,1,m);
-                    end
+                if al0(1)==0
+                    mu(k,1,m)=u(k,1);
+                    mu0(k,1,m)=u(k,1);
                 else
-                    mu(k,1,m) = muhat(k,1,m) *und1 /(muhat(k,1,m) *und1 +(1 -muhat(k,1,m)) *und0);
-                    mu0(k,1,m) = mu(k,1,m);
+                    und1 = exp(-(u(k,1) -eta1)^2/(2*al(k,1,m)));
+                    und0 = exp(-(u(k,1) -eta0)^2/(2*al(k,1,m)));
+
+                    if AL(m)
+                        if u(k,3)==2
+                            mu0(k,1,m) = muhat(k,1,m) *und1 /(muhat(k,1,m) *und1 +(1 -muhat(k,1,m)) *und0);
+                            mu(k,1,m) = mu0(k,1,m);
+                        elseif u(k,3)==1
+                            mu0(k,1,m) = (1-muhat(k,1,m)) *und1 /(muhat(k,1,m) *und0 +(1 -muhat(k,1,m)) *und1);
+                            mu(k,1,m) = 1-mu0(k,1,m);
+                        end
+                    else
+                        mu(k,1,m) = muhat(k,1,m) *und1 /(muhat(k,1,m) *und1 +(1 -muhat(k,1,m)) *und0);
+                        mu0(k,1,m) = mu(k,1,m);
+                    end
                 end
 
 

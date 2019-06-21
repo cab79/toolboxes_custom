@@ -168,10 +168,14 @@ if any(strcmp(r.c_obs.responses, 'RT')) || any(strcmp(r.c_obs.responses, 'EEG'))
     % ~~~~~~~~
     m1reg = mu1;
     m1reg(r.irr) = [];
-    m2reg = mu2;
-    m2reg(r.irr) = [];
-    m3reg = mu3;
-    m3reg(r.irr) = [];
+    if l>1
+        m2reg = mu2;
+        m2reg(r.irr) = [];
+    end
+    if l>2
+        m3reg = mu3;
+        m3reg(r.irr) = [];
+    end
 
     % Surprise: informational
     % ~~~~~~~~

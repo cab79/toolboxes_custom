@@ -368,6 +368,29 @@ switch h.Settings.stim(h.sn).control
             end
             
         end
+        %apply dur pattern?
+        h.trialtype.durpattern=0;
+        if isfield(h.Settings.stim(h.sn),'patternmethod')
+            if strcmp(h.Settings.stim(h.sn).patternmethod,'dur') % pitch changes
+                h.trialtype.durpattern=1;
+                %if ~((h.seqtype.adapt || h.seqtype.thresh) && (strcmp(h.Settings.oddballmethod,'pitch') || strcmp(h.Settings.oddballmethod,'freq'))) && ~(~isempty(strcmp(h.Settings.conditionmethod,'pitch')) || ~isempty(strcmp(h.Settings.conditionmethod,'freq'))) % pitch already defined above in this case
+                    if strcmp(h.Settings.PL.oddballmethod,'pattern') && strcmp(h.Settings.stim(h.sn).durtype,'FromSequence')
+                        %load from sequence file
+                        global d
+                        file = load(fullfile(d.seq, h.Settings.stim(h.sn).patternvalue));
+                        h.freq = file.settings.stim(1).f0;
+                        h.dur = file.settings.stim(1).patternvalue{h.Seq.signal(h.sn,h.i)};
+                    else
+                        if isnumeric(h.Settings.stim(h.sn).patternvalue)
+                            h.dur = h.Settings.stim(h.sn).patternvalue;
+                        elseif iscell(h.Settings.stim(h.sn).patternvalue) %&& strcmp(h.Settings.oddballmethod,'pattern')
+                            h.dur = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.i)};
+                        end
+                    end
+                %end
+            end
+            
+        end
         % apply response probe?
         if isfield(h.Settings,'RPmethod')
             if strcmp(h.Settings.RPmethod,'pitch') || strcmp(h.Settings.RPmethod,'freq')
