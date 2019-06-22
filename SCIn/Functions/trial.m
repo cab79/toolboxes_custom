@@ -117,7 +117,11 @@ for tr = h.trials
     try
         disp(['STIMTYPE = ' num2str(h.sn) ', INTEN = ' num2str(h.stim(h.sn).inten_out) ', MEAN = ' num2str(h.stim(h.sn).inten_mean) ', DIFF = ' num2str(h.stim(h.sn).inten_diff)]);
     catch
-        disp(['STIMTYPE = ' num2str(h.sn) ', INTEN = ' num2str(h.stim(h.sn).inten_out)]);
+        try
+            disp(['STIMTYPE = ' num2str(h.sn) ', INTEN = ' num2str(h.stim(h.sn).inten_out) ', Signal = ' num2str(h.Seq.signal(h.sn,h.i)) ', AdaptLevel = ' num2str(h.varlevel)]);
+        catch
+            disp(['STIMTYPE = ' num2str(h.sn) ', INTEN = ' num2str(h.stim(h.sn).inten_out)]);
+        end
     end
     
 end

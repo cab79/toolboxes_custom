@@ -274,7 +274,7 @@ switch h.Settings.stim(h.sn).control
         end
 
         % oddball method
-        if h.seqtype.oddball && any(strcmp(h.Settings.oddballmethod,{'channel','intensity','index','pitch','duration','freq'}))
+        if h.seqtype.oddball && any(strcmp(h.Settings.oddballmethod,{'channel','intensity','index','pitch','duration','duration_shuffle','freq'}))
             if ~h.seqtype.adapt && ~h.seqtype.thresh
                 if iscell(h.Settings.oddballvalue)
                     if size(h.Settings.oddballvalue,1)==1
@@ -304,13 +304,24 @@ switch h.Settings.stim(h.sn).control
                 elseif strcmp(h.Settings.oddballmethod,'duration')
                     h.dur = oddval;
                 end
-            elseif (h.seqtype.adapt && h.Settings.adaptive_general.stim==h.sn) || (h.seqtype.thresh && h.Settings.threshold.stim==h.sn)
+            elseif (h.seqtype.adapt && ismember(h.sn,h.Settings.adaptive_general.stim)) || (h.seqtype.thresh && ismember(h.sn,h.Settings.adaptive_general.stim))
                 if isfield(h,'s')
                     h.varlevel = h.s.a(h.Seq.adapttype(h.i)).StimulusLevel;
                 else
+                    try
+                        dur_diff = str2double(h.aud_diff_gui);
+                    catch
+                        dur_diff = 0;
+                    end
                     if h.seqtype.adapt
+                        if dur_diff~=0
+                            h.Settings.adaptive.startinglevel=dur_diff;
+                        end
                         h.varlevel = h.Settings.adaptive.startinglevel;
                     else
+                        if dur_diff~=0
+                            h.Settings.threshold.startinglevel=dur_diff;
+                        end
                         h.varlevel = h.Settings.threshold.startinglevel;
                     end  
                 end
@@ -321,13 +332,15 @@ switch h.Settings.stim(h.sn).control
                 %elseif strcmp(h.Settings.oddballmethod,'intensity') && strcmp(h.Settings.stim(h.sn).inten_type,'abs')
                 %    h.stim(h.sn).inten = [h.Settings.oddballvalue(1), (h.Settings.oddballvalue(1)+h.varlevel)]; % create new pitch pair
                 %    h.stim(h.sn).inten = h.stim(h.sn).inten(h.Seq.signal(h.sn,h.tr));
-                elseif strcmp(h.Settings.oddballmethod,'duration') && (strcmp(h.Settings.stim(h.sn).patternmethod,'pitch') || strcmp(h.Settings.stim(h.sn).patternmethod,'freq'))
-                    if iscell(h.Settings.oddballvalue)
-                        h.dur = h.Settings.oddballvalue{h.Seq.signal(h.sn,h.tr),:};
-                    else
-                        h.dur = h.Settings.oddballvalue(h.Seq.signal(h.sn,h.tr),:);
-                    end
-                    h.freq = [h.Settings.stim(h.sn).patternvalue(1), (h.Settings.stim(h.sn).patternvalue(1)+h.varlevel)]; % create new pitch pair
+                
+                % UNKNOWN EXPT - interferes with pitch patten code below
+%                 elseif strcmp(h.Settings.oddballmethod,'duration') && (strcmp(h.Settings.stim(h.sn).patternmethod,'pitch') || strcmp(h.Settings.stim(h.sn).patternmethod,'freq'))
+%                     if iscell(h.Settings.oddballvalue)
+%                         h.dur = h.Settings.oddballvalue{h.Seq.signal(h.sn,h.tr),:};
+%                     else
+%                         h.dur = h.Settings.oddballvalue(h.Seq.signal(h.sn,h.tr),:);
+%                     end
+%                     h.freq = [h.Settings.stim(h.sn).patternvalue(1), (h.Settings.stim(h.sn).patternvalue(1)+h.varlevel)]; % create new pitch pair
                 end
             end
         end
@@ -365,32 +378,76 @@ switch h.Settings.stim(h.sn).control
                         %end
                     end
                 end
-            end
-            
-        end
-        %apply dur pattern?
-        h.trialtype.durpattern=0;
-        if isfield(h.Settings.stim(h.sn),'patternmethod')
-            if strcmp(h.Settings.stim(h.sn).patternmethod,'dur') % pitch changes
-                h.trialtype.durpattern=1;
-                %if ~((h.seqtype.adapt || h.seqtype.thresh) && (strcmp(h.Settings.oddballmethod,'pitch') || strcmp(h.Settings.oddballmethod,'freq'))) && ~(~isempty(strcmp(h.Settings.conditionmethod,'pitch')) || ~isempty(strcmp(h.Settings.conditionmethod,'freq'))) % pitch already defined above in this case
-                    if strcmp(h.Settings.PL.oddballmethod,'pattern') && strcmp(h.Settings.stim(h.sn).durtype,'FromSequence')
-                        %load from sequence file
-                        global d
-                        file = load(fullfile(d.seq, h.Settings.stim(h.sn).patternvalue));
-                        h.freq = file.settings.stim(1).f0;
-                        h.dur = file.settings.stim(1).patternvalue{h.Seq.signal(h.sn,h.i)};
-                    else
+                % for Seq_Discrim expt
+                if strcmp(h.Settings.PL.oddballmethod,'duration')
+                    if h.seqtype.adapt || h.seqtype.thresh
+                        % just take the first pattern
                         if isnumeric(h.Settings.stim(h.sn).patternvalue)
-                            h.dur = h.Settings.stim(h.sn).patternvalue;
-                        elseif iscell(h.Settings.stim(h.sn).patternvalue) %&& strcmp(h.Settings.oddballmethod,'pattern')
-                            h.dur = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.i)};
+                            h.freq = h.Settings.stim(h.sn).patternvalue;
+                        elseif iscell(h.Settings.stim(h.sn).patternvalue)
+                            h.freq = h.Settings.stim(h.sn).patternvalue{1};
+                        end
+                        
+                        if h.Seq.signal(h.sn,h.i)==2
+                            h.dur = h.dur-h.varlevel; 
+                        end
+                    else
+                        if h.Seq.signal(h.sn,h.i)==2
+                            dur_diff = str2double(h.aud_diff_gui);
+                            h.dur=h.Settings.stim(h.sn).dur-dur_diff;
+                        else
+                            h.dur=h.Settings.stim(h.sn).dur;
                         end
                     end
-                %end
+                elseif strcmp(h.Settings.PL.oddballmethod,'duration_shuffle')
+                    if h.seqtype.adapt || h.seqtype.thresh
+                        % just take the first pattern
+                        if isnumeric(h.Settings.stim(h.sn).patternvalue)
+                            h.freq = h.Settings.stim(h.sn).patternvalue;
+                        elseif iscell(h.Settings.stim(h.sn).patternvalue)
+                            h.freq = h.Settings.stim(h.sn).patternvalue{1};
+                        end
+                        % adjust number of gaps being randomised
+                        if h.Seq.signal(h.sn,h.i)==2
+                            h.Settings.stim(h.sn).stimrandind_oddball = h.Settings.stim(h.sn).stimrandind(1:round(h.varlevel));
+                            h.dur(h.Settings.stim(h.sn).stimrandind_oddball) = h.dur(h.Settings.stim(h.sn).stimrandind_oddball(randperm(length(h.Settings.stim(h.sn).stimrandind_oddball)))); 
+                        end
+                    else
+                        if h.Seq.signal(h.sn,h.i)==2
+                            dur_diff = str2double(h.aud_diff_gui);
+                            h.Settings.stim(h.sn).stimrandind_oddball = h.Settings.stim(h.sn).stimrandind(1:dur_diff);
+                            h.dur(h.Settings.stim(h.sn).stimrandind_oddball) = h.dur(h.Settings.stim(h.sn).stimrandind_oddball(randperm(length(h.Settings.stim(h.sn).stimrandind_oddball)))); 
+                        else
+                            h.dur=h.Settings.stim(h.sn).dur;
+                        end
+                    end
+                end
             end
             
         end
+%         %apply dur pattern?
+%         h.trialtype.durpattern=0;
+%         if isfield(h.Settings.stim(h.sn),'patternmethod')
+%             if strcmp(h.Settings.stim(h.sn).patternmethod,'dur') % pitch changes
+%                 h.trialtype.durpattern=1;
+%                 %if ~((h.seqtype.adapt || h.seqtype.thresh) && (strcmp(h.Settings.oddballmethod,'pitch') || strcmp(h.Settings.oddballmethod,'freq'))) && ~(~isempty(strcmp(h.Settings.conditionmethod,'pitch')) || ~isempty(strcmp(h.Settings.conditionmethod,'freq'))) % pitch already defined above in this case
+%                     if strcmp(h.Settings.PL.oddballmethod,'pattern') && strcmp(h.Settings.stim(h.sn).durtype,'FromSequence')
+%                         %load from sequence file
+%                         global d
+%                         file = load(fullfile(d.seq, h.Settings.stim(h.sn).patternvalue));
+%                         h.freq = file.settings.stim(1).f0;
+%                         h.dur = file.settings.stim(1).patternvalue{h.Seq.signal(h.sn,h.i)};
+%                     else
+%                         if isnumeric(h.Settings.stim(h.sn).patternvalue)
+%                             h.dur = h.Settings.stim(h.sn).patternvalue;
+%                         elseif iscell(h.Settings.stim(h.sn).patternvalue) %&& strcmp(h.Settings.oddballmethod,'pattern')
+%                             h.dur = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.i)};
+%                         end
+%                     end
+%                 %end
+%             end
+%             
+%         end
         % apply response probe?
         if isfield(h.Settings,'RPmethod')
             if strcmp(h.Settings.RPmethod,'pitch') || strcmp(h.Settings.RPmethod,'freq')

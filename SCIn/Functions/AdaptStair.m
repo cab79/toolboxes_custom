@@ -5,7 +5,11 @@ dbstop if error
 
 adaptive=0;
 opt='';
-stim=h.Settings.adaptive_general.stim;
+try
+    stim=h.Settings.adaptive_general.stim_judge;
+catch
+    stim=h.Settings.adaptive_general.stim;
+end
 
 % find out whether there is more than one type of adaptive in this sequence
 if nargin>1
@@ -193,6 +197,16 @@ elseif strcmp(opt,'responded')
         return
     end
     s.SubjectAccuracyRatio(s.trial)=1;
+    
+    if isfield(h.Settings.adaptive,'samediff')
+        if h.Settings.adaptive(atype).samediff && length(correctsignal)>1
+            if length(unique(correctsignal))==2
+                correctsignal = h.Settings.adaptive(atype).signalval(2);
+            else
+                correctsignal = h.Settings.adaptive(atype).signalval(1);
+            end
+        end
+    end
     if resfun == correctsignal && strcmp(h.Settings.adaptive(atype).type,'discrim')
     %s.SubjectAccuracy(s.trial)= EvaluateAnswer(CorrectAnswer,s.feedback,Question);   %evaluing the subject answer (right or wrong)
         s.SubjectAccuracy(s.trial)= 1;
@@ -425,7 +439,7 @@ switch h.Settings.adaptive(atype).method
                     error('threshold value is a NaN!')
                 end
                 s.a(atype).expthresholds(s.block)=thresh;
-                if strcmp(h.Settings.stim(h.sn).inten_type,'dB')
+                if strcmp(h.Settings.stim(h.sn).inten_type,'dB') && strcmp(h.Settings.PL.oddballmethod,'pitch')
                     s.a(atype).expthresholds(s.block)=-s.a(atype).expthresholds(s.block);
                 end
                 s.a(atype).StimulusLevel = s.a(atype).expthresholds(s.block);

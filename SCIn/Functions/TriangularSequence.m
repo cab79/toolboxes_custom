@@ -11,9 +11,19 @@ if ~isfield(h.Settings,'nstim_trial')
     h.Settings.nstim_trial=3;
 end
 
+if ~isfield(h.Settings,'leading_stims')
+    h.Settings.leading_stims=0;
+end
+
+if length(h.Settings.PL.oddballvalue{1})==1
+    nodds = length(h.Settings.PL.oddballvalue);
+else
+    nodds = length(h.Settings.PL.oddballvalue{1});
+end
+
 % create list of which stim to present on each trial   
-switch length(h.Settings.PL.oddballvalue)
-    case 2
+if nodds<=h.Settings.nstim_trial
+% two possible stims (patterns)
         for i = 1:size(h.Settings.PL.oddprob,1)
             ntrial_per_stimtype(i,:) = floor(h.Settings.ntrials(i)*h.Settings.PL.oddprob(i,:));
             thisseq=[];
@@ -24,19 +34,21 @@ switch length(h.Settings.PL.oddballvalue)
             seq = [seq thisseq];
         end
         randind = randperm(length(seq));
-        seq = seq(randind);
+        seq = seq(randind); % oddballs or standards? In this case, which stim pattern to start with.
         h.Seq.condnum = h.Seq.condnum(randind);
 
+        % use oddball values to create signal
         for i = 1:size(h.Settings.PL.oddprob,1)
             condind = h.Seq.condnum==i;
-            h.Seq.signal(1:h.Settings.nstim_trial,condind)=h.Settings.PL.oddballvalue{i}(1)*ones(h.Settings.nstim_trial,sum(condind));
-            for ns = 1:h.Settings.nstim_trial
-                h.Seq.signal(ns,seq==ns & condind) = h.Settings.PL.oddballvalue{i}(2);
+            h.Seq.signal(1:h.Settings.nstim_trial,condind)=h.Settings.PL.nonoddballstimvalue{i}*ones(h.Settings.nstim_trial,sum(condind));
+            for ns = h.Settings.target_stims
+                ind = find(h.Settings.target_stims==ns);
+                h.Seq.signal(ns,condind) = h.Settings.PL.oddballvalue{i}(ind);
             end
         end
-    case 4
-        for i = 1:size(h.Settings.oddprob,1)
-            ntrial_per_stimtype(i,:) = floor(h.Settings.ntrials(i)*h.Settings.oddprob(i,:));
+else % four possible stims (patterns)
+        for i = 1:size(h.Settings.PL.oddprob,1)
+            ntrial_per_stimtype(i,:) = floor(h.Settings.ntrials(i)*h.Settings.PL.oddprob(i,:));
             thisseq=[];
             for ns = 1:size(ntrial_per_stimtype,2)
                 thisseq = [thisseq repmat(ns,1,ntrial_per_stimtype(i,ns))];
@@ -50,18 +62,18 @@ switch length(h.Settings.PL.oddballvalue)
         h.Seq.signal(1:h.Settings.nstim_trial,length(h.Seq.condnum))=NaN;
         
         % for each stim pattern being left out
-        for i = 1:size(h.Settings.oddprob,1)
+        for i = 1:size(h.Settings.PL.oddprob,1)
             
             % get all values except value i being left out
-            oddind = 1:size(h.Settings.oddprob,1);
+            oddind = 1:size(h.Settings.PL.oddprob,1);
             oddind(i) = [];
             oddvals = h.Settings.oddballvalue(oddind);
             oddvals = oddvals(randperm(length(oddvals)));
             
             % get the indices of this 'condition' (i.e. the pattern being left out)
             condind = h.Seq.condnum==i;
-            for ns = 1:h.Settings.nstim_trial
-                h.Seq.signal(ns,condind) = oddvals{ns};
+            for ns = h.Settings.target_stims
+                h.Seq.signal(ns,condind) = oddvals{find(h.Settings.target_stims==ns)};
             end
         end
         
@@ -109,4 +121,9 @@ elseif strcmp(h.Settings.stim(1).durtype,'FromSequence')
         h.Settings.stim(ns) = file.settings.stim(2);
         h.Settings.stim(ns) = file.settings.stim(3);
     end
+end
+
+%% create Adaptive type order
+if isfield(h.Settings,'adaptive')
+    h = CreateAdaptive(h);
 end

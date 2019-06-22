@@ -259,6 +259,7 @@ if ~isfield(h,'varlevel')
     h.varlevel=0;
 end
 inten_atten=0;
+h.inten_atten=0;
 if isfield(h.Settings.stim(h.sn),'attenchan')
     if any(ismember(h.chan,h.Settings.stim(h.sn).attenchan))
         
@@ -276,7 +277,7 @@ if isfield(h.Settings.stim(h.sn),'attenchan')
             if strcmp(h.Settings.stim(h.sn).atten{1},'inten_diff')
                 if ~h.seqtype.adapt && ~h.seqtype.thresh
                     inten_atten = inten_atten + h.stim(h.sn).inten_diff * h.Settings.stim(h.sn).atten{2};
-                elseif (h.seqtype.adapt && h.Settings.adaptive_general.stim==h.sn) || (h.seqtype.thresh && h.Settings.threshold.stim==h.sn)
+                elseif (h.seqtype.adapt && ismember(h.sn,h.Settings.adaptive_general.stim)) || (h.seqtype.thresh && h.Settings.threshold.stim==h.sn)
                     if isfield(h,'s')
                         inten_atten = h.s.a(strcmp({h.Settings.adaptive(:).type}, 'discrim')).StimulusLevel;
                     else
@@ -299,7 +300,7 @@ if isfield(h.Settings.stim(h.sn),'attenchan')
             if strcmp(h.Settings.oddballmethod,'intensity')
                 h.inten_atten = [inten_atten-h.varlevel/2, (inten_atten+h.varlevel/2)];
                 h.inten_atten = h.inten_atten(h.Seq.signal(h.sn,h.tr));
-            else
+            elseif strcmp(h.Settings.oddballmethod,'index')
                 h.inten_atten = inten_atten+h.varlevel;
             end
         elseif h.seqtype.thresh && strcmp(h.Settings.stim(h.sn).inten_type,'dB')
@@ -310,8 +311,6 @@ if isfield(h.Settings.stim(h.sn),'attenchan')
     else
         h.inten_atten = 0; 
     end
-else
-    h.inten_atten = 0; 
 end
 
 if h.inten_atten
