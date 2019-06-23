@@ -380,13 +380,13 @@ switch h.Settings.stim(h.sn).control
                 end
                 % for Seq_Discrim expt
                 if strcmp(h.Settings.PL.oddballmethod,'duration')
+                    % just take the first pattern
+                    if isnumeric(h.Settings.stim(h.sn).patternvalue)
+                        h.freq = h.Settings.stim(h.sn).patternvalue;
+                    elseif iscell(h.Settings.stim(h.sn).patternvalue)
+                        h.freq = h.Settings.stim(h.sn).patternvalue{1};
+                    end
                     if h.seqtype.adapt || h.seqtype.thresh
-                        % just take the first pattern
-                        if isnumeric(h.Settings.stim(h.sn).patternvalue)
-                            h.freq = h.Settings.stim(h.sn).patternvalue;
-                        elseif iscell(h.Settings.stim(h.sn).patternvalue)
-                            h.freq = h.Settings.stim(h.sn).patternvalue{1};
-                        end
                         
                         if h.Seq.signal(h.sn,h.i)==2
                             h.dur = h.dur-h.varlevel; 
@@ -400,26 +400,29 @@ switch h.Settings.stim(h.sn).control
                         end
                     end
                 elseif strcmp(h.Settings.PL.oddballmethod,'duration_shuffle')
-                    if h.seqtype.adapt || h.seqtype.thresh
-                        % just take the first pattern
-                        if isnumeric(h.Settings.stim(h.sn).patternvalue)
-                            h.freq = h.Settings.stim(h.sn).patternvalue;
-                        elseif iscell(h.Settings.stim(h.sn).patternvalue)
-                            h.freq = h.Settings.stim(h.sn).patternvalue{1};
-                        end
-                        % adjust number of gaps being randomised
-                        if h.Seq.signal(h.sn,h.i)==2
-                            h.Settings.stim(h.sn).stimrandind_oddball = h.Settings.stim(h.sn).stimrandind(1:round(h.varlevel));
-                            h.dur(h.Settings.stim(h.sn).stimrandind_oddball) = h.dur(h.Settings.stim(h.sn).stimrandind_oddball(randperm(length(h.Settings.stim(h.sn).stimrandind_oddball)))); 
-                        end
-                    else
-                        if h.Seq.signal(h.sn,h.i)==2
-                            dur_diff = str2double(h.aud_diff_gui);
-                            h.Settings.stim(h.sn).stimrandind_oddball = h.Settings.stim(h.sn).stimrandind(1:dur_diff);
-                            h.dur(h.Settings.stim(h.sn).stimrandind_oddball) = h.dur(h.Settings.stim(h.sn).stimrandind_oddball(randperm(length(h.Settings.stim(h.sn).stimrandind_oddball)))); 
+                    % just take the first pattern
+                    if isnumeric(h.Settings.stim(h.sn).patternvalue)
+                        h.freq = h.Settings.stim(h.sn).patternvalue;
+                    elseif iscell(h.Settings.stim(h.sn).patternvalue)
+                        h.freq = h.Settings.stim(h.sn).patternvalue{1};
+                    end
+                    % randomise durations according to indices in settings
+                    h.dur = h.Settings.stim(h.sn).dur; 
+                    h.dur(sort(h.Settings.stim(h.sn).stimrandind)) = h.dur(h.Settings.stim(h.sn).stimrandind);
+                    if h.Seq.signal(h.sn,h.i)==2 % oddball
+                        if h.seqtype.adapt || h.seqtype.thresh
+                            dur_diff = h.varlevel;
                         else
-                            h.dur=h.Settings.stim(h.sn).dur;
+                            dur_diff = str2double(h.aud_diff_gui);
                         end
+                        % adjust number of gaps being further randomised according to h.varlevel
+                        h.Settings.stim(h.sn).stimrandind_oddball = h.Settings.stim(h.sn).stimrandind(1:round(dur_diff));
+                        % if new trial, shuffle indices (requires minimum of 2 gaps to be shuffled)
+                        if ~isfield(h,'dur_new_order_trialind') || h.i~=h.dur_new_order_trialind
+                            h.dur_new_order = randperm(length(h.Settings.stim(h.sn).stimrandind_oddball));
+                            h.dur_new_order_trialind=h.i;
+                        end
+                        h.dur(h.Settings.stim(h.sn).stimrandind_oddball) = h.dur(h.Settings.stim(h.sn).stimrandind_oddball(h.dur_new_order));
                     end
                 end
             end

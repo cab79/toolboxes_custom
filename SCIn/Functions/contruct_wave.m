@@ -377,6 +377,8 @@ end
 %    figure
 %    plot(0:1/samplerate:active,sigB)
 %end
+
+%figure;plot(h.mwav(1,:))
 if isfield(h,'mon')
     h.Seq.stimseq = [h.Seq.stimseq h.mon];
 else

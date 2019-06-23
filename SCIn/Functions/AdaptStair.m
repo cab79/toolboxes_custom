@@ -748,11 +748,11 @@ if setup
     % Starting params
     s.p(atype).init.zestinit_diffLvl = abs(h.Settings.adaptive(atype).startinglevel); %10; % initial difference level used for Fig 1A of Marvit et al.	was 3 db
     s.p(atype).init.zestminrange = abs(h.Settings.adaptive(atype).levelmin); % lowest threshold value possible; % -s.p(atype).init.zestmaxrange;
-    if strcmp(h.Settings.adaptive(atype).type,'discrim')
-        s.p(atype).init.zestmaxrange = abs(h.Settings.adaptive(atype).levelmax); % lowest threshold value possible; % -s.p(atype).init.zestmaxrange;
-    else
+    %if strcmp(h.Settings.adaptive(atype).type,'discrim')
+    %    s.p(atype).init.zestmaxrange = abs(h.Settings.adaptive(atype).levelmax); % lowest threshold value possible; % -s.p(atype).init.zestmaxrange;
+    %else
         s.p(atype).init.zestmaxrange = 2*s.p(atype).init.zestinit_diffLvl; % highest threshold value possible; 
-    end
+    %end
     s.p(atype).init.zestminrange = abs(h.Settings.adaptive(atype).levelmin); % lowest threshold value possible; % -s.p(atype).init.zestmaxrange;
     %range = s.p(atype).init.zestmaxrange-s.p(atype).init.zestminrange;
     
