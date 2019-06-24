@@ -113,14 +113,14 @@ if strcmp(h.Settings.stim(1).durtype,'sequence_rand')
         end
     end
 elseif strcmp(h.Settings.stim(1).durtype,'oddballvalue')
-    for s = 1:length(h.Settings.stim)
-        patternvalue = h.Settings.stim(s).patternvalue;
-        dur = h.Settings.stim(s).dur;
+    for i = 1:length(h.Settings.stim)
+        patternvalue = h.Settings.stim(1).patternvalue;
+        dur = h.Settings.stim(1).dur;
         for i = 1:length(patternvalue)
-            h.Settings.stim(s).patternvalue{i*2-1} = patternvalue{i};
-            h.Settings.stim(s).patternvalue{i*2} = patternvalue{i};
-            h.Settings.stim(s).dur{i*2-1} = dur{i};
-            h.Settings.stim(s).dur{i*2} = dur{i};
+            h.Settings.stim(1).patternvalue{i*2-1} = patternvalue{i};
+            h.Settings.stim(1).patternvalue{i*2} = patternvalue{i};
+            h.Settings.stim(1).dur{i*2-1} = dur{i};
+            h.Settings.stim(1).dur{i*2} = dur{i};
         end
     end
 elseif strcmp(h.Settings.stim(1).durtype,'FromSequence')

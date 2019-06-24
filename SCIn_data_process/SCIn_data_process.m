@@ -8,69 +8,25 @@ if ~isfield(S,'movingavg')
     S.movingavg = 20;
 end
 
-%S.accuracy.buttons = {'LeftArrow','RightArrow'};%{'DownArrow','UpArrow'};
-S.accuracy.signal = [1 2];
-if S.fitsim==1
-    switch S.version
-        case 1
-            S.accuracy.target_resp = {[1 2],[1 2]}; % for each target (1st cell) which is the correct response (2nd cell)
-            S.signal.target = 1; % which row of signal is the target being responded to?
-            S.signal.cue = 0;
-        case {2 3}
-            S.accuracy.target_resp = {[1 2],[1 2]}; % for each target (1st cell) which is the correct response (2nd cell)
-            S.signal.target = 2; % which row of signal is the target being responded to?
-            S.signal.cue = 1;
-            S.accuracy.cond_stimtype = [1 2]; % which stimtypes to include when summarising results within conditions?
-    end
-elseif S.fitsim==2
-    S.accuracy.target_resp = {[1 2],[1 2]}; % for each target (1st cell) which is the correct response (2nd cell)
-    S.signal.target = 2; % which row of signal is the target being responded to?
-    S.signal.cue = 1;
-    S.accuracy.cond_stimtype = [1 2]; % which stimtypes to include when summarising results within conditions?
-end
-
 for d = 1:length(D)
     
     for op = 1:length(D(d).Output)
 
         % get settings if not in D already
-        if ~isfield(D(d).Output(op),'Settings')
-            A=load(fullfile('C:\Data\Matlab\Matlab_files\NTIP\SCIn\Sequences', D(d).Output(op).SeqName));
-            D(d).Output(op).Settings = A.settings;
+%         if ~isfield(D(d).Output(op),'Settings')
+%             A=load(fullfile('C:\Data\Matlab\Matlab_files\NTIP\SCIn\Sequences', D(d).Output(op).SeqName));
+%             D(d).Output(op).Settings = A.settings;
+%         end
+        
+
+        % specify stimtypes if needed
+        if isfield(S.accuracy,'cond_stimtype') && ~isempty(S.accuracy.cond_stimtype)
+            incl_stimtypes = ismember(D(d).Sequence.signal(S.signal.target,:),S.accuracy.cond_stimtype);
+        else
+            incl_stimtypes = ones(1,size(D(d).Sequence.signal,2));
         end
         
-        if S.accuracy.on
-            
-            S.accuracy.buttons = D(d).Output(1).Settings.buttonopt;
-            
-            % create presssignal 
-            D(d).Processed(op).presssignal = nan(1,size(D(d).Sequence.signal,2));
-            presssignal = [];
-            for i = 1:length(S.accuracy.buttons)
-                % translate actual buttons to their "signal" meaning
-                presssignal(strcmp(D(d).Output(op).pressbutton,S.accuracy.buttons{i}))=S.accuracy.signal(i);
-            end
-            D(d).Processed(op).presssignal(D(d).Output(op).presstrial) = presssignal;
-            
-            % what are the correct responses?
-            D(d).Processed(op).correct_resp = D(d).Sequence.signal(S.signal.target,:);
-            correct_resp_new = D(d).Processed(op).correct_resp;
-            for i = 1:length(S.accuracy.target_resp{1})
-                correct_resp_new(D(d).Processed(op).correct_resp==S.accuracy.target_resp{1}(i)) = S.accuracy.target_resp{2}(i);
-            end
-            D(d).Processed(op).correct_resp = correct_resp_new;
-            
-            % compare actual responses to correct responses - which were
-            % correct?
-            D(d).Processed(op).correct = double(D(d).Processed(op).correct_resp==D(d).Processed(op).presssignal);
-            D(d).Processed(op).correct(isnan(D(d).Processed(op).presssignal)) = nan;
-            
-            % moving average percent correct over time
-            ma=S.movingavg;
-            for i = 1:length(D(d).Processed(op).correct)
-                D(d).Processed(op).macorrect(i) = 100*sum(D(d).Processed(op).correct(max(1,i-ma+1):i))/length(max(1,i-ma+1):i);
-            end
-            
+        
             % create condnum cell which either contains all trials or a
             % subset of trials according to S.trialmax
                     % This allows testing of how many trials are needed to
@@ -99,6 +55,119 @@ for d = 1:length(D)
                 condnum{1} = condind;
             end
 
+
+         % process RTs first so that trials rejected can also be rejected
+         % from choice data
+         if S.RT.on
+            
+            % log response times
+            D(d).Processed(op).logrt=nan(1,size(D(d).Sequence.signal,2));
+            RT=D(d).Output.RT;
+            RT(RT<S.RT.min | RT>S.RT.max)=nan; % don't consider RTs less than e.g. 500ms and greater than e.g. 2s
+            logRT=log(RT);
+            logRT_SD_cutoffs = [nanmedian(logRT)-nanstd(logRT)*S.RT.SDreject, nanmedian(logRT)+nanstd(logRT)*S.RT.SDreject];
+            logRT(logRT<logRT_SD_cutoffs(1) | logRT>logRT_SD_cutoffs(2))=nan;
+            D(d).Processed(op).logrt(D(d).Output.presstrial) = logRT;
+            
+            % moving average RT over time
+            ma=S.movingavg;
+            for i = 1:length(D(d).Processed(op).logrt)
+                D(d).Processed(op).malogrt(i) = nansum(D(d).Processed(op).logrt(max(1,i-ma+1):i))/length(max(1,i-ma+1):i);
+            end
+            
+            % create condnum cell which either contains all trials or a
+            % subset of trials according to S.trialmax
+                    % This allows testing of how many trials are needed to
+                    % produce robust condition differences.
+            condnum={};
+            conds = unique(condind);
+            if ~isempty(S.trialmax)
+                for tm = 1:length(S.trialmax)
+                    trialmax = S.trialmax{tm};
+                    % reduce the number of trials per condition-pair to S.trialmax
+                    for i = 1:ceil(length(conds)/2)
+                        ind = (i-1)*2+1:(i-1)*2+2; % condition pair indices, e.g. 1 2, 3 4, 5 6
+                        trialind = find(ismember(condind,conds(ind(ismember(ind,conds)))));
+                        trialind_new = trialind(1:min(trialmax,length(trialind)));
+                        condnum_orig{tm} = condind;
+                        condnum{tm}(trialind) = nan;
+                        condnum{tm}(trialind_new) = condnum_orig{tm}(trialind_new);
+                    end
+                end
+            else
+                condnum{1} = condind;
+            end
+
+            % for each version of condnum (diff number of trials in each),
+            % get perc correct for each condition and block
+            for cn = 1:length(condnum)
+                
+                % split into conditions
+                condsuni = unique(condnum{cn});
+                condsuni = condsuni(~isnan(condsuni));
+                D(d).Processed(op).cond_logrt{cn} = nan(1,length(conds));
+                for i = 1:length(condsuni)
+                    D(d).Processed(op).cond_logrt{cn}(condsuni(i)) = nanmean(D(d).Processed(op).logrt(condnum{cn}==condsuni(i) & incl_stimtypes)); 
+                end
+
+                % split into stim intensity per condition
+                if S.accuracy.cond_stimtype
+                    stims = unique(D(d).Sequence.signal(S.signal.target,:));
+                    for i = 1:length(condsuni)
+                        for s = 1:length(stims)
+                            D(d).Processed(op).stimcond_logrt{cn}{condsuni(i)}(s) = nanmean(D(d).Processed(op).logrt(condnum{cn}==condsuni(i) & D(d).Sequence.signal(S.signal.target,:)==stims(s))); 
+                        end
+                    end
+                end
+            end
+        end
+        
+        if S.accuracy.on
+            
+            S.accuracy.buttons = D(d).Output(1).Settings.buttonopt;
+            
+            % create presssignal 
+            D(d).Processed(op).presssignal = nan(1,size(D(d).Sequence.signal,2));
+            presssignal = [];
+            for i = 1:length(S.accuracy.buttons)
+                % translate actual buttons to their "signal" meaning
+                presssignal(strcmp(D(d).Output(op).pressbutton,S.accuracy.buttons{i}))=S.accuracy.signal(i);
+            end
+            % exclude bad trials based on RT limits
+            if exist('logRT','var')
+                presssignal(isnan(logRT)) = nan;
+            end
+            D(d).Processed(op).presssignal(D(d).Output(op).presstrial) = presssignal;
+            
+            % what are the correct responses?
+            if isfield(D(d).Output(1).Settings.adaptive,'samediff') && D(d).Output(1).Settings.adaptive.samediff
+                if numel(S.signal.target)~=2
+                    error('Same-Different responses require two targets')
+                end
+                D(d).Processed(op).correct_resp = abs(diff(D(d).Sequence.signal(S.signal.target,:)))+1;
+            else
+                % assume signal is the target
+                D(d).Processed(op).correct_resp = D(d).Sequence.signal(S.signal.target,:);
+            end
+            
+            % for each target, re-label in terms of correct response
+            correct_resp_new = D(d).Processed(op).correct_resp;
+            for i = 1:length(S.accuracy.target_resp{1})
+                correct_resp_new(D(d).Processed(op).correct_resp==S.accuracy.target_resp{1}(i)) = S.accuracy.target_resp{2}(i);
+            end
+            D(d).Processed(op).correct_resp = correct_resp_new;
+            
+            % compare actual responses to correct responses - which were
+            % correct?
+            D(d).Processed(op).correct = double(D(d).Processed(op).correct_resp==D(d).Processed(op).presssignal);
+            D(d).Processed(op).correct(isnan(D(d).Processed(op).presssignal)) = nan;
+            
+            % moving average percent correct over time
+            ma=S.movingavg;
+            for i = 1:length(D(d).Processed(op).correct)
+                D(d).Processed(op).macorrect(i) = 100*sum(D(d).Processed(op).correct(max(1,i-ma+1):i))/length(max(1,i-ma+1):i);
+            end
+            
             % for each version of condnum (diff number of trials in each),
             % get perc correct for each condition and block
             for cn = 1:length(condnum)
@@ -107,8 +176,9 @@ for d = 1:length(D)
                 condsuni = unique(condnum{cn});
                 condsuni = condsuni(~isnan(condsuni));
                 D(d).Processed(op).condcorrectfract{cn} = nan(1,length(conds));
+                
                 for i = 1:length(condsuni)
-                    D(d).Processed(op).condcorrect{cn}{condsuni(i)} = D(d).Processed(op).correct(condnum{cn}==condsuni(i) & ismember(D(d).Sequence.signal(S.signal.target,:),S.accuracy.cond_stimtype)); 
+                    D(d).Processed(op).condcorrect{cn}{condsuni(i)} = D(d).Processed(op).correct(condnum{cn}==condsuni(i) & incl_stimtypes); 
                     D(d).Processed(op).numtrials{cn}{condsuni(i)} = sum(~isnan(D(d).Processed(op).condcorrect{cn}{condsuni(i)}));
                     D(d).Processed(op).condcorrectfract{cn}(condsuni(i)) = nansum(D(d).Processed(op).condcorrect{cn}{condsuni(i)})/D(d).Processed(op).numtrials{cn}{condsuni(i)};
                 end
@@ -157,12 +227,14 @@ for d = 1:length(D)
                 end
                 
                 % split into stim intensity per condition
-                stims = unique(D(d).Sequence.signal(S.signal.target,:));
-                for i = 1:length(condsuni)
-                    for s = 1:length(stims)
-                        D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s} = D(d).Processed(op).correct(condnum{cn}==condsuni(i) & D(d).Sequence.signal(S.signal.target,:)==stims(s)); 
-                        D(d).Processed(op).stimnumtrials{cn}{condsuni(i)}{s} = sum(~isnan(D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s}));
-                        D(d).Processed(op).stimcondcorrectfract{cn}{condsuni(i)}(s) = nansum(D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s})/D(d).Processed(op).stimnumtrials{cn}{condsuni(i)}{s};
+                if S.accuracy.cond_stimtype
+                    stims = unique(D(d).Sequence.signal(S.signal.target,:));
+                    for i = 1:length(condsuni)
+                        for s = 1:length(stims)
+                            D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s} = D(d).Processed(op).correct(condnum{cn}==condsuni(i) & D(d).Sequence.signal(S.signal.target,:)==stims(s)); 
+                            D(d).Processed(op).stimnumtrials{cn}{condsuni(i)}{s} = sum(~isnan(D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s}));
+                            D(d).Processed(op).stimcondcorrectfract{cn}{condsuni(i)}(s) = nansum(D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s})/D(d).Processed(op).stimnumtrials{cn}{condsuni(i)}{s};
+                        end
                     end
                 end
                 
@@ -179,64 +251,7 @@ for d = 1:length(D)
                 end
             end
         end
-        if S.RT.on
-            
-            % log response times
-            D(d).Processed(op).logrt=nan(1,size(D(d).Sequence.signal,2));
-            RT=D(d).Output.RT;
-            RT(RT<S.RT.min | RT>S.RT.max)=nan; % don't consider RTs less than e.g. 500ms and greater than e.g. 2s
-            D(d).Processed(op).logrt(D(d).Output.presstrial) = log(RT);
-            
-            % moving average RT over time
-            ma=S.movingavg;
-            for i = 1:length(D(d).Processed(op).logrt)
-                D(d).Processed(op).malogrt(i) = nansum(D(d).Processed(op).logrt(max(1,i-ma+1):i))/length(max(1,i-ma+1):i);
-            end
-            
-            % create condnum cell which either contains all trials or a
-            % subset of trials according to S.trialmax
-                    % This allows testing of how many trials are needed to
-                    % produce robust condition differences.
-            condnum={};
-            conds = unique(condind);
-            if ~isempty(S.trialmax)
-                for tm = 1:length(S.trialmax)
-                    trialmax = S.trialmax{tm};
-                    % reduce the number of trials per condition-pair to S.trialmax
-                    for i = 1:ceil(length(conds)/2)
-                        ind = (i-1)*2+1:(i-1)*2+2; % condition pair indices, e.g. 1 2, 3 4, 5 6
-                        trialind = find(ismember(condind,conds(ind(ismember(ind,conds)))));
-                        trialind_new = trialind(1:min(trialmax,length(trialind)));
-                        condnum_orig{tm} = condind;
-                        condnum{tm}(trialind) = nan;
-                        condnum{tm}(trialind_new) = condnum_orig{tm}(trialind_new);
-                    end
-                end
-            else
-                condnum{1} = condind;
-            end
-
-            % for each version of condnum (diff number of trials in each),
-            % get perc correct for each condition and block
-            for cn = 1:length(condnum)
-                
-                % split into conditions
-                condsuni = unique(condnum{cn});
-                condsuni = condsuni(~isnan(condsuni));
-                D(d).Processed(op).cond_logrt{cn} = nan(1,length(conds));
-                for i = 1:length(condsuni)
-                    D(d).Processed(op).cond_logrt{cn}(condsuni(i)) = nanmean(D(d).Processed(op).logrt(condnum{cn}==condsuni(i) & ismember(D(d).Sequence.signal(S.signal.target,:),S.accuracy.cond_stimtype))); 
-                end
-
-                % split into stim intensity per condition
-                stims = unique(D(d).Sequence.signal(S.signal.target,:));
-                for i = 1:length(condsuni)
-                    for s = 1:length(stims)
-                        D(d).Processed(op).stimcond_logrt{cn}{condsuni(i)}(s) = nanmean(D(d).Processed(op).logrt(condnum{cn}==condsuni(i) & D(d).Sequence.signal(S.signal.target,:)==stims(s))); 
-                    end
-                end
-            end
-        end
+       
     end
     
     % average

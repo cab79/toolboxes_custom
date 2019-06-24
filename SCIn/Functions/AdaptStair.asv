@@ -216,7 +216,7 @@ elseif strcmp(opt,'responded')
                 correctsignal = h.Settings.adaptive(atype).signalval(1);
             end
         elseif strcmp(h.Settings.adaptive(atype).response_type,'2AFC') && length(correctsignal)>1
-            correctsignal = find(signaltarget==h.Settings.adaptive(atype).signalval(1)); % the first type is alwsys correct
+            correctsignal = h.Settings.adaptive(atype).signalval(1); % the first type is alwsys correct
         end
     end
     if resfun == correctsignal && strcmp(h.Settings.adaptive(atype).type,'discrim')
