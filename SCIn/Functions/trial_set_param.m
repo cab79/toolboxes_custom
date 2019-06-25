@@ -393,13 +393,13 @@ switch h.Settings.stim(h.sn).control
                     end
                     if h.seqtype.adapt || h.seqtype.thresh
                         
-                        if h.Seq.signal(h.sn,h.tr)==2
+                        if ismember(h.Seq.signal(h.sn,h.tr),2:2:100) % even numbers
                             h.dur = h.dur-h.varlevel/2; 
                         else
                             h.dur = h.dur+h.varlevel/2; 
                         end
                     else
-                        if h.Seq.signal(h.sn,h.tr)==2
+                        if ismember(h.Seq.signal(h.sn,h.tr),2:2:100) % even numbers
                             dur_diff = str2double(h.aud_diff_gui);
                             h.dur=h.Settings.stim(h.sn).dur-dur_diff/2;
                         else
