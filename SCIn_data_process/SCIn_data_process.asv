@@ -156,7 +156,7 @@ for d = 1:length(D)
                 if numel(S.signal.target)~=2
                     error('2AFC responses require two targets and definition of S.signal.correct_resp')
                 end
-                [~,D(d).Processed(op).correct_resp] = max(correct_resp==S.signal.correct_resp, [],1);
+                {~,D(d).Processed(op).correct_resp] = find(correct_resp==S.signal.correct_resp);
             else
                 % assume signal is the target
                 D(d).Processed(op).correct_resp = correct_resp;
