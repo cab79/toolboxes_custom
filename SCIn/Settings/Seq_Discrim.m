@@ -1034,15 +1034,13 @@ case 'Discrim_isochron_cues'
     h.Settings.conditionvalue = [];% Rows: methods. Columns: each stimtype
     % Oddball method: intensity, index, pitch, channel
     h.Settings.PL.oddballmethod = 'duration'; % can use same type for pattern only if oddball intensity is adaptive
-    h.Settings.PL.oddballvalue = {[1 1],[1 2],[2 1],[2 2],[1 1],[1 2],[2 1],[2 2]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
-    h.Settings.PL.nonoddballstimvalue = {1,1,1,1,2,2,2,2};
+    h.Settings.PL.oddballvalue = {[1 2],[2 1],[1 2],[2 1],[1 2],[2 1]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
+    h.Settings.PL.nonoddballstimvalue = {[0 0 1],[0 0 1],[1 1 1],[1 1 1],[2 2 2],[2 2 2]};
     h.Settings.PL.oddballtype = 'classical'; % options: 'roving', 'classical' 
 
     %% SEQUENCE
     % Change probablity (CP): each condition is in rows
     h.Settings.PL.oddprob = [
-        1/2 1/2
-        1/2 1/2
         1/2 1/2
         1/2 1/2
         1/2 1/2
@@ -1066,7 +1064,7 @@ case 'Discrim_isochron_cues'
     %h.Settings.n_odd_set = 10*[12]; % overrides h.Settings.totdur
     % randomise sets?
     %h.Settings.rand_set = [0]; 
-    h.Settings.ntrials = [10 10 10 10 10 10 10 10];
+    h.Settings.ntrials = [20 20 10 10 10 10];
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1
@@ -1095,7 +1093,7 @@ case 'Discrim_isochron_cues'
     h.Settings.adaptive_general.seqtypecond = [1 1]; %if 'cond', associate each CP with an adaptive type
     h.Settings.adaptive_general.seqrandblocksize = 12; % should divide the number of trials in a set
     h.Settings.adaptive_general.selectcond.cp = [2]; % which CP condition to run adaptive on?
-    h.Settings.adaptive_general.stim = h.Settings.target_stims; % which stims to apply changes to?
+    h.Settings.adaptive_general.stim = [1 2 4 5]; % which stims to apply changes to?
     h.Settings.adaptive_general.stim_judge = h.Settings.target_stims; % which stims to participants judge?
     h.Settings.adaptive_general.terminate = ''; % terminate within each block only
     h.Settings.adaptive_general.reestimate = ''; % 'block' to re-estimate with wider prior each block
@@ -1115,7 +1113,9 @@ case 'Discrim_isochron_cues'
     % adaptive staircase: corresponding signal values that would signify a
     % correct answer
     h.Settings.adaptive(1).signalval = [1 2];
-    h.Settings.adaptive(1).response_type = 'samediff'; % discrimination is same/difference
+    h.Settings.adaptive(1).signalcorrect = 2; % correct response
+    h.Settings.adaptive(1).signaltarget = {[1 2],[1 2]}; % translate actual signal values to signalval indices
+    h.Settings.adaptive(1).response_type = '2AFC';%'samediff'; % discrimination is same/difference
     % reversals
     h.Settings.adaptive(1).reversals = [4;8;12];
     % stepsize
@@ -1142,11 +1142,11 @@ case 'Discrim_isochron_cues'
     % incorrect (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
     %h.Settings.adaptive(1).meanadjustmax = 10;
     % maximum amount of the difference value (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
-    h.Settings.adaptive(1).levelmax = 0.05; % should be a DIFFERENCE value.
+    h.Settings.adaptive(1).levelmax = 0.02; % should be a DIFFERENCE value.
     h.Settings.adaptive(1).levelmin = 0;
     h.Settings.adaptive(1).maxtrial = inf;
     %h.Settings.adaptive(1).expected_change = 5; % smaller value increases the precision of the prior for ZEST and reduces step size of changes in estimates
-    h.Settings.adaptive(1).ignoretrials = 5;
+    h.Settings.adaptive(1).ignoretrials = 0;
     h.Settings.adaptive(1).eta_divide = 2;
     h.Settings.adaptive(1).slope_stimratio = 1; % number to divide stimulus level by, to calculate slope of ZEST. Should be smaller for thresholding, larger for adjustments during an expt
     

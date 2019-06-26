@@ -395,15 +395,21 @@ switch h.Settings.stim(h.sn).control
                         
                         if ismember(h.Seq.signal(h.sn,h.tr),2:2:100) % even numbers
                             h.dur = h.dur-h.varlevel/2; 
-                        else
+                        elseif ismember(h.Seq.signal(h.sn,h.tr),1:1:99) % odd numbers
                             h.dur = h.dur+h.varlevel/2; 
+                        else
+                            h.dur = 0;
+                            h.freq = 0;
                         end
                     else
                         if ismember(h.Seq.signal(h.sn,h.tr),2:2:100) % even numbers
                             dur_diff = str2double(h.aud_diff_gui);
                             h.dur=h.Settings.stim(h.sn).dur-dur_diff/2;
-                        else
+                        elseif ismember(h.Seq.signal(h.sn,h.tr),1:1:99) % odd numbers
                             h.dur=h.Settings.stim(h.sn).dur+dur_diff/2;
+                        else
+                            h.dur = 0;
+                            h.freq = 0;
                         end
                     end
                 elseif strcmp(h.Settings.PL.oddballmethod,'duration_shuffle')

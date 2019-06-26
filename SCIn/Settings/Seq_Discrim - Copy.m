@@ -118,15 +118,13 @@ switch opt
     h.Settings.conditionvalue = [];% Rows: methods. Columns: each stimtype
     % Oddball method: intensity, index, pitch, channel
     h.Settings.PL.oddballmethod = 'duration'; % can use same type for pattern only if oddball intensity is adaptive
-    h.Settings.PL.oddballvalue = {[1 2],[2 1],[3 4],[4 3],[5 6],[6 5]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
-    h.Settings.PL.nonoddballstimvalue = {0 0 0 0 0 0};
+    h.Settings.PL.oddballvalue = {[1 2],[2 1],[3 4],[4 3]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
+    h.Settings.PL.nonoddballstimvalue = {0 0 0 0};
     h.Settings.PL.oddballtype = 'classical'; % options: 'roving', 'classical'
 
     %% SEQUENCE
     % Change probablity (CP): each condition is in rows
     h.Settings.PL.oddprob = [
-        1/2 1/2
-        1/2 1/2
         1/2 1/2
         1/2 1/2
         1/2 1/2
@@ -148,7 +146,7 @@ switch opt
     %h.Settings.n_odd_set = 10*[12]; % overrides h.Settings.totdur
     % randomise sets?
     %h.Settings.rand_set = [0]; 
-    h.Settings.ntrials = [20 20 20 20 20 20];
+    h.Settings.ntrials = [20 20 20 20];
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1
@@ -198,7 +196,7 @@ switch opt
     % correct answer
     h.Settings.adaptive(1).signalval = [1 2]; 
     h.Settings.adaptive(1).signalcorrect = 2; % correct response
-    h.Settings.adaptive(1).signaltarget = {[1 2 3 4 5 6],[1 2 1 2 1 2]}; % translate actual signal values to signalval indices
+    h.Settings.adaptive(1).signaltarget = {[1 2 3 4],[1 2 1 2]}; % translate actual signal values to signalval indices
     h.Settings.adaptive(1).response_type = '2AFC';%'samediff'; % discrimination is same/difference
     % reversals
     h.Settings.adaptive(1).reversals = [4;8;12];
@@ -226,7 +224,7 @@ switch opt
     % incorrect (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
     %h.Settings.adaptive(1).meanadjustmax = 10;
     % maximum amount of the difference value (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
-    h.Settings.adaptive(1).levelmax = 0.05; % should be a DIFFERENCE value.
+    h.Settings.adaptive(1).levelmax = 0.02; % should be a DIFFERENCE value.
     h.Settings.adaptive(1).levelmin = 0;
     h.Settings.adaptive(1).maxtrial = inf;
     %h.Settings.adaptive(1).expected_change = 5; % smaller value increases the precision of the prior for ZEST and reduces step size of changes in estimates
@@ -1036,15 +1034,13 @@ case 'Discrim_isochron_cues'
     h.Settings.conditionvalue = [];% Rows: methods. Columns: each stimtype
     % Oddball method: intensity, index, pitch, channel
     h.Settings.PL.oddballmethod = 'duration'; % can use same type for pattern only if oddball intensity is adaptive
-    h.Settings.PL.oddballvalue = {[1 1],[1 2],[2 1],[2 2],[1 1],[1 2],[2 1],[2 2]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
-    h.Settings.PL.nonoddballstimvalue = {1,1,1,1,2,2,2,2};
+    h.Settings.PL.oddballvalue = {[1 2],[2 1],[1 2],[2 1],[1 2],[2 1]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
+    h.Settings.PL.nonoddballstimvalue = {0,0,1,1,2,2};
     h.Settings.PL.oddballtype = 'classical'; % options: 'roving', 'classical' 
 
     %% SEQUENCE
     % Change probablity (CP): each condition is in rows
     h.Settings.PL.oddprob = [
-        1/2 1/2
-        1/2 1/2
         1/2 1/2
         1/2 1/2
         1/2 1/2
@@ -1068,7 +1064,7 @@ case 'Discrim_isochron_cues'
     %h.Settings.n_odd_set = 10*[12]; % overrides h.Settings.totdur
     % randomise sets?
     %h.Settings.rand_set = [0]; 
-    h.Settings.ntrials = [10 10 10 10 10 10 10 10];
+    h.Settings.ntrials = [20 20 20 20];
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1

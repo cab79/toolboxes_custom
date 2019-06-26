@@ -40,7 +40,11 @@ if nodds<=h.Settings.nstim_trial
         % use oddball values to create signal
         for i = 1:size(h.Settings.PL.oddprob,1)
             condind = h.Seq.condnum==i;
-            h.Seq.signal(1:h.Settings.nstim_trial,condind)=h.Settings.PL.nonoddballstimvalue{i}*ones(h.Settings.nstim_trial,sum(condind));
+            n_nonodd = h.Settings.nstim_trial-length(h.Settings.target_stims);
+            if length(h.Settings.PL.nonoddballstimvalue{i})<n_nonodd
+                h.Settings.PL.nonoddballstimvalue{i} = repmat(h.Settings.PL.nonoddballstimvalue{i},1,n_nonodd);
+            end
+            h.Seq.signal(1:n_nonodd,condind)=repmat(h.Settings.PL.nonoddballstimvalue{i}',1,sum(condind));
             for ns = h.Settings.target_stims
                 ind = find(h.Settings.target_stims==ns);
                 h.Seq.signal(ns,condind) = h.Settings.PL.oddballvalue{i}(ind);

@@ -265,21 +265,23 @@ while h.i<size(h.Seq.signal,2)
         if ~isempty({h.Settings.stim(:).control})
             for i = 1:h.Settings.nstim_trial
                 h.sn = i;
-                if strcmp(h.Settings.stim(i).control,'PsychPortAudio') || strcmp(h.Settings.stim(i).control,'audioplayer') || strcmp(h.Settings.stim(i).control,'ptb_visual')
-                    opt = 'create';
-                    h = stimtrain(h,opt); 
-                elseif strcmp(h.Settings.stim(i).control,'LJTick-DAQ') || strcmp(h.Settings.stim(i).control,'labjack')
-                    opt = 'calc';
-                    h = stimtrain(h,opt); 
-                    opt = 'set';
-                    h = stimtrain(h,opt); 
-                end
-                opt = 'start';
-                h = stimtrain(h,opt);
-                
-                % wait
-                if h.Settings.nstim_trial>1 && i~=h.Settings.nstim_trial
-                    WaitSecs(h.Settings.wait(i));
+                if h.Seq.signal(h.sn,h.i)
+                    if strcmp(h.Settings.stim(i).control,'PsychPortAudio') || strcmp(h.Settings.stim(i).control,'audioplayer') || strcmp(h.Settings.stim(i).control,'ptb_visual')
+                        opt = 'create';
+                        h = stimtrain(h,opt); 
+                    elseif strcmp(h.Settings.stim(i).control,'LJTick-DAQ') || strcmp(h.Settings.stim(i).control,'labjack')
+                        opt = 'calc';
+                        h = stimtrain(h,opt); 
+                        opt = 'set';
+                        h = stimtrain(h,opt); 
+                    end
+                    opt = 'start';
+                    h = stimtrain(h,opt);
+
+                    % wait
+                    if h.Settings.nstim_trial>1 && i~=h.Settings.nstim_trial
+                        WaitSecs(h.Settings.wait(i));
+                    end
                 end
                 
             end
