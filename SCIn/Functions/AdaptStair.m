@@ -582,11 +582,11 @@ h.out.adaptive = s.out.adaptive;
 if ~isempty(ind) 
     % does fig handle exist?
     isfigfield = isfield(h,'f');
-    if strcmp(h.Settings.adaptive_general.seqtype,'cond')
-        s.fignum = h.Seq.blocks(h.i);
-    elseif strcmp(h.Settings.adaptive_general.seqtype,'rand') || strcmp(h.Settings.adaptive_general.seqtype,'alt')
+    %if strcmp(h.Settings.adaptive_general.seqtype,'cond')
+    %    s.fignum = h.Seq.blocks(h.i);
+    %elseif strcmp(h.Settings.adaptive_general.seqtype,'rand') || strcmp(h.Settings.adaptive_general.seqtype,'alt')
         s.fignum = atype;
-    end
+    %end
     if isfigfield && ismember(s.fignum,find(ishandle(h.f)))
         %isfighandle = length(h.f(ishandle(h.f)))>=s.fignum;
         figindex = s.fignum;

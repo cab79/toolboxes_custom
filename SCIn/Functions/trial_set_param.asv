@@ -305,7 +305,7 @@ switch h.Settings.stim(h.sn).control
                     h.dur = oddval;
                 end
             elseif (h.seqtype.adapt && ismember(h.sn,h.Settings.adaptive_general.stim)) || (h.seqtype.thresh && ismember(h.sn,h.Settings.adaptive_general.stim))
-                if isfield(h,'s') && length(h.s.a)>=h.Seq.adapttype(h.tr) && ~isempty(h.s.a(h.Seq.adapttype(h.tr)).StimulusLevel)
+                if isfield(h,'s') && 
                     h.varlevel = h.s.a(h.Seq.adapttype(h.tr)).StimulusLevel;
                 else
                     try
@@ -415,12 +415,9 @@ switch h.Settings.stim(h.sn).control
                         end
                     end
                 elseif strcmp(h.Settings.PL.oddballmethod,'duration_shuffle')
-                    % sort durations according to indices in settings, only
-                    % if specified by stimrandind_durind
-                    if isfield(h.Settings.stim(h.sn),'stimrandind_durind') && ismember(h.Seq.signal(h.sn,h.tr),h.Settings.stim(1).stimrandind_durind)
-                        h.dur(sort(h.Settings.stim(h.sn).stimrandind)) = h.dur(h.Settings.stim(h.sn).stimrandind);
-                    end
-                    if ismember(h.Seq.signal(h.sn,h.tr),2:2:100) % even numbers
+                    % randomise durations according to indices in settings
+                    h.dur(sort(h.Settings.stim(h.sn).stimrandind)) = h.dur(h.Settings.stim(h.sn).stimrandind);
+                    if h.Seq.signal(h.sn,h.tr)==2 % oddball
                         if h.seqtype.adapt || h.seqtype.thresh
                             dur_diff = h.varlevel;
                         else

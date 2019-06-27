@@ -744,17 +744,12 @@ case 'Discrim_rand_reg'
     h.Settings.target_stims = [1 2];
     
     %% first stimulus: audio
-    % NOTES: randomisations are not ideal.
-    % Within-train: on each new trial, randomly select one of each
-    % duration, so that the same durations are being randomised for both
-    % random and regular
-    % Between-trial: needs more even distribution of each trial type, e.g.
-    % to many of one condition earlier on can more strongly bias threshold
     h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch. Not supported: channel, duration
     h.Settings.stim(1).gap_ind=2:2:32;
     h.Settings.stim(1).ngap_rand_oddball=5;
-    h.Settings.stim(1).gaps = repmat([0.01,0.02,0.04,0.08],1,4); % order the gaps for a regular sequence
-    h.Settings.stim(1).dur = {[0.025*ones(1,16) h.Settings.stim(1).gaps],[0.025*ones(1,16) h.Settings.stim(1).gaps]}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
+    h.Settings.stim(1).gaps = repmat([0.01,0.02,0.04,0.08],1,4);
+    h.Settings.stim(1).reg_ind = [2 4 8 16 ]; % order the gaps for a regular sequence
+    h.Settings.stim(1).dur = {[0.025*ones(1,16) ],[0.025*ones(1,16) 0.005:0.005:0.08]}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
     h.Settings.stim(1).dur{1}([h.Settings.stim(1).gap_ind-1 h.Settings.stim(1).gap_ind]) = h.Settings.stim(1).dur{1};
     h.Settings.stim(1).dur{2}([h.Settings.stim(1).gap_ind-1 h.Settings.stim(1).gap_ind]) = h.Settings.stim(1).dur{2};
     h.Settings.stim(1).stimrandind = h.Settings.stim(1).gap_ind(randperm(length(h.Settings.stim(1).gap_ind)));% index of stimdur to randomise/adapt. 

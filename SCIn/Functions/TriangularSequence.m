@@ -44,7 +44,9 @@ if nodds<=h.Settings.nstim_trial
             if length(h.Settings.PL.nonoddballstimvalue{i})<n_nonodd
                 h.Settings.PL.nonoddballstimvalue{i} = repmat(h.Settings.PL.nonoddballstimvalue{i},1,n_nonodd);
             end
-            h.Seq.signal(1:n_nonodd,condind)=repmat(h.Settings.PL.nonoddballstimvalue{i}',1,sum(condind));
+            if n_nonodd
+                h.Seq.signal(1:n_nonodd,condind)=repmat(h.Settings.PL.nonoddballstimvalue{i}',1,sum(condind));
+            end
             for ns = h.Settings.target_stims
                 ind = find(h.Settings.target_stims==ns);
                 h.Seq.signal(ns,condind) = h.Settings.PL.oddballvalue{i}(ind);

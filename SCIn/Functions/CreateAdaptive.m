@@ -31,7 +31,16 @@ if length(h.Settings.adaptive)>1 && isfield(h.Settings,'adaptive_general')
             %nCP = length(h.Settings.oddprob);
             %h.condnum=h.Settings.condnum;
             for cp = 1:length(h.Settings.adaptive_general.seqtypecond)
-                idx = ismember(h.Seq.cp_cond,cp);
+                try
+                    idx = ismember(h.Seq.cp_cond,cp);
+                catch
+                    if length(unique(h.Seq.condnum)) == size(h.Settings.PL.oddprob,1)
+                        h.Seq.cp_cond=h.Seq.condnum;
+                    else
+                        error('cannot create cp_cond here')
+                    end
+                    idx = ismember(h.Seq.cp_cond,cp);
+                end
                 order(idx)=h.Settings.adaptive_general.seqtypecond(cp);
             end
         %else
