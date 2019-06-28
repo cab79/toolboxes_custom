@@ -415,25 +415,33 @@ switch h.Settings.stim(h.sn).control
                         end
                     end
                 elseif strcmp(h.Settings.PL.oddballmethod,'duration_shuffle')
-                    % sort durations according to indices in settings, only
-                    % if specified by stimrandind_durind
-                    if isfield(h.Settings.stim(h.sn),'stimrandind_durind') && ismember(h.Seq.signal(h.sn,h.tr),h.Settings.stim(1).stimrandind_durind)
-                        h.dur(sort(h.Settings.stim(h.sn).stimrandind)) = h.dur(h.Settings.stim(h.sn).stimrandind);
-                    end
-                    if ismember(h.Seq.signal(h.sn,h.tr),2:2:100) % even numbers
+
+                    % for "random" or "regular" sequences:
+                    % first randomise a subset of durations for oddballs
+                    if ismember(h.Seq.signal(h.sn,h.tr),2:2:100) % even numbers, i.e. oddballs
                         if h.seqtype.adapt || h.seqtype.thresh
                             dur_diff = h.varlevel;
                         else
                             dur_diff = str2double(h.aud_diff_gui);
                         end
                         % adjust number of gaps being further randomised according to h.varlevel
-                        h.Settings.stim(h.sn).stimrandind_oddball = h.Settings.stim(h.sn).stimrandind(1:round(dur_diff));
+                        stimrandind_oddball = h.Settings.stim(h.sn).stimrandind_oddball(1:round(dur_diff));
                         % if new trial, shuffle indices (requires minimum of 2 gaps to be shuffled)
                         if ~isfield(h,'dur_new_order_trialind') || h.tr~=h.dur_new_order_trialind
-                            h.dur_new_order = randperm(length(h.Settings.stim(h.sn).stimrandind_oddball));
+                            order = [1:length(stimrandind_oddball)];
+                            h.dur_new_order = order;
+                            while any(h.dur_new_order == order)
+                                h.dur_new_order = randperm(length(stimrandind_oddball));
+                            end
                             h.dur_new_order_trialind=h.tr;
                         end
-                        h.dur(h.Settings.stim(h.sn).stimrandind_oddball) = h.dur(h.Settings.stim(h.sn).stimrandind_oddball(h.dur_new_order));
+                        % next the durations are randomised
+                        h.dur(stimrandind_oddball) = h.dur(stimrandind_oddball(h.dur_new_order));
+                        
+                    end
+                    % created "random" sequences.
+                    if isfield(h.Settings.stim(h.sn),'stimrandind_durind') && ismember(h.Seq.signal(h.sn,h.tr),h.Settings.stim(1).stimrandind_durind)
+                        h.dur(sort(h.Settings.stim(h.sn).stimrandind)) = h.dur(h.Settings.stim(h.sn).stimrandind);
                     end
                 end
             end

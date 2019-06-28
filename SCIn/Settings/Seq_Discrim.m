@@ -744,12 +744,20 @@ case 'Discrim_rand_reg'
     h.Settings.target_stims = [1 2];
     
     %% first stimulus: audio
-    % NOTES: randomisations are not ideal.
-    % Within-train: on each new trial, randomly select one of each
-    % duration, so that the same durations are being randomised for both
-    % random and regular
-    % Between-trial: needs more even distribution of each trial type, e.g.
-    % to many of one condition earlier on can more strongly bias threshold
+    % NOTES: 
+%     1.	Settings: for oddballs, indices of reg sequence to randomise on each trial (indices always the same for both reg and rand). 
+%         a.	[1 2 3 4 - 5 6 7 8 - 9 10 11 12 - 13 14 15 16]
+%         b.	First four: 4 7 10 13 (easy to hard) - in middle of
+%         sequence to avoid swapping ends
+%         c.	[1 2 3 4 - 5 6 7 8 - 9 10 11 12 - 13 14 15 16]
+%         d.	Second four: 14 11 8 1 (hard to easy)
+%         e.	I.e. hard ones in the middle (around 4-5 randomisations)
+%         allows maximum variation in threshold. OR if they are too good at the task,
+%         swap these around otherwise gets to swap of 1 too easily!
+%     2.	During trial: different randomisation of oddball indices each trial. 
+%     3.	Settings: pre-set randomisation order for random sequences.
+%     4.	During trial: apply randomisation to standard and oddball to create “random” sequences.
+
     h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch. Not supported: channel, duration
     h.Settings.stim(1).gap_ind=2:2:32;
     h.Settings.stim(1).ngap_rand_oddball=5;
@@ -759,7 +767,7 @@ case 'Discrim_rand_reg'
     h.Settings.stim(1).dur{2}([h.Settings.stim(1).gap_ind-1 h.Settings.stim(1).gap_ind]) = h.Settings.stim(1).dur{2};
     h.Settings.stim(1).stimrandind = h.Settings.stim(1).gap_ind(randperm(length(h.Settings.stim(1).gap_ind)));% index of stimdur to randomise/adapt. 
     h.Settings.stim(1).stimrandind_durind = [1 2]; % select which values of signal to apply stimrandind to
-    h.Settings.stim(1).stimrandind_oddball = h.Settings.stim(1).stimrandind(1:h.Settings.stim(1).ngap_rand_oddball); % indices to further randomise as oddballs
+    h.Settings.stim(1).stimrandind_oddball = [13 10 7 4 1 8 11 14]*2; % indices to randomise as oddballs
     h.Settings.stim(1).patternvalue = {repmat([300 0],1,16),repmat([300 0],1,16)}; % one per stimdur in each cell; one cell per oddball value
     h.Settings.stim(1).durtype = 'oddballvalue';%'sequence_rand'; % randomises patternmethod during sequence setup
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
@@ -853,6 +861,7 @@ case 'Discrim_rand_reg'
     % randomise sets?
     %h.Settings.rand_set = [0]; 
     h.Settings.ntrials = [10 10 10 10 10 10 10 10];
+    h.Settings.randomise_conds_evenly = 1;
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1

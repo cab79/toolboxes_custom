@@ -63,11 +63,10 @@ if nodds<=h.Settings.nstim_trial
             % Master sequence
             randind=[];
             
-            % row indices in cell array, so that indices can be removed
-            % with each sub-sequence randomisation
+            % row indices in cell 
             for n = 1:length(uniq)
                 %get index of all matching rows
-                rowind{n} = find(uB==n);
+                rowind = find(uB==n);
             end
             
             %For the number of sub-sequences to be randomised
@@ -77,11 +76,9 @@ if nodds<=h.Settings.nstim_trial
                 %For each unique combination
                 for n = 1:length(uniq)
                     %get index of all matching rows
-                    rowrand = rowind{n};
+                    rowind = find(uB==n);
                     %take first n row indices – add to a sequence
-                    sub_seq = [sub_seq rowrand(1:minuniq(n))];
-                    % remove indices already includes
-                    rowind{n}(1:minuniq(n))=[];
+                    sub_seq = [sub_seq rowind(1:minuniq(n))];
                 end
                 %randomise and add to master sequence
                 randind = [randind sub_seq(randperm(length(sub_seq)))];
