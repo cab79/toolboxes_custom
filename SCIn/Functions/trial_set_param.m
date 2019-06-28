@@ -428,9 +428,9 @@ switch h.Settings.stim(h.sn).control
                         stimrandind_oddball = h.Settings.stim(h.sn).stimrandind_oddball(1:round(dur_diff));
                         % if new trial, shuffle indices (requires minimum of 2 gaps to be shuffled)
                         if ~isfield(h,'dur_new_order_trialind') || h.tr~=h.dur_new_order_trialind
-                            order = [1:length(stimrandind_oddball)];
+                            order = 1:length(stimrandind_oddball);
                             h.dur_new_order = order;
-                            while any(h.dur_new_order == order)
+                            while any(h.dur_new_order == order) && length(order)>1
                                 h.dur_new_order = randperm(length(stimrandind_oddball));
                             end
                             h.dur_new_order_trialind=h.tr;
