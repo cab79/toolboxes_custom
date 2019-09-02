@@ -14,7 +14,7 @@ eval(sprintf('%s', ['cd(''' S.path.file ''')']));
 
 % report if there are no such files
 if isempty(S.filelist)
-    error('No files found to import!\n');
+    error('Cannot import! See message above \n');
 end
 
 % run though all files in a loop and get data

@@ -239,8 +239,8 @@ for g = 1:length(grps)
                     
                     disp(['loading: ' fullfile(S.path.file,grpdir,subdir,genname)])
                     file = dir(fullfile(S.path.file,grpdir,subdir,genname));
-                    if length(file)~=1
-                        disp(['No unique file named ' genname])
+                    if length(file)<1
+                        disp(['No file named ' genname])
                         continue
                         %try 
                         %    file = file(1);
@@ -248,6 +248,9 @@ for g = 1:length(grps)
                         %catch
                         %    error('no files with this name')
                         %end
+                    elseif length(file)>1
+                        disp(['More than one file named: ' genname '. Please adjust the file name or remove the duplicate file'])
+                        continue
                     else
                         fname = file.name;
                     end

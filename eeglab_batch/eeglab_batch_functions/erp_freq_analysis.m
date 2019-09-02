@@ -272,7 +272,9 @@ for f = 1:length(S.(S.func).filelist)
             
             fdata=fdatat;
             %include trial info
-            fdata{1}.conds = conds; fdata{1}.tnums = tnums; fdata{1}.fnums = fnums; fdata{1}.bnums = bnums;
+            if exist('conds','var')
+                fdata{1}.conds = conds; fdata{1}.tnums = tnums; fdata{1}.fnums = fnums; fdata{1}.bnums = bnums;
+            end
             clear fdatat;
             % SAVE
             switch S.(S.func).select.datatype

@@ -198,22 +198,36 @@ for d = 1:length(D)
             
             % moving average percent correct over time
             ma=S.movingavg;
-            for i = 1:length(D(d).Processed(op).correct)
-                D(d).Processed(op).macorrect(i) = 100*sum(D(d).Processed(op).correct(max(1,i-ma+1):i))/length(max(1,i-ma+1):i);
+            if ~isempty(ma) 
+                if length(ma) ~=2
+                    error('specify min and max values for moving average of % correct')
+                end
+                for i = 1:length(D(d).Processed(op).correct)
+                    ind = i-(ma(2)+1):i;
+                    if sum(~isnan(D(d).Processed(op).correct(ind(ind>0)))) < ma(1)
+                        D(d).Processed(op).macorrect(i) = NaN;
+                    else
+                        D(d).Processed(op).macorrect(i) = 100*nansum(D(d).Processed(op).correct(ind(ind>0)))/length(ind(ind>0));
+                    end
+                end
             end
             
             % for each version of condnum (diff number of trials in each),
             % get perc correct for each condition and block
+            D(d).Processed(op).condnum = condnum;
             for cn = 1:length(condnum)
                 
                 % split into conditions
                 condsuni = unique(condnum{cn});
                 condsuni = condsuni(~isnan(condsuni));
+                D(d).Processed(op).condsuni{cn} = condsuni;
+                
                 D(d).Processed(op).condcorrectfract{cn} = nan(1,length(conds));
                 
                 for i = 1:length(condsuni)
                     D(d).Processed(op).condcorrect{cn}{condsuni(i)} = D(d).Processed(op).correct(condnum{cn}==condsuni(i) & incl_stimtypes); 
                     D(d).Processed(op).numtrials{cn}{condsuni(i)} = sum(~isnan(D(d).Processed(op).condcorrect{cn}{condsuni(i)}));
+                    D(d).Processed(op).condtrialsfract{cn}{condsuni(i)} = sum(~isnan(D(d).Processed(op).condcorrect{cn}{condsuni(i)}))/length(D(d).Processed(op).condcorrect{cn}{condsuni(i)});
                     D(d).Processed(op).condcorrectfract{cn}(condsuni(i)) = nansum(D(d).Processed(op).condcorrect{cn}{condsuni(i)})/D(d).Processed(op).numtrials{cn}{condsuni(i)};
                 end
 
@@ -352,16 +366,20 @@ if S.save.tables
     for d = 1:length(D)
         fraction_correct_table.subject{d,1} = D(d).subname;
         log_response_time_table.subject{d,1} = D(d).subname;
+        fraction_trials_retained_table.subject{d,1} = D(d).subname;
         for c = 1:length(conds)
             try
                 fraction_correct_table.(['condition_' num2str(conds(c))])(d,1) = D(d).Processed(1).condcorrectfract{1}(c);
                 log_response_time_table.(['condition_' num2str(conds(c))])(d,1) = D(d).Processed(1).cond_logrt{1}(c);
+                fraction_trials_retained_table.(['condition_' num2str(conds(c))])(d,1) = D(d).Processed(1).condtrialsfract{1}(c);
             catch
                 fraction_correct_table.(['condition_' num2str(conds(c))])(d,1) = nan;
                 log_response_time_table.(['condition_' num2str(conds(c))])(d,1) = nan;
+                fraction_trials_retained_table.(['condition_' num2str(conds(c))])(d,1) = nan;
             end
         end
     end
     writetable(struct2table(fraction_correct_table),fullfile(S.path.prep,[S.expt '_fraction_correct_' datestr(now,30) '.xlsx']));
     writetable(struct2table(log_response_time_table),fullfile(S.path.prep,[S.expt '_log_response_time_' datestr(now,30) '.xlsx']));
+    writetable(struct2table(fraction_trials_retained_table),fullfile(S.path.prep,[S.expt '_fraction_trials_retained_' datestr(now,30) '.xlsx']));
 end
