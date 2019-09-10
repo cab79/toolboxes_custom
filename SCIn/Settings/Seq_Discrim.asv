@@ -5,9 +5,9 @@ switch opt
     case 'setoptions'
         
     % settings options
-    h.SettingsOptions = {'Discrim_isochron_cues','Discrim_isochron','Discrim_random_cues','Discrim_random','Discrim_isochron_3freqcond','Discrim_isochron_2freqcond','Discrim_isochron_2freqcond_biasedhigh','Discrim_rand_reg'};
+    h.SettingsOptions = {'Discrim_isochron_cues','Discrim_isochron','Discrim_random_cues','Discrim_random','Discrim_isochron_3freqcond','Discrim_isochron_2freqcond','Discrim_isochron_2freqcond_biasedlow','Discrim_rand_reg'};
     
-    case 'Discrim_isochron_2freqcond_biasedhigh'
+    case 'Discrim_isochron_2freqcond_biasedlow'
 
     % set general options
     h = setgeneral(h);
@@ -125,10 +125,10 @@ switch opt
     %% SEQUENCE
     % Change probablity (CP): each condition is in rows
     h.Settings.PL.oddprob = [
-        1/2 1/2
-        1/2 1/2
-        1/2 1/2
-        1/2 1/2
+        4/5 1/5
+        4/5 1/5
+        4/5 1/5
+        4/5 1/5
         ];
     % keep oddball trials apart by at least sep_odd standards
     %h.Settings.sep_odd = [0]; % for each CP condition
@@ -146,8 +146,7 @@ switch opt
     %h.Settings.n_odd_set = 10*[12]; % overrides h.Settings.totdur
     % randomise sets?
     %h.Settings.rand_set = [0]; 
-    %h.Settings.ntrials = [30 30 10 10]; % biased_low
-    h.Settings.ntrials = [10 10 30 30]; % biased_high
+    h.Settings.ntrials = [20 20 20 20];
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1

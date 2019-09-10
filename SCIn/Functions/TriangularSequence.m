@@ -79,12 +79,12 @@ if nodds<=h.Settings.nstim_trial
                     %get index of all matching rows
                     rowrand = rowind{n};
                     %take first n row indices – add to a sequence
-                    sub_seq = [sub_seq rowrand(1:minuniq(n))];
+                    sub_seq = [sub_seq; rowrand(1:minuniq(n))];
                     % remove indices already includes
                     rowind{n}(1:minuniq(n))=[];
                 end
                 %randomise and add to master sequence
-                randind = [randind sub_seq(randperm(length(sub_seq)))];
+                randind = [randind; sub_seq(randperm(length(sub_seq)))];
             end
 
         else
