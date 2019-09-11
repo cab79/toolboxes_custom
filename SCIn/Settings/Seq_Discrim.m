@@ -372,7 +372,7 @@ switch opt
     %h.Settings.n_odd_set = 10*[12]; % overrides h.Settings.totdur
     % randomise sets?
     %h.Settings.rand_set = [0]; 
-    h.Settings.ntrials = [20 20 20 20];
+    h.Settings.ntrials = [10 10 10 10];
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1
@@ -986,7 +986,7 @@ case 'Discrim_rand_reg'
 
     h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch. Not supported: channel, duration
     h.Settings.stim(1).gap_ind=2:2:32;
-    h.Settings.stim(1).ngap_rand_oddball=5;
+    h.Settings.stim(1).ngap_rand_oddball=4;
     h.Settings.stim(1).gaps = repmat([0.01,0.02,0.04,0.08],1,4); % order the gaps for a regular sequence
     h.Settings.stim(1).dur = {[0.025*ones(1,16) h.Settings.stim(1).gaps],[0.025*ones(1,16) h.Settings.stim(1).gaps]}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
     h.Settings.stim(1).dur{1}([h.Settings.stim(1).gap_ind-1 h.Settings.stim(1).gap_ind]) = h.Settings.stim(1).dur{1};
