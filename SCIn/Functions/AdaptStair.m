@@ -572,6 +572,11 @@ end
 h.s =s;
 h.out.adaptive = s.out.adaptive;
 
+% convert to table
+tic
+h.out.adaptiveT = array2table(h.out.adaptive,...
+    'VariableNames',{'trial' 'adapt_trial' 'stim_level' 'accuracy' 'n_reversals' 'actual_step' 'thresh' 'resfun' 'actual_intensity' 'atype' 'mov_avg' 'discrim_correct' 'block' 'accuracy_ratio' });
+toc
 %fprintf('Press return to continue\n');
 %pause
 %fprintf ('\nBLOCK ENDED\n');
