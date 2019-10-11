@@ -122,7 +122,7 @@ subjlists={};
 for g = 1:Ngrp
     subgrp={};
     s2=0;
-    for s = 1:Nsub(g)
+    for s = 1:Nsub(grplist(g))
         %if isnan(group(s,g))
         %    continue
         %end

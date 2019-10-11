@@ -31,14 +31,45 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
         EEG = pop_rmbase( EEG, [S.(S.func).epoch.basewin(1)*1000 S.(S.func).epoch.basewin(2)*1000]);
     end
     
-    % perform final (post-ICA) rejection of bad channels/epochs
-    if ~isempty(S.(S.func).clean.FTrej.freq) && iscell(S.(S.func).clean.FTrej.freq)
-        % select channels
-        S.(S.func).select.chans = S.(S.func).clean.FTrej.chan;
-        S=select_chans(S);
-        for i = 1:length(S.(S.func).clean.FTrej.freq)
-            EEG = FTrejman(EEG,S.(S.func).clean.FTrej.freq{i},S.(S.func).inclchan); 
-        end
+    % select or deselect channels for cleaning
+    S.(S.func).select.chans = S.(S.func).clean.chan;
+    S=select_chans(S);
+    
+    % initial arrays
+    rejchan = [];
+    rejtrial = [];
+
+    % strategy - only remove a very small number of very bad trials / chans
+    % before ICA - do further cleaning after ICA
+    if isfield(S.(S.func).clean,'FTrej')
+        S = FTrejman(EEG,S);%S.(S.func).clean.FTrej.freq{i},S.(S.func).inclchan); 
+        rejchan = [rejchan;S.(S.func).clean.FTrej.rejchan];
+        rejtrial = [rejtrial;S.(S.func).clean.FTrej.rejtrial];
+    end
+
+    % reject bad channels
+    EEG = eeg_interp(EEG, unique(rejchan));
+    if length(EEG.chanlocs)>EEG.nbchan
+        EEG.chanlocs(unique(rejchan))=[];
+    end
+
+    % Auto trial rejection
+    if isfield(S.(S.func).clean,'FTrejauto')
+        S = FTrejauto(EEG,S);%...
+%                     S.(S.func).clean.FTrejauto.cutoffs,...
+%                     S.(S.func).clean.FTrejauto.interactive,...
+%                     S.(S.func).inclchan); 
+        rejtrial = [rejtrial;S.(S.func).clean.FTrejauto.rejtrial];
+    end
+
+    % reject bad trials
+    EEG = pop_select(EEG, 'notrial', unique(rejtrial));
+    
+    % additional manual check of data and opportunity to reject
+    % further channels and trials
+    if isfield(S.(S.func).clean,'manual_check') && S.(S.func).clean.manual_check
+        eeglab
+        [EEG,S] = manualRejectEEG(EEG,S,0);
     end
     
     % re-reference to the common average

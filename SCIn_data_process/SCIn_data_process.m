@@ -175,12 +175,12 @@ for d = 1:length(D)
             D(d).Processed(op).correct_resp = correct_resp;
             
             % what are the correct responses?
-            if isfield(D(d).Output(1).Settings,'adaptive') && isfield(D(d).Output(1).Settings.adaptive,'response_type') && strcmp(D(d).Output(1).Settings.adaptive.response_type,'samediff')
+            if isfield(D(d).Output(1).Settings,'adaptive') && isfield(D(d).Output(1).Settings.adaptive,'response_type') && strcmp(D(d).Output(1).Settings.adaptive(1).response_type,'samediff')
                 if numel(S.signal.target)~=2
                     error('Same-Different responses require two targets')
                 end
                 D(d).Processed(op).correct_resp = abs(diff(correct_resp))+1;
-            elseif isfield(D(d).Output(1).Settings,'adaptive') && isfield(D(d).Output(1).Settings.adaptive,'response_type') && strcmp(D(d).Output(1).Settings.adaptive.response_type,'2AFC')
+            elseif isfield(D(d).Output(1).Settings,'adaptive') && isfield(D(d).Output(1).Settings.adaptive,'response_type') && strcmp(D(d).Output(1).Settings.adaptive(1).response_type,'2AFC')
                 if numel(S.signal.target)~=2
                     error('2AFC responses require two targets and definition of S.signal.correct_resp')
                 end

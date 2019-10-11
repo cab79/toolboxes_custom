@@ -335,13 +335,15 @@ switch part
             if length(EEG.chanlocs)>EEG.nbchan
                 EEG.chanlocs(unique(rejchan))=[];
             end
+            bchan = num2cell(zeros(1,EEG.nbchan));
+            [EEG.chanlocs.badchan] = bchan{:};
             % make a record in EEG.chanlocs
             if ~isfield(EEG.chanlocs,'interp')
                 interp = zeros(EEG.nbchan,1);
             else
                 interp = cell2mat({EEG.chanlocs.interp});
             end
-            interp(unique(rejchan))=1;
+            interp(S.prep.chan.interp)=1;
             interp=num2cell(interp);
             [EEG.chanlocs.interp] = interp{:};
             

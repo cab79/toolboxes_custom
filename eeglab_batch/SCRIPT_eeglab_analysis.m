@@ -107,6 +107,7 @@ S.prep.clean.flatchan.trial_weight = 1;
 S.prep.clean.flatchan.chan_weights = [0.01 0.02 0.05 0.1 0.2 0.5 1 2 5 20 50 100];
 S.prep.clean.FTrej.freq = {[]};
 S.prep.clean.FTrej.chan = {[],[3 31:33 41]}; % include (first cell) or exclude (second cell) channels, or leave empty (default all chans)
+S.prep.clean.manual_check = 1; % check data visually
 S.prep.startfile = 1; 
 S=eeglab_preprocess(S,'rej')
 save(fullfile(S.path.main,'S'),'S'); % saves 'S' - will be overwritten each time the script is run, so is just a temporary variable
@@ -139,6 +140,7 @@ S.prep2.epoch.rmbase = 1;
 S.prep2.epoch.basewin = [-0.2 0]; % baseline window
 S.prep2.clean.FTrej.freq = {[]};
 S.prep2.clean.FTrej.chan = {[],[3 31:33 41]}; % include (first cell) or exclude (second cell) channels, or leave empty (default all chans)
+S.prep2.clean.manual_check = 1;
 S.prep2.epoch.reref = 1;
 S.prep2.separatefiles.on = 1;
 S.prep2.separatefiles.markerindex = {}; % index of markers to separate into files

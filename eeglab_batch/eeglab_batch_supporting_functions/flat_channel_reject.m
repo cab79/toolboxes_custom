@@ -73,9 +73,15 @@ if length(chan_weight)>1
 else
     answer = 1;
 end
-[~,order] = sort(metric(:,answer),'descend');
-ordered_results = results(order,:);
-ordered_idx=idx(order);
-S.prep.clean.flatchan.rejchan = sort(ordered_idx{1}{2});
-S.prep.clean.flatchan.rejtrial = sort(ordered_idx{1}{1});
-close(f)
+if isnan(answer) || ~answer
+    S.prep.clean.flatchan.rejchan = [];
+    S.prep.clean.flatchan.rejtrial = [];
+    close(f)
+else
+    [~,order] = sort(metric(:,answer),'descend');
+    ordered_results = results(order,:);
+    ordered_idx=idx(order);
+    S.prep.clean.flatchan.rejchan = sort(ordered_idx{1}{2});
+    S.prep.clean.flatchan.rejtrial = sort(ordered_idx{1}{1})';
+    close(f)
+end

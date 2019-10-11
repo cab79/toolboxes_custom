@@ -95,6 +95,10 @@ if ~isfield(S, 'mode') || ~isequal(S.mode, 'header')
     hdr               = Dhdr.hdr;
     event             = Dhdr.events;
     eventsamples      = Dhdr.events(':', 'samples');
+%     if iscell(event) && length(event)==1
+%         event = event{1};
+%         eventsamples = eventsamples{1};
+%     end
 else
     %--------- Read and check header
     hdr = ft_read_header(S.dataset, 'headerformat', S.inputformat);
@@ -336,7 +340,7 @@ else % Read by trials
             
             event = event(setdiff(1:numel(event), trialind));
         catch
-            if hdr.nTrials == 1
+            if hdr.nTrials == 1 && length(S.conditionlabels)>1
                 error('Could not define trials based on data. Use continuous option or trial definition file.');
             else
                 readbytrials = 1;
