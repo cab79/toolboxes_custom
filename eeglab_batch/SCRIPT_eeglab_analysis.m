@@ -100,14 +100,20 @@ S.prep.startfile = 1;
 S=eeglab_preprocess(S,'combine')
 save(fullfile(S.path.main,'S'),'S'); % saves 'S' - will be overwritten each time the script is run, so is just a temporary variable
 %% STEP 3: channel and trial rejection
+S.prep.fname.parts = {'subject','block','cond','suffix','ext'}; % parts of the input filename separated by underscores, e.g.: {'prefix','study','group','subject','session','block','cond','suffix','ext'};
 S.prep.load.suffix = {'combined'}; % suffix to add to input file name, if needed. Can use * as wildcard
 S.prep.save.suffix = {'manrej'}; % suffix to add to output file name, if needed. 
+S.prep.clean.initial_manual_check = 1;
+S.prep.clean.chan = {[],[]}; % include (first cell) or exclude (second cell) channels, or leave empty (default all chans)
+S.prep.clean.FTrej.freq = {[2 15],[90 120]}; % high freq to identify noise, low freq to identify eye movement
 S.prep.clean.flatchan.varthresh = 1; % std threshold - less variance than this per trial will be rejected
 S.prep.clean.flatchan.trial_weight = 1;
-S.prep.clean.flatchan.chan_weights = [0.01 0.02 0.05 0.1 0.2 0.5 1 2 5 20 50 100];
-S.prep.clean.FTrej.freq = {[]};
-S.prep.clean.FTrej.chan = {[],[3 31:33 41]}; % include (first cell) or exclude (second cell) channels, or leave empty (default all chans)
-S.prep.clean.manual_check = 1; % check data visually
+S.prep.clean.flatchan.chan_weights = 5; %[0.01 0.02 0.05 0.1 0.2 0.5 1 2 5 20 50 100];
+S.prep.clean.FTrejauto.cutoffs.jump = 40; % link: http://www.fieldtriptoolbox.org/tutorial/automatic_artifact_rejection/
+S.prep.clean.FTrejauto.cutoffs.muscle = 20;
+S.prep.clean.FTrejauto.cutoffs.EOG = 50; % set to a high thresh before ICA, lower thresh after ICA
+S.prep.clean.FTrejauto.interactive = 1;
+S.prep.clean.manual_check = 1;
 S.prep.startfile = 1; 
 S=eeglab_preprocess(S,'rej')
 save(fullfile(S.path.main,'S'),'S'); % saves 'S' - will be overwritten each time the script is run, so is just a temporary variable
