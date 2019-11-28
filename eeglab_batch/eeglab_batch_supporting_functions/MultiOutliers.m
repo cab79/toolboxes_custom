@@ -5,7 +5,7 @@ function S=MultiOutliers(S,data);
 % chan_time_trials
 
 %restoredefaultpath
-addpath('C:\Data\Matlab\Multivariate_Outliers')
+addpath('Q:\MATLAB\toolboxes_custom\Multivariate_Outliers')
 
 %X = %N*d. N - number of samples (subjects (e.g. 120) * trials (e.g. 100) = 12,000), d is dimensionality (channels (e.g. 59) * data points per trial (e.g. 6000/4 = 1500) = 100,000)
 % not possible, so can have no more than a selection of data points:
@@ -25,6 +25,7 @@ addpath('C:\Data\Matlab\Multivariate_Outliers')
 if iscell(data) && isfield(data{1},'avg') % SUBJECTS
     dattype='subjects'
     for f = 1:length(data)
+        disp(['smoothing data ' num2str(f) '/' num2str(length(data))])
         dat=data{f}.avg(S.(S.func).inclchan,:);
         for e = 1:size(dat,1)
             dat(e,:) = smooth(squeeze(dat(e,:)),30,'lowess');
@@ -40,6 +41,7 @@ end
 
 % cycle through for each time point
 for i = 1:size(X,2)
+    tic;
     Xi = squeeze(X(:,i,:))';
     %close all
     [mu,var,RD,chi_crt]=DetectMultVarOutliers(Xi,[],[],0);
@@ -48,6 +50,9 @@ for i = 1:size(X,2)
     S.(S.func).multout.RD(i,:) = RD';
     S.(S.func).multout.chi_crt(i,:) = chi_crt;
     disp(['sample ' num2str(i) ' of ' num2str(size(X,2))])
+    fin=toc;
+    remain=(size(X,2)-i)*fin/60;
+    disp(['time remaining: ' num2str(remain) ' mins'])
 end
 
 % plots
@@ -123,9 +128,9 @@ if strcmp(dattype,'subjects')
     for i = 1:length(unisubs)
         RDsub(i) = mean(RD(ismember(S.(S.func).fileidx,find(subsidx==i))));
     end
-    [sortRD,ord] = sort(RDsub,'descend');
-    S.(S.func).multoutlist = unisubs(ord);
-    S.(S.func).multoutlist(:,2) = num2cell(sortRD');
+%     [sortRD,ord] = sort(RDsub,'descend');
+    S.(S.func).multoutlist = unisubs;%(ord);
+    S.(S.func).multoutlist(:,2) = num2cell(RDsub');%num2cell(sortRD');
 elseif strcmp(dattype,'trials')
     [sortRD,ord] = sort(RD,'descend');
     S.(S.func).multoutlist = ord;

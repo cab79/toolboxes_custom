@@ -45,6 +45,9 @@ end
 if ~isfield(S.(S.func).select,'conds') || isempty(S.(S.func).select.conds)
     S.(S.func).select.conds = {''};
 end
+if ~isfield(S.(S.func).select,'custom_header')
+    S.(S.func).select.custom_header='';
+end
 S.(S.func).subjects_in = S.(S.func).select.subjects;
 
 % if no prefix/suffix specified
@@ -77,6 +80,7 @@ end
 grp_col = find(strcmp(pdata(1,:),'Group'));
 sub_col = find(strcmp(pdata(1,:),'Subject'));
 inc_col = find(strcmp(pdata(1,:),'Include'));
+inc_col_custom = find(strcmp(pdata(1,:),S.(S.func).select.custom_header));
 
 % identify number of groups of participants and find indices of
 % participants in each group
@@ -94,6 +98,10 @@ gn=0;
 for g = 1:length(ugrp)
     gn=gn+1;
     inc_idx = find(cellfun(@(x) x>0, pdata(2:end,inc_col), 'UniformOutput', 1));
+    if ~isempty(inc_col_custom)
+        inc_custom_idx = find(cellfun(@(x) x>0, pdata(2:end,inc_col_custom), 'UniformOutput', 1));
+        inc_idx = intersect(inc_idx,inc_custom_idx);
+    end
     if isnumeric([pdata{2:end,grp_col}])
         grp_idx = find(cellfun(@(x) x==ugrp(g), pdata(2:end,grp_col), 'UniformOutput', 1));
     else

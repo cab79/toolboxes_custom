@@ -25,6 +25,10 @@ S = getfilelist(S);
 for f = 1:length(S.(S.func).filelist)
     file = S.(S.func).filelist{f};
     EEG = pop_loadset('filename',file,'filepath',S.path.prep);
+    
+    if isempty(EEG.epoch)
+        continue
+    end
 
     % SAVE CHANLOCS FOR PLOTTING LATER (needed for EEGLAB's topoplot function)
     %if f==1
@@ -49,6 +53,11 @@ for f = 1:length(S.(S.func).filelist)
     actlabs = {EEG.chanlocs.labels};
     missing = find(~ismember(labs,actlabs));
     if ~isempty(missing)
+        % first ensure chanlocs and EEG.chanlocs are similar structures
+        fdnames=fieldnames(EEG.chanlocs);
+        f=~ismember(fdnames,fieldnames(chanlocs));
+        EEG.chanlocs=rmfield(EEG.chanlocs,fdnames(f));
+        % then replace missing channels
         for m = 1:length(missing)
             EEG.chanlocs(missing(m)+1:end+1) = EEG.chanlocs(missing(m):end);
             EEG.chanlocs(missing(m)) = chanlocs(missing(m));
@@ -106,6 +115,7 @@ for f = 1:length(S.(S.func).filelist)
     switch S.(S.func).select.datatype
         case 'ERP'
             EEGall=EEG;
+            tldata={};
             for mt = 1:S.(S.func).nMarkType
                 if S.(S.func).epoch.combinemarkers
                     if any(find(strcmp('STIM',EEG.epoch(1).eventtype))) % EGI
@@ -137,6 +147,7 @@ for f = 1:length(S.(S.func).filelist)
                 cfg.keeptrials = S.(S.func).epoch.keeptrials;
                 cfg.feedback = 'textbar';
                 tldata{mt} = ft_timelockanalysis(cfg,FTEEG);
+                tldata{mt}.ntrials = length(FTEEG.trial);
 
                 % apply CSD
                 if S.(S.func).CSD.apply
@@ -146,7 +157,7 @@ for f = 1:length(S.(S.func).filelist)
                     trials = permute(reshape(trials,nchan,nsamp,ntrial),[3 1 2]);
                     tldata{mt}.trial = trials;
                 end
-                tldata{mt} = ft_timelockanalysis(cfg,tldata{mt});
+                %tldata{mt} = ft_timelockanalysis(cfg,tldata{mt});
                 %erp = squeeze(double(mean(tldata.trial,1)));
             end
             

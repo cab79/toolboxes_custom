@@ -30,12 +30,50 @@ prevEEG = EEG; % previous EEG version
 origEEG = EEG; % will be original EEG version
 ALLEEG = EEG;
 
+
+% add in any missing chans, fill with nan
+try
+    load(fullfile(S.path.prep,'chanlocs.mat'));
+catch
+    try
+        load(fullfile(S.path.main,'chanlocs.mat'));
+    catch
+        chanlocs = EEG.chanlocs;
+        save(fullfile(S.path.main,'chanlocs.mat'),'chanlocs')
+    end
+end
+labs = {chanlocs.labels};
+actlabs = {EEG.chanlocs.labels};
+missing = find(~ismember(labs,actlabs));
+if ~isempty(missing)
+    % first ensure chanlocs and EEG.chanlocs are similar structures
+    fdnames=fieldnames(EEG.chanlocs);
+    f=~ismember(fdnames,fieldnames(chanlocs));
+    EEG.chanlocs=rmfield(EEG.chanlocs,fdnames(f));
+    % then replace missing channels
+    for m = 1:length(missing)
+        EEG.chanlocs(missing(m)+1:end+1) = EEG.chanlocs(missing(m):end);
+        EEG.chanlocs(missing(m)) = chanlocs(missing(m));
+        EEG.data(missing(m)+1:end+1,:,:) = EEG.data(missing(m):end,:,:);
+        EEG.data(missing(m),:,:) = nan;
+    end
+    EEG.nbchan = length(EEG.chanlocs);
+    if EEG.nbchan~=length(labs)
+        error('not enough chans')
+    end
+end
+
+
 if isfield(S.(S.func),'inclchan')
     chan = S.(S.func).inclchan;
-    exchan = 1:EEG.nbchan; exchan(chan)=[];
+    exchan = 1:max(EEG.nbchan,chan(end)); exchan(chan)=[];
 else
     chan = 1:EEG.nbchan;
     exchan=[];
+end
+
+if ~isfield(S.(S.func).clean.man,'showflat')
+    S.(S.func).clean.man.showflat=0;
 end
 
 % calculate bad channels
@@ -56,7 +94,7 @@ if ~isempty(z_thresh) && iscell(z_thresh)
         eeg_2d = reshape(EEGf.data,EEGf.nbchan,[]);
         eeg_2d = eeg_2d(chan,:);
         level = std(eeg_2d,[],2);
-        minvar = 1; % uV
+        minvar = S.(S.func).clean.man.reject_flat_thresh; % uV
 
         % 
         flat = find(level<minvar);
@@ -89,6 +127,15 @@ if ~isempty(z_thresh) && iscell(z_thresh)
         if S.(S.func).clean.man.hidebad
             % hide the outliers, flat channels and excluded channels
             hideElec= unique([hideElec sort([chan(flat) chan(outliers) exchan])]);
+        elseif S.(S.func).clean.man.showflat
+            % display the outliers
+            temp= 1:EEGf.nbchan; 
+            temp(unique(sort([chan(flat) chan(outliers)])))=[];
+            if ~isempty(hideElec)
+                hideElec = intersect(hideElec,temp);
+            else
+                hideElec = temp;
+            end
         else
             % display the outliers
             temp= 1:EEGf.nbchan; 
@@ -100,7 +147,9 @@ if ~isempty(z_thresh) && iscell(z_thresh)
             end
         end
     end
-    
+elseif S.(S.func).clean.man.hidebad
+    hideElec= exchan;
+    S.(S.func).clean.man.rejchan=[];
 end
 
 if numel(hideElec)>=1

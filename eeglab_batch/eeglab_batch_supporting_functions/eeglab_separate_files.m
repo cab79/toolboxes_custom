@@ -7,7 +7,7 @@ sname_ext = 'separated';
 if S.(S.func).separatefiles.on
     % GET FILE LIST
     S.path.file = fullfile(S.path.prep,'cleaned');
-    S = getfilelist(S,'ICA_cleaned');
+    S = getfilelist(S,'cleaned');
 
     loadpath = S.path.file;
     for f = 1:length(S.(S.func).filelist)

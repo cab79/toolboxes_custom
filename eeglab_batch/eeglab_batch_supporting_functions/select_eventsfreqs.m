@@ -14,7 +14,9 @@ for f = 1:length(S.(S.func).files)
             if isstruct(tldata)
                 S.(S.func).data{f} = {tldata};
             elseif iscell(tldata)
-                S.(S.func).data{f} = tldata(S.(S.func).select.events);
+                S.(S.func).data{f} = cell(1,max(S.(S.func).select.events));
+                selectevents=intersect(S.(S.func).select.events,1:length(tldata));
+                S.(S.func).data{f}(selectevents) = tldata(selectevents);
             end
         case {'TF','Freq'}
             % select events

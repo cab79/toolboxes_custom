@@ -1,7 +1,9 @@
 function S=eeglab_summarise_data(S,part)
 S.func = 'summ';
 
-S.summ.out = table;
+if ~isfield(S.summ,'out')
+    S.summ.out = table;
+end
 
 switch part
     case 'chan'
@@ -53,8 +55,11 @@ switch part
         end
         
         % plots
-        drawboxplot(S,'ninterp')
-    
+        figure; 
+        subplot(2,2,1)
+        outliers=drawboxplot(S,'ninterp',['number of interpolated channels']);
+        S.summ.out.('ninterp_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));        
+        S.summ.out.('ninterp_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
     case 'IC'
         
         % load directory
@@ -101,16 +106,23 @@ switch part
 
         end
         for f = 1:size(ncomp,2)
-            S.summ.out.(['ncomp' num2str(f)]) = ncomp(:,f);
+            S.summ.out.(['ncomp_all' num2str(f)]) = ncomp(:,f);
             S.summ.out.(['ncomp_rej' num2str(f)]) = ncomp_rej(:,f);
             S.summ.out.(['frac_comp_rej' num2str(f)]) = frac_comp_rej(:,f);
         end
         
         % plots
-        drawboxplot(S,'ncomp')
-        drawboxplot(S,'ncomp_rej')
-        drawboxplot(S,'frac_comp_rej')
-
+        %figure; 
+        subplot(2,2,2); outliers=drawboxplot(S,'ncomp_all',['total number of estimated ICs']);
+        S.summ.out.('ncomp_all_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));        
+        S.summ.out.('ncomp_all_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        subplot(2,2,3); outliers=drawboxplot(S,'ncomp_rej',['number of rejected ICA components']);
+        S.summ.out.('ncomp_rej_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));        
+        S.summ.out.('ncomp_rej_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        subplot(2,2,4); outliers=drawboxplot(S,'frac_comp_rej',['fraction of rejected ICA components']);
+        S.summ.out.('frac_comp_rej_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));        
+        S.summ.out.('frac_comp_rej_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        
     case 'trial'
         
         % load directory
@@ -118,7 +130,7 @@ switch part
 
         % GET FILE LIST
         S.path.file = S.prep.loaddir;
-        S = getfilelist(S,'epoched_cleaned');
+        S = getfilelist(S,'epoched*');
 
         % change to the input directory
         eval(sprintf('%s', ['cd(''' S.path.prep ''')']));
@@ -209,10 +221,21 @@ switch part
                                 sig=dsearchn(EEG.times',1000*S.summ.snr_win{2}');
                                 dat{1}=EEG.data(:,base(1):base(2),cellind);
                                 dat{2}=EEG.data(:,sig(1):sig(2),cellind);
-                                S.summ.out.(['SNR' ID])(s) = mean(rms(std(dat{2},{},1),2),3) / mean(rms(std(dat{1},{},1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                                selectchans = find(ismember({EEG.chanlocs(:).labels},S.summ.snr_chan));
+                                S.summ.out.(['signal_gfp' ID])(s) = mean(rms(std(dat{2},{},1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                                S.summ.out.(['noise_gfp' ID])(s) = mean(rms(std(dat{1},{},1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                                S.summ.out.(['SNR_gfp' ID])(s) = mean(rms(std(dat{2},{},1),2),3) / mean(rms(std(dat{1},{},1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                                S.summ.out.(['signal_chan' ID])(s) = mean(rms(mean(dat{2}(selectchans,:),1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                                S.summ.out.(['noise_chan' ID])(s) = mean(rms(mean(dat{1}(selectchans,:),1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                                S.summ.out.(['SNR_chan' ID])(s) = mean(rms(mean(dat{2}(selectchans,:),1),2),3) / mean(rms(mean(dat{1}(selectchans,:),1),2),3); % mean over trials of the RMS over time of the GFP over channels
                             else
                                 S.summ.out.(['ntrials' ID])(s) = 0;
-                                S.summ.out.(['SNR' ID])(s) = nan;
+                                S.summ.out.(['signal_gfp' ID])(s) = nan;
+                                S.summ.out.(['noise_gfp' ID])(s) = nan;
+                                S.summ.out.(['SNR_gfp' ID])(s) = nan;
+                                S.summ.out.(['signal_chan' ID])(s) = nan;
+                                S.summ.out.(['noise_chan' ID])(s) = nan;
+                                S.summ.out.(['SNR_chan' ID])(s) = nan;
                             end
                         end
 
@@ -222,27 +245,72 @@ switch part
             end
         end
         
-        % plot ntrials
-        headerstr = 'ntrials';
-        cols = find(~cellfun(@isempty,strfind(S.summ.out.Properties.VariableNames,headerstr)));
-        headers = S.summ.out.Properties.VariableNames(cols);
+        % mean SNR over conditions
+        cols = find(~cellfun(@isempty,strfind(S.summ.out.Properties.VariableNames,'SNR_gfp')));
         dat = table2array(S.summ.out(:,cols));
-        [~,datorder] = sort(mean(dat,1));
-        figure; boxplot(dat); xticklabels(headers); set(gca, 'XTickLabelRotation', 90)
+        S.summ.out.('SNR_gfp_mean') = nanmean(dat,2);
+        cols = find(~cellfun(@isempty,strfind(S.summ.out.Properties.VariableNames,'SNR_chan')));
+        dat = table2array(S.summ.out(:,cols));
+        S.summ.out.('SNR_chan_mean') = nanmean(dat,2);
         
         % plots
-        drawboxplot(S,'ntrials')
-        drawboxplot(S,'SNR')
+        figure; 
+        outliers=drawboxplot(S,'ntrials',['total number of trials']);
+        S.summ.out.('ntrials_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));
+        S.summ.out.('ntrials_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        figure; 
+        subplot(2,3,1); outliers=drawboxplot(S,'signal_gfp',['signal gfp']);
+        S.summ.out.('signal_gfp_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2)); 
+        S.summ.out.('signal_gfp_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        subplot(2,3,2); outliers=drawboxplot(S,'noise_gfp',['noise gfp']);
+        S.summ.out.('noise_gfp_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));  
+        S.summ.out.('noise_gfp_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        subplot(2,3,3); outliers=drawboxplot(S,'SNR_gfp',['SNR gfp']);
+        S.summ.out.('SNR_gfp_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));        
+        S.summ.out.('SNR_gfp_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        subplot(2,3,4); outliers=drawboxplot(S,'signal_chan',['signal chan']);
+        S.summ.out.('signal_chan_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2)); 
+        S.summ.out.('signal_chan_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        subplot(2,3,5); outliers=drawboxplot(S,'noise_chan',['noise chan']);
+        S.summ.out.('noise_chan_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));  
+        S.summ.out.('noise_chan_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
+        subplot(2,3,6); outliers=drawboxplot(S,'SNR_chan',['SNR chan']);
+        S.summ.out.('SNR_chan_outlier_lower') = double(any(cell2mat(outliers(:,1)'),2));        
+        S.summ.out.('SNR_chan_outlier_upper') = double(any(cell2mat(outliers(:,2)'),2));
         
 end
 
-function drawboxplot(S,headerstr)
+function outliers=drawboxplot(S,headerstr,ttl)
+
+% get data
 cols = find(~cellfun(@isempty,strfind(S.summ.out.Properties.VariableNames,headerstr)));
 headers = S.summ.out.Properties.VariableNames(cols);
 dat = table2array(S.summ.out(:,cols));
-%[~,datorder] = sort(mean(dat,1));
-figure; 
-boxplot(dat); 
-xticklabels(headers); 
-set(gca, 'XTickLabelRotation', 90)
-title(headerstr)
+
+% boxplots
+hb=boxplot(dat,'Symbol','rx'); 
+% hb=boxplot(dat,'PlotStyle','compact','Symbol','rx'); 
+if length(headers)>1
+    xticklabels(headers); 
+    set(gca, 'XTickLabelRotation', 90)
+else
+    xticklabels({''}); 
+end
+title(ttl)
+
+% get outliers
+hOut = findobj(hb,'Tag','Outliers');
+yy = get(hOut,'YData');
+med = nanmedian(dat);
+for i = 1:length(med)
+    if iscell(yy)
+        outliers{i,1} = ismember(dat(:,i),unique(yy{i}(yy{i}<med(i))));
+        outliers{i,2} = ismember(dat(:,i),unique(yy{i}(yy{i}>med(i))));
+    elseif isnan(yy)
+        outliers{i,1} = zeros(length(dat),1);
+        outliers{i,2} = zeros(length(dat),1);
+    else
+        outliers{i,1} = ismember(dat(:,i),unique(yy(yy<med(i))));
+        outliers{i,2} = ismember(dat(:,i),unique(yy(yy>med(i))));
+    end
+end
