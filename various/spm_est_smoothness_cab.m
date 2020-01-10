@@ -112,6 +112,7 @@ end
 %-Find voxels within mask
 %--------------------------------------------------------------------------
 d          = spm_read_vols(VM);
+d = d>0; % cab - in case of NaNs
 [Ix,Iy,Iz] = ndgrid(1:VM.dim(1),1:VM.dim(2),1:VM.dim(3));
 Ix = Ix(d~=0); Iy = Iy(d~=0); Iz = Iz(d~=0);
 

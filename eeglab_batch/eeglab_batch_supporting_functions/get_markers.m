@@ -9,7 +9,7 @@ bnums = nan(1,length(EEG.epoch));
 for ep = 1:length(EEG.epoch)
 
     stimevidx = find(strcmp('STIM',EEG.epoch(ep).eventtype));
-    if ep<length(EEG.epoch); stimevidx1 = find(strcmp('STIM',EEG.epoch(ep+1).eventtype));end;
+    if ep<length(EEG.epoch); stimevidx1 = find(strcmp('STIM',EEG.epoch(ep+1).eventtype));end
     if ~isempty(stimevidx)
         stimcodes = EEG.epoch(ep).eventcodes{stimevidx(end)};
         if ~any(strcmp('CNUM',stimcodes(:,1)))

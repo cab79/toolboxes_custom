@@ -6,13 +6,17 @@ switch part
     case 'epoch'
         
     % load directory
-    %if ~isfield(S.prep,'loaddir')
+    if ~isfield(S.prep,'loaddir')
         S.prep.loaddir = fullfile(S.path.(S.func),S.prep.load.suffix{:});
-    %end
+    end
 
     % GET FILE LIST
     S.path.file = S.prep.loaddir;
-    S = getfilelist(S,S.prep.load.suffix);
+    if ~isempty(S.prep.load.suffix{:})
+        S = getfilelist(S,S.prep.load.suffix);
+    else
+        S = getfilelist(S);
+    end
 
     % change to the input directory
     eval(sprintf('%s', ['cd(''' S.path.prep ''')']));
