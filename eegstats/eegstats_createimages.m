@@ -71,8 +71,8 @@ for d=1:length(D)
     % model comparison stats
     if S.img.model_comp.index
         for i = S.img.model_comp.index
-            D(d).model_comp(i).LR_p = D(d).model_comp(i).pval<=S.MCC.thresh .* D(d).model_comp(i).LRStat;
-            disp(['model comparison: ' num2str(D(d).model_comp(i).pair{:})])
+            D(d).model_comp(i).LR_p = D(d).model_comp(i).pval<=S.img.pthresh .* D(d).model_comp(i).LR;
+            %disp(['model comparison: ' num2str(D(d).model_comp(i).pair{:})])
         end
     end
 
@@ -81,12 +81,17 @@ for d=1:length(D)
     end
     
     % change file locations for resid, fitted, input
-    [~,residfile,~]=fileparts(D(d).model(1).resid_file);
-    D(d).model(1).resid_file = fullfile(S.img.path.inputs,residfile);
-    [~,fittedfile,~]=fileparts(D(d).model(1).fitted_file);
-    D(d).model(1).fitted_file = fullfile(S.img.path.inputs,fittedfile);
-    [~,inputfile,~]=fileparts(D(d).model(1).input_file);
-    D(d).model(1).input_file = fullfile(S.img.path.inputs,inputfile);
+    
+    if S.img.model.index
+        for i = S.img.model.index
+            [~,residfile,ext]=fileparts(D(d).model(i).resid_file);
+            D(d).model(i).resid_file = fullfile(S.img.path.inputs,[residfile ext]);
+            [~,fittedfile,~]=fileparts(D(d).model(i).fitted_file);
+            D(d).model(i).fitted_file = fullfile(S.img.path.inputs,[fittedfile ext]);
+            [~,inputfile,~]=fileparts(D(d).model(i).input_file);
+            D(d).model(i).input_file = fullfile(S.img.path.inputs,[inputfile ext]);
+        end
+    end
 
     %% convert to images
     V=spm_vol(S.img.file.SPMimg);
@@ -153,7 +158,7 @@ for d=1:length(D)
     if S.img.model_comp.index
         for i = S.img.model_comp.index
             % create
-            [p_img] = topotime_3D(D(d).model_comp(i).p,S);
+            [p_img] = topotime_3D(D(d).model_comp(i).pval,S);
             if ~isempty(S.img.mask_img)
                 [LR_img] = topotime_3D(D(d).model_comp(i).LR,S);
             else
@@ -162,8 +167,8 @@ for d=1:length(D)
             [LR_p_img] = topotime_3D(D(d).model_comp(i).LR_p,S);
             % save
             V.dim = size(mask_img);
-            D(d).model_comp(i).p_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_p.nii']);
-            V.fname = D(d).model_comp(i).p_img_file;
+            D(d).model_comp(i).pval_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_p.nii']);
+            V.fname = D(d).model_comp(i).pval_img_file;
             spm_write_vol(V,p_img.*mask_img);
             D(d).model_comp(i).LR_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_LR.nii']);
             V.fname = D(d).model_comp(i).LR_img_file;

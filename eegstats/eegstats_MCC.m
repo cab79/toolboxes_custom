@@ -29,6 +29,19 @@ end
 
 for d=1:length(D)
     
+    % get model and contrast indices
+    if isempty(S.MCC.model.index)
+        S.MCC.model.index = 1:length(D(d).model);
+    end
+    if isempty(S.MCC.model.contrast) && isfield(D(d).model(1),'con')
+        for i = S.MCC.model.index
+            S.MCC.model.contrast{i} = 1:length(D(d).model(i).con);
+        end
+    end
+    if isempty(S.MCC.model_comp.index)
+        S.MCC.model_comp.index = 1:length(D(d).model_comp);
+    end
+    
     % initialise V for saving images later
     V=spm_vol(S.MCC.file.SPMimg);
 
@@ -146,14 +159,16 @@ for d=1:length(D)
                                 else
                                     disp(['pTFCE: for model ' num2str(i) ', loading resid file'])
                                     load(D(d).model(i).resid_file);
-                                    disp(['pTFCE: for model ' num2str(i) ', creating resid vol'])
-                                    resid_vol = topotime_3D(resid,S);
-                                    if S.save_vols==1
+                                    if ~exist('resid_vol','var')
+                                        disp(['pTFCE: for model ' num2str(i) ', creating resid vol'])
+                                        resid_vol = topotime_3D(resid,S);
                                         disp(['pTFCE: for model ' num2str(i) ', saving resid vol'])
                                         D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
                                         save(D(d).model(i).resid_vol_file,'resid_vol','-v7.3');
-                                        %delete(D(d).model(i).resid_file)
+                                    else
+                                        D(d).model(i).resid_vol_file = D(d).model(i).resid_file;
                                     end
+                                    %delete(D(d).model(i).resid_file)
                                 end
                             end
 
@@ -276,8 +291,8 @@ for d=1:length(D)
                         % use smoothness estimates from the original models
                         R4=[];
                         for p = 1:2
-                            for c = 1:length(D(d).model(D(d).model_comp(i).pair{1}(p)).con)
-                                R4=[R4 D(d).model(D(d).model_comp(i).pair{1}(p)).con(c).MCC.R(4)];
+                            for c = 1:length(D(d).model(D(d).model_comp(i).pair(p)).con)
+                                R4=[R4 D(d).model(D(d).model_comp(i).pair(p)).con(c).MCC.R(4)];
                             end
                         end
                         R4=mean(R4);
@@ -288,7 +303,7 @@ for d=1:length(D)
             %             imgZ = sqrt(abs(imgX));
 
                         % CONVERT TO Z-SCORE
-                        p_img = spm_read_vols(spm_vol(D(d).model_comp(i).p_img_file));
+                        p_img = spm_read_vols(spm_vol(D(d).model_comp(i).pval_img_file));
                         LR_img = spm_read_vols(spm_vol(D(d).model_comp(i).LR_img_file));
                         pimg=p_img;
                         pimg(pimg==0) = realmin;
@@ -340,12 +355,11 @@ end
 save(fullfile(S.MCC.path.outputs, 'D.mat'),'D');
 
 function set_paths(S)
-restoredefaultpath
-for p = 1:length(S.MCC.path.code)
-    if S.MCC.path.code{p,1}
-        addpath(genpath(S.MCC.path.code{p,2}));
+for p = 1:size(S.path.code,1)
+    if S.path.code{p,1}
+        addpath(genpath(S.path.code{p,2}));
     else
-        addpath(S.MCC.path.code{p,2});
+        addpath(S.path.code{p,2});
     end
 end
 

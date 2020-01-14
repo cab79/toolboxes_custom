@@ -17,11 +17,13 @@ M = struct;
 for s = 1:length(Y)
     
     % for each model
+    model=struct;
     for i = 1:LM
 
         % fit model
         train_data = Y(s).dtab(find(double(Y(s).dtab.train)),:);
         lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
+        model(i).lmm = lmm; % temporary var for model comparisons
         [R,Rn]=randomEffects(lmm);
         
         % outputs common to all samples
@@ -69,16 +71,19 @@ for s = 1:length(Y)
 %             M.model(i).samples(s).kurt=NaN;
 %         end
         if S.encode.save_residuals
+            resid = bsxfun(@times,resid,Y(s).data_std); % re-scale
             M.model(i).samples(s).resid=resid;
         end
         % fitted
         if S.encode.save_fitted
             ftd=fitted(lmm,'Conditional',true);
+            ftd = bsxfun(@plus,bsxfun(@times,ftd,Y(s).data_std),Y(s).data_mean); % re-scale
             M.model(i).samples(s).fitted=ftd;
         end
         % input
         if S.encode.save_input
             input=Y(s).dtab.data;
+            input = bsxfun(@plus,bsxfun(@times,input,Y(s).data_std),Y(s).data_mean); % re-scale
             M.model(i).samples(s).input=input;
         end
     end
@@ -88,14 +93,14 @@ for s = 1:length(Y)
         modi = S.encode.model_compare{i};
         M.model_comp(i).samples(s).pair=modi;
         try
-            results = compare(samples(s).model(modi(1)).lmm,samples(s).model(modi(2)).lmm,'CheckNesting',true);
+            results = compare(model(modi(1)).lmm,model(modi(2)).lmm,'CheckNesting',true);
             M.model_comp(i).samples(s).pval = results.pValue(2); 
             M.model_comp(i).samples(s).LRStat = results.LRStat(2); 
             M.model_comp(i).samples(s).deltaDF = results.deltaDF;
         catch
-            M.model_comp(i).samples(s).pval = nan;
-            M.model_comp(i).samples(s).LRStat = nan; 
-            M.model_comp(i).samples(s).deltaDF = [nan nan];
+           M.model_comp(i).samples(s).pval = nan;
+           M.model_comp(i).samples(s).LRStat = nan; 
+           M.model_comp(i).samples(s).deltaDF = [nan nan];
         end
     end
 end

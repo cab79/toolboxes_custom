@@ -13,6 +13,10 @@ else
     D= varargin{1};
 end
 
+disp('loading data table')
+Ddtab = load(S.diag.path.dtab_inputs);
+dtab = Ddtab.D.prep.dtab;
+
 % set paths
 S.path.code = {
     };
@@ -27,6 +31,19 @@ end
 for d=1:length(D)
     
     types = S.diag.summary_types;
+    
+    % get model and contrast indices
+    if isempty(S.diag.model.index)
+        S.diag.model.index = 1:length(D(d).model);
+    end
+    if isempty(S.diag.model.contrast) && isfield(D(d).model(1),'con')
+        for i = S.diag.model.index
+            S.diag.model.contrast{i} = 1:length(D(d).model(i).con);
+        end
+    end
+    if isempty(S.diag.model_comp.index)
+        S.diag.model_comp.index = 1:length(D(d).model_comp);
+    end
 
     if S.diag.model.index
         for i = S.diag.model.index
@@ -43,14 +60,13 @@ for d=1:length(D)
                 else
                     disp([save_pref num2str(d) ', model ' num2str(i) ', loading resid file'])
                     load(D(d).model(i).resid_file);
-                    disp([save_pref num2str(d) ', model ' num2str(i) ', creating resid image'])
-                    resid_vol = topotime_3D(resid,S);
-                    if S.save_vols
+                    if ~exist('resid_vol','var')
+                        disp([save_pref num2str(d) ', model ' num2str(i) ', creating resid image'])
+                        resid_vol = topotime_3D(resid,S);
                         disp([save_pref num2str(d) ', model ' num2str(i) ', saving resid image'])
                         save(D(d).model(i).resid_vol_file,'resid_vol','-v7.3');
-                        %delete(D(d).model(i).resid_file)
+                        clear resid
                     end
-                    clear resid
                 end
             end
             resid_vol=reshape(resid_vol,[],size(resid_vol,4)); % space-time (voxels) x observations
@@ -62,11 +78,11 @@ for d=1:length(D)
                         % median value from each row (voxel), for each
                         % observation. I.e. voxel can differ depending on the
                         % observation (subject, trial, etc.)
-                        D(d).model(i).con(c).clus(ci).resid_median=squeeze(median(resid_vol(cii,:),1));
+                        D(d).model(i).con(c).clus(ci).resid_median=squeeze(nanmedian(resid_vol(cii,:),1));
                     end
 
                     if any(strcmp(types,'mean'))
-                        D(d).model(i).con(c).clus(ci).resid_mean=squeeze(mean(resid_vol(cii,:),1));
+                        D(d).model(i).con(c).clus(ci).resid_mean=squeeze(nanmean(resid_vol(cii,:),1));
                     end
                 end
             end
@@ -80,14 +96,13 @@ for d=1:length(D)
             else
                 disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
                 load(D(d).model(i).fitted_file);
-                disp([save_pref num2str(d) ', model ' num2str(i) ', creating fitted image'])
-                fitted_vol = topotime_3D(fitted,S);
-                if S.save_vols
+                if ~exist('fitted_vol','var')
+                    disp([save_pref num2str(d) ', model ' num2str(i) ', creating fitted image'])
+                    fitted_vol = topotime_3D(fitted,S);
                     disp([save_pref num2str(d) ', model ' num2str(i) ', saving fitted image'])
                     save(D(d).model(i).fitted_vol_file,'fitted_vol','-v7.3');
-                    %delete(D(d).model(i).fitted_file)
+                    clear fitted
                 end
-                clear fitted
             end
             fitted_vol=reshape(fitted_vol,[],size(fitted_vol,4));
             for c = S.diag.model.contrast{i}
@@ -98,11 +113,11 @@ for d=1:length(D)
                         % median value from each row (voxel), for each
                         % observation. I.e. voxel can differ depending on the
                         % observation (subject, trial, etc.)
-                        D(d).model(i).con(c).clus(ci).fitted_median=squeeze(median(fitted_vol(cii,:),1));
+                        D(d).model(i).con(c).clus(ci).fitted_median=squeeze(nanmedian(fitted_vol(cii,:),1));
                     end
 
                     if any(strcmp(types,'mean'))
-                        D(d).model(i).con(c).clus(ci).fitted_mean=squeeze(mean(fitted_vol(cii,:),1));
+                        D(d).model(i).con(c).clus(ci).fitted_mean=squeeze(nanmean(fitted_vol(cii,:),1));
                     end
                 end
             end
@@ -116,12 +131,14 @@ for d=1:length(D)
                     close all
                     f=figure('units','normalized','outerposition',[0 0 1 1]);
                     for tp = 1:length(types)
-                        subplot(length(types),3,3*(tp-1)+1)
-                        histfit(D(d).model(i).con(c).clus(ci).(['resid_' types{tp}])')
-                        subplot(length(types),3,3*(tp-1)+2)
-                        boxplot(D(d).model(i).con(c).clus(ci).(['resid_' types{tp}])')
-                        subplot(length(types),3,3*(tp-1)+3)
-                        qqplot(D(d).model(i).con(c).clus(ci).(['resid_' types{tp}])')
+                        if any(~isnan(D(d).model(i).con(c).clus(ci).resid_median))
+                            subplot(length(types),3,3*(tp-1)+1)
+                            histfit(D(d).model(i).con(c).clus(ci).(['resid_' types{tp}])')
+                            subplot(length(types),3,3*(tp-1)+2)
+                            boxplot(D(d).model(i).con(c).clus(ci).(['resid_' types{tp}])')
+                            subplot(length(types),3,3*(tp-1)+3)
+                            qqplot(D(d).model(i).con(c).clus(ci).(['resid_' types{tp}])')
+                        end
                     end
                     sname = fullfile(S.diag.path.outputs, [save_pref num2str(d) ', model_' num2str(i) '_con_' num2str(c) '_clus_' num2str(ci) '_residnorm.png']);
                     saveas(f,sname);
@@ -171,7 +188,7 @@ for d=1:length(D)
                     saveas(f,sname);
 
                     for pd = 1:length(S.diag.pred)
-                        X=D(d).design.(S.diag.pred{pd});
+                        X=dtab.(S.diag.pred{pd});
                         % fitted vs residuals for all clusters
                         f=figure('units','normalized','outerposition',[0 0 1 1]);
                         for ci = 1:nc
@@ -216,12 +233,11 @@ save(fullfile(S.diag.path.outputs, 'D.mat'),'D');
 
 
 function set_paths(S)
-restoredefaultpath
-for p = 1:length(S.diag.path.code)
-    if S.diag.path.code{p,1}
-        addpath(genpath(S.diag.path.code{p,2}));
+for p = 1:length(S.path.code)
+    if S.path.code{p,1}
+        addpath(genpath(S.path.code{p,2}));
     else
-        addpath(S.diag.path.code{p,2});
+        addpath(S.path.code{p,2});
     end
 end
 

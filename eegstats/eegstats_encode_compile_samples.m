@@ -50,6 +50,9 @@ for d = 1:nD % subject
             for i=1:length(M.model)
                 M.model(i).samples = [M.model(i).samples,C(c).M.model(i).samples];
             end
+            for i=1:length(M.model_comp)
+                M.model_comp(i).samples = [M.model_comp(i).samples,C(c).M.model_comp(i).samples];
+            end
         end
         C(c).M=[]; % save memory
     end
@@ -131,6 +134,7 @@ for d = 1:nD % subject
     if isfield(M,'model_comp')
         MC=length(M.model_comp);
         for i = 1:MC
+            D(d).model_comp(i).pair = M.model_comp(i).samples(1).pair;
             D(d).model_comp(i).pval = reshape(vertcat([M.model_comp(i).samples(:).pval]'),ddim(1),ddim(2));
             D(d).model_comp(i).LR = reshape(vertcat([M.model_comp(i).samples(:).LRStat]'),ddim(1),ddim(2));
         end
@@ -183,6 +187,7 @@ try
     delete('*.Z');
     delete('*.log');
     delete('*.err');
+    delete('*.out');
 end
 try
 %     delete(fullfile(pthData,'resid*.zip'));

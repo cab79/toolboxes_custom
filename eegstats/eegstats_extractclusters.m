@@ -53,7 +53,7 @@ for d=1:length(D)
                 C = S.clus.connected_clusters.connectivity;
                 
                 try
-                    img_file = [S.thresh.image '_file'];
+                    img_file = [S.clus.image '_file'];
                     img_file = strrep(img_file,'.nii','');
                     try
                         base_fname=D(d).model(i).con(c).(img_file);
@@ -61,7 +61,7 @@ for d=1:length(D)
                         base_fname=D(d).model(i).con(c).MCC.(img_file);
                     end
                 catch
-                    img_file = [S.thresh.image '_img_file'];
+                    img_file = [S.clus.image '_img_file'];
                     img_file = strrep(img_file,'.nii','');
                     try
                         base_fname=D(d).model(i).con(c).(img_file);
@@ -98,6 +98,7 @@ for d=1:length(D)
 %                     cc = cc(mi);
                     
                     % cc
+                    img(isnan(img))=0;
                     cc = bwconncomp(img,C);
                     % re-order with largest cluster first
                     [~,si]=sort(cellfun(@length,cc.PixelIdxList),'descend');
@@ -105,7 +106,7 @@ for d=1:length(D)
                     % remove small clusters
                     cc.PixelIdxList(cellfun(@length,cc.PixelIdxList)<S.clus.connected_clusters.ClusExtentThresh)=[];
                     D(d).model(i).con(c).vox = cc.PixelIdxList(1:min(length(cc.PixelIdxList),S.clus.connected_clusters.ClusMaxNum));
-                    D(d).model(i).con(c).pc_vox = pc_vox;
+%                     D(d).model(i).con(c).pc_vox = pc_vox;
 %                 end
                 
             end
@@ -143,11 +144,11 @@ for d=1:length(D)
                             % median value from each row (voxel), for each
                             % observation. I.e. voxel can differ depending on the
                             % observation (subject, trial, etc.)
-                            D(d).model(i).con(c).clus(ci).input_median=squeeze(median(input_vol(cii,:),1));
+                            D(d).model(i).con(c).clus(ci).input_median=squeeze(nanmedian(input_vol(cii,:),1));
                         end
 
                         if any(strcmp(types,'mean'))
-                            D(d).model(i).con(c).clus(ci).input_mean=squeeze(mean(input_vol(cii,:),1));
+                            D(d).model(i).con(c).clus(ci).input_mean=squeeze(nanmean(input_vol(cii,:),1));
                         end
                     end
                 end

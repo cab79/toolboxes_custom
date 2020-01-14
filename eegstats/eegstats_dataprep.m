@@ -34,10 +34,10 @@ end
 for d = 1:length(subjects)
     
     % create output D
-    D(d).prep.subname = subjects{d};
+    D(d).prep.subname = subjects(d);
         
     % FIND THE FILES FOR THIS SUBJECT
-    subfiles = filelist(find(not(cellfun('isempty', strfind(filelist,D(d).prep.subname)))));
+    subfiles = filelist(find(not(cellfun('isempty', strfind(filelist,D(d).prep.subname{:})))));
     
     if isempty(subfiles)
         continue
@@ -174,28 +174,30 @@ for d = 1:length(subjects)
     end
     
     %% Covariates
-    CVs=S.prep.pred.covariate;
-    for ci = 1:length(CVs)
-        switch CVs(ci).type
-            case 'HGF'
-                pred_out = HGF_covariates(...
-                    CVs(1),...
-                    D(d).prep.subname,...
-                    tnums,...
-                    S.prep.path.inputs.subjects);
-        end
-        repl=find(ismember(pred_out.Properties.VariableNames,dtab.Properties.VariableNames));
-        if ~isempty(repl)
-            % add suffixes if labels are replicated
-            for rp = 1:length(repl)
-                pred_out.([pred_out.Properties.VariableNames(repl(rp)) 'a']) = pred_out.(pred_out.Properties.VariableNames(repl(rp)));
-                pred_out.(pred_out.Properties.VariableNames(repl(rp)))=[];
+    if isfield(S.prep.pred,'covariate')
+        CVs=S.prep.pred.covariate;
+        for ci = 1:length(CVs)
+            switch CVs(ci).type
+                case 'HGF'
+                    pred_out = HGF_covariates(...
+                        CVs(1),...
+                        D(d).prep.subname{:},...
+                        tnums,...
+                        S.prep.path.inputs.subjects);
             end
+            repl=find(ismember(pred_out.Properties.VariableNames,dtab.Properties.VariableNames));
+            if ~isempty(repl)
+                % add suffixes if labels are replicated
+                for rp = 1:length(repl)
+                    pred_out.([pred_out.Properties.VariableNames(repl(rp)) 'a']) = pred_out.(pred_out.Properties.VariableNames(repl(rp)));
+                    pred_out.(pred_out.Properties.VariableNames(repl(rp)))=[];
+                end
+            end
+            % add pred_out to dtab
+            dtab=[dtab pred_out];
+            % currently unused:
+            CVs(ci).level; % subject, trial
         end
-        % add pred_out to dtab
-        dtab=[dtab pred_out];
-        % currently unused:
-        CVs(ci).level; % subject, trial
     end
 
     % remove all-NaN predictors
@@ -372,7 +374,7 @@ for d = 1:length(D)
         col_idx=contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov);
         col_names = D(d).prep.dtab.Properties.VariableNames(col_idx);
         dtab_PCA=D(d).prep.dtab;
-        dtab_PCA(:,col_idx)=[];
+%         dtab_PCA(:,col_idx)=[];
 
         % extract predictors
         X=[];
@@ -427,10 +429,15 @@ for d = 1:length(D)
             end
 
             % add PCA components to data table
+            Btable = table;
+            Btable.cov = dtab_PCA(:,col_idx).Properties.VariableNames';
             for k = 1:K
                 disp(['adding component M' num2str(K) 'PC' num2str(k)])
-                dtab_PCA.(['M' num2str(K) 'PC' num2str(k)]) = out(K).scores(:,k);
+                pcname=['M' num2str(K) 'PC' num2str(k)];
+                dtab_PCA.(pcname) = out(K).scores(:,k);
+                Btable.(pcname) = out(K).B(:,k);
             end
+            D(d).prep.pca{K}=Btable;
         end
         D(d).prep.dtab=dtab_PCA;
     end
