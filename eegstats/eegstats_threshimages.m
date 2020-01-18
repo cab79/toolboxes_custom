@@ -45,7 +45,11 @@ for d=1:length(D)
         end
     end
     if isempty(S.thresh.model_comp.index)
-        S.thresh.model_comp.index = 1:length(D(d).model_comp);
+        try
+            S.thresh.model_comp.index = 1:length(D(d).model_comp);
+        catch
+            S.thresh.model_comp.index = 0;
+        end
     end
 
     if S.thresh.model.index

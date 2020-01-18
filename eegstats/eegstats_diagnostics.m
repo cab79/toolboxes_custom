@@ -42,7 +42,11 @@ for d=1:length(D)
         end
     end
     if isempty(S.diag.model_comp.index)
-        S.diag.model_comp.index = 1:length(D(d).model_comp);
+        try
+            S.diag.model_comp.index = 1:length(D(d).model_comp);
+        catch
+            S.diag.model_comp.index = 0;
+        end
     end
 
     if S.diag.model.index

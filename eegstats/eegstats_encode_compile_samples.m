@@ -50,8 +50,10 @@ for d = 1:nD % subject
             for i=1:length(M.model)
                 M.model(i).samples = [M.model(i).samples,C(c).M.model(i).samples];
             end
-            for i=1:length(M.model_comp)
-                M.model_comp(i).samples = [M.model_comp(i).samples,C(c).M.model_comp(i).samples];
+            if isfield(M,'model_comp')
+                for i=1:length(M.model_comp)
+                    M.model_comp(i).samples = [M.model_comp(i).samples,C(c).M.model_comp(i).samples];
+                end
             end
         end
         C(c).M=[]; % save memory
@@ -92,6 +94,10 @@ for d = 1:nD % subject
             end
             % random effects
             D(d).model(i).random = reshape(vertcat([M.model(i).samples(:).r]'),ddim(1),ddim(2),[]);
+            % covariance
+            for ii = 1:length(M.model(i).samples(1).psi)
+                D(d).model(i).psi(ii).cov = reshape(arrayfun(@(X) X.psi{ii}, M.model(i).samples,'UniformOutput',0),ddim(1),ddim(2),[]);
+            end
         end
         
         % BRR models only

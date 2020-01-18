@@ -157,7 +157,9 @@ else
     end
 end
 if strcmp(S.encode.parallel.option,'local') || strcmp(S.encode.parallel.option,'none')
+    save('temp.mat','S','C') % save in case this next function goes wrong!
     eegstats_encode_compile_samples(S,C);
+    delete('temp.mat') % tidy up
 end
 
 function C=save_matfiles(S,C,c,save_pref)

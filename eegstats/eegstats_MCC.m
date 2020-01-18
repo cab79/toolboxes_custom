@@ -39,7 +39,11 @@ for d=1:length(D)
         end
     end
     if isempty(S.MCC.model_comp.index)
-        S.MCC.model_comp.index = 1:length(D(d).model_comp);
+        try
+            S.MCC.model_comp.index = 1:length(D(d).model_comp);
+        catch
+            S.MCC.model_comp.index = 0;
+        end
     end
     
     % initialise V for saving images later
@@ -292,7 +296,9 @@ for d=1:length(D)
                         R4=[];
                         for p = 1:2
                             for c = 1:length(D(d).model(D(d).model_comp(i).pair(p)).con)
-                                R4=[R4 D(d).model(D(d).model_comp(i).pair(p)).con(c).MCC.R(4)];
+                                try
+                                  R4=[R4 D(d).model(D(d).model_comp(i).pair(p)).con(c).MCC.R(4)];
+                                end
                             end
                         end
                         R4=mean(R4);

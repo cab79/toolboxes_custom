@@ -41,6 +41,7 @@ for s = 1:length(Y)
         M.model(i).samples(s).logl = lmm.LogLikelihood;
         M.model(i).samples(s).r2_ord = lmm.Rsquared.Ordinary;
         M.model(i).samples(s).r2_adj = lmm.Rsquared.Adjusted;
+        M.model(i).samples(s).psi = covarianceParameters(lmm);
 
         % contrasts
         if strcmp(S.encode.lmm.contrasts(1).Term,'anova') 
@@ -51,7 +52,7 @@ for s = 1:length(Y)
             M.model(i).samples(s).p = anovastats.pValue;
         else
             for h=1:length(S.encode.lmm.contrasts)
-                [pValue,FStat,DF1,DF2] = coefTest(lme,S.encode.lmm.contrasts(h).H,'DFMethod','satterthwaite');
+                [pValue,FStat,DF1,DF2] = coefTest(lmm,S.encode.lmm.contrasts(h).H,'DFMethod','satterthwaite');
                 M.model(i).samples(s).Term = S.encode.lmm.contrasts(h).Term;
                 M.model(i).samples(s).DF(h,:) = [DF1,DF2];
                 M.model(i).samples(s).F(h,1) = FStat;
@@ -71,19 +72,19 @@ for s = 1:length(Y)
 %             M.model(i).samples(s).kurt=NaN;
 %         end
         if S.encode.save_residuals
-            resid = bsxfun(@times,resid,Y(s).data_std); % re-scale
+%             resid = bsxfun(@times,resid,Y(s).data_std); % don't re-scale
             M.model(i).samples(s).resid=resid;
         end
         % fitted
         if S.encode.save_fitted
             ftd=fitted(lmm,'Conditional',true);
-            ftd = bsxfun(@plus,bsxfun(@times,ftd,Y(s).data_std),Y(s).data_mean); % re-scale
+%             ftd = bsxfun(@plus,bsxfun(@times,ftd,Y(s).data_std),Y(s).data_mean); % don't re-scale
             M.model(i).samples(s).fitted=ftd;
         end
         % input
         if S.encode.save_input
             input=Y(s).dtab.data;
-            input = bsxfun(@plus,bsxfun(@times,input,Y(s).data_std),Y(s).data_mean); % re-scale
+%             input = bsxfun(@plus,bsxfun(@times,input,Y(s).data_std),Y(s).data_mean); % don't re-scale
             M.model(i).samples(s).input=input;
         end
     end

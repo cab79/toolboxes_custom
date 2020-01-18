@@ -40,7 +40,11 @@ for d=1:length(D)
         end
     end
     if isempty(S.img.model_comp.index)
-        S.img.model_comp.index = 1:length(D(d).model_comp);
+        try
+            S.img.model_comp.index = 1:length(D(d).model_comp);
+        catch
+            S.img.model_comp.index = 0;
+        end
     end
 
 %     % design

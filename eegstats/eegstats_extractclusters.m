@@ -39,7 +39,11 @@ for d=1:length(D)
         end
     end
     if isempty(S.clus.model_comp.index)
-        S.clus.model_comp.index = 1:length(D(d).model_comp);
+        try
+            S.clus.model_comp.index = 1:length(D(d).model_comp);
+        catch
+            S.clus.model_comp.index = 0;
+        end
     end
 
     if S.clus.model.index
@@ -150,6 +154,11 @@ for d=1:length(D)
                         if any(strcmp(types,'mean'))
                             D(d).model(i).con(c).clus(ci).input_mean=squeeze(nanmean(input_vol(cii,:),1));
                         end
+                        
+                        % calculate covariance explained by fixed and
+                        % random factors - useful for comparing models -
+                        % TBC
+%                         (sum(diag(lme.CoefficientCovariance),'all')+sum(diag(r{1}),'all'))/(sum(diag(lme.CoefficientCovariance),'all')+lme.MSE+sum(diag(r{1}),'all'));
                     end
                 end
                 clear input_vol
