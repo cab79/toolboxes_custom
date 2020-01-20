@@ -85,11 +85,11 @@ inc_col_custom = find(strcmp(pdata(1,:),S.(S.func).select.custom_header));
 % identify number of groups of participants and find indices of
 % participants in each group
 if isnumeric([pdata{2:end,grp_col}])
-    ugrp = unique([pdata{2:end,grp_col}]);
+    ugrp = unique([pdata{2:end,grp_col}],'stable');
 else
     grpdata = pdata(2:end,grp_col);
     grpdata = grpdata(~cell2mat(cellfun(@any,cellfun(@isnan,grpdata,'UniformOutput',false),'UniformOutput',false)));
-    ugrp = unique(grpdata);
+    ugrp = unique(grpdata,'stable');
 end
 Ngrp = length(ugrp);
 SubInd = cell(Ngrp,1);
