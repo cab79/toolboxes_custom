@@ -72,22 +72,24 @@ for d=1:length(D)
             if S.MCC.model.index
                 for i = S.MCC.model.index
                     for c = S.MCC.model.contrast{i}
-                        p=D(d).model(i).con(c).p .* mask_img;
-                        F=D(d).model(i).con(c).F .* mask_img;
-                        [~,fdr_p] = FDR(p(:),S.MCC.thresh);
-                        psize=size(p);
+                        p_img = spm_read_vols(spm_vol(D(d).model(i).con(c).p_img_file)) .* mask_img;
+                        F_img=spm_read_vols(spm_vol(D(d).model(i).con(c).F_img_file)) .* mask_img;
+                        [~,fdr_p] = FDR(p_img(:),S.MCC.thresh);
+                        psize=size(p_img);
                         switch length(psize)
+                            case 1
+                                FDRmask_img = p_img<=fdr_p;
                             case 2
-                                FDRmask = p<=fdr_p;
+                                FDRmask_img = reshape(p_img<=fdr_p,psize(1),psize(2));
                             case 3
-                                FDRmask = reshape(p<=fdr_p,psize(1),psize(2));
-                            case 4
-                                FDRmask = reshape(p<=fdr_p,psize(1),psize(2),psize(3));
+                                FDRmask_img = reshape(p_img<=fdr_p,psize(1),psize(2),psize(3));
                         end
                         % save images
-                        [FDRmask_img] = topotime_3D(FDRmask,S);
-                        [FDRmask_p_img] = topotime_3D(FDRmask.*p,S);
-                        [FDRmask_F_img] = topotime_3D(FDRmask.*F,S);
+%                         [FDRmask_img] = topotime_3D(FDRmask,S);
+                        [FDRmask_p_img] = FDRmask_img.*p_img;
+                        [FDRmask_F_img] = FDRmask_img.*F_img;
+                        DF = D(d).model(i).con(c).DF;%- A 2-vector, [n df], the original n & dof of the linear model     
+                        FDRmask_Z_img = img_f2z(FDRmask_F_img, DF(1), DF(2), 1);
 
                         D(d).model(i).con(c).MCC.FDRmask_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_con_' num2str(c) '_FDRmask.nii']);
                         V.fname = D(d).model(i).con(c).MCC.FDRmask_img_file;
@@ -98,36 +100,41 @@ for d=1:length(D)
                         D(d).model(i).con(c).MCC.FDRmask_F_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_con_' num2str(c) '_FDRmask_F.nii']);
                         V.fname = D(d).model(i).con(c).MCC.FDRmask_F_img_file;
                         spm_write_vol(V,FDRmask_F_img);
+                        D(d).model(i).con(c).MCC.FDRmask_Z_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_con_' num2str(c) '_FDRmask_Z.nii']);
+                        V.fname = D(d).model(i).con(c).MCC.FDRmask_Z_img_file;
+                        spm_write_vol(V,FDRmask_Z_img)
                     end
                 end
             end
-            for i = S.MCC.model_comp.index
-                p=D(d).model_comp(i).p .* mask_img;
-                LR=D(d).model_comp(i).LR .* mask_img;
-                [~,fdr_p] = FDR(p(:),S.MCC.thresh);
-                psize=size(p);
-                switch length(psize)
-                    case 2
-                        FDRmask = p<=fdr_p;
-                    case 3
-                        FDRmask = reshape(p<=fdr_p,psize(1),psize(2));
-                    case 4
-                        FDRmask = reshape(p<=fdr_p,psize(1),psize(2),psize(3));
-                end
-                % save images
-                [FDRmask_img] = topotime_3D(FDRmask,S);
-                [FDRmask_p_img] = topotime_3D(FDRmask.*p,S);
-                [FDRmask_LR_img] = topotime_3D(FDRmask.*LR,S);
+            if S.MCC.model_comp.index
+                for i = S.MCC.model_comp.index
+                    p_img=spm_read_vols(spm_vol(D(d).model_comp(i).pval_img_file)) .* mask_img;
+                    LR_img=spm_read_vols(spm_vol(D(d).model_comp(i).LR_img_file)) .* mask_img;
+                    [~,fdr_p] = FDR(p_img(:),S.MCC.thresh);
+                    psize=size(p_img);
+                    switch length(psize)
+                        case 1
+                            FDRmask_img = p_img<=fdr_p;
+                        case 2
+                            FDRmask_img = reshape(p_img<=fdr_p,psize(1),psize(2));
+                        case 3
+                            FDRmask_img = reshape(p_img<=fdr_p,psize(1),psize(2),psize(3));
+                    end
+                    % save images
+    %                 [FDRmask_img] = topotime_3D(FDRmask,S);
+                    [FDRmask_p_img] = FDRmask_img.*p_img;
+                    [FDRmask_LR_img] = FDRmask_img.*LR_img;
 
-                D(d).model_comp(i).MCC.FDRmask_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_FDRmask.nii']);
-                V.fname = D(d).model_comp(i).MCC.FDRmask_img_file;
-                spm_write_vol(V,FDRmask_img);
-                D(d).model_comp(i).MCC.FDRmask_p_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_FDRmask_p.nii']);
-                V.fname = D(d).model_comp(i).MCC.FDRmask_p_img_file;
-                spm_write_vol(V,FDRmask_p_img);
-                D(d).model_comp(i).MCC.FDRmask_LR_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_FDRmask_LR.nii']);
-                V.fname = D(d).model_comp(i).MCC.FDRmask_LR_img_file;
-                spm_write_vol(V,FDRmask_LR_img);
+                    D(d).model_comp(i).MCC.FDRmask_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_FDRmask.nii']);
+                    V.fname = D(d).model_comp(i).MCC.FDRmask_img_file;
+                    spm_write_vol(V,FDRmask_img);
+                    D(d).model_comp(i).MCC.FDRmask_p_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_FDRmask_p.nii']);
+                    V.fname = D(d).model_comp(i).MCC.FDRmask_p_img_file;
+                    spm_write_vol(V,FDRmask_p_img);
+                    D(d).model_comp(i).MCC.FDRmask_LR_img_file = fullfile(S.MCC.path.outputs, [save_pref num2str(d) '_modelcomp_' num2str(i) '_FDRmask_LR.nii']);
+                    V.fname = D(d).model_comp(i).MCC.FDRmask_LR_img_file;
+                    spm_write_vol(V,FDRmask_LR_img);
+                end
             end
 
         case 'pTFCE' % below is based on SPM and pTCFE code

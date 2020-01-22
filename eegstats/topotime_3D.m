@@ -18,6 +18,10 @@ if isstruct(Y)
 end
 
 % inputs
+try S.img;
+catch
+    S.img = S.MCC;
+end
 SPMdata = spm_eeg_load(fullfile(S.img.path.SPMdata,S.img.file.SPMdata)); % example, for chan 2D coords only
 chanind = 1:size(Y,1); % index of chans
 timeind = 1:size(Y,2); % index of timepoints
