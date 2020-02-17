@@ -69,6 +69,7 @@ classdef Violin < handle
         ShowNotches % whether to show notch indicators
         ShowMean    % whether to show mean indicator
         DotSize    % whether to show mean indicator
+        Shape
     end
 
     methods
@@ -107,7 +108,7 @@ classdef Violin < handle
             args = obj.checkInputs(data, pos, varargin{:});
             data = data(not(isnan(data)));
             if numel(data) == 1
-                obj.MedianPlot = scatter(pos, data, args.DotSize, 'filled');
+                obj.MedianPlot = scatter(pos, data, args.DotSize, 'filled',  args.Shape);
                 obj.MedianColor = args.MedianColor;
                 obj.MedianPlot.MarkerEdgeColor = args.EdgeColor;
                 return
@@ -137,7 +138,7 @@ classdef Violin < handle
             end
             jitter = 2*(rand(size(data))-0.5);
             obj.ScatterPlot = ...
-                scatter(pos + jitter.*jitterstrength, data, args.DotSize, 'filled');
+                scatter(pos + jitter.*jitterstrength, data, args.DotSize, 'filled', args.Shape);
 
             % plot the violin
             obj.ViolinPlot =  ... % plot color will be overwritten later
@@ -173,14 +174,14 @@ classdef Violin < handle
             if ~isempty(lowhisker) && ~isempty(hiwhisker)
                 obj.WhiskerPlot = plot([pos pos], [lowhisker hiwhisker]);
             end
-            obj.MedianPlot = scatter(pos, quartiles(2), args.DotSize, [1 1 1], 'filled');
+            obj.MedianPlot = scatter(pos, quartiles(2), args.DotSize,  [1 1 1], 'filled',args.Shape);
 
             obj.NotchPlots = ...
                  scatter(pos, quartiles(2)-1.57*IQR/sqrt(length(data)), ...
-                         args.DotSize, [1 1 1], 'filled', '^');
+                         args.DotSize,  [1 1 1], 'filled', '^');
             obj.NotchPlots(2) = ...
                  scatter(pos, quartiles(2)+1.57*IQR/sqrt(length(data)), ...
-                         args.DotSize, [1 1 1], 'filled', 'v');
+                         args.DotSize,  [1 1 1], 'filled', 'v');
 
             obj.EdgeColor = args.EdgeColor;
             obj.BoxColor = args.BoxColor;
@@ -337,6 +338,8 @@ classdef Violin < handle
             p.addParameter('ShowNotches', false, isscalarlogical);
             p.addParameter('ShowMean', false, isscalarlogical);
             p.addParameter('DotSize', 36, isscalarnumber);
+            ischaracter = @(x) (ischar(x));
+            p.addParameter('Shape', 'o', ischaracter);
 
             p.parse(data, pos, varargin{:});
             results = p.Results;

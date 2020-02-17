@@ -1583,5 +1583,5 @@ h.Settings.DAC_multiply = 0.01; % multiply DAC output by this (e.g. to get mA on
 h.Settings.fs = 96000; % don't change this
 
 
-    % stimulate responses?
+    % simulate responses?
     h.Settings.simulate_response = 0;

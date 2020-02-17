@@ -41,6 +41,7 @@ for s = 1:length(Y)
         M.model(i).samples(s).logl = lmm.LogLikelihood;
         M.model(i).samples(s).r2_ord = lmm.Rsquared.Ordinary;
         M.model(i).samples(s).r2_adj = lmm.Rsquared.Adjusted;
+        M.model(i).samples(s).coeffcov = lmm.CoefficientCovariance;
         M.model(i).samples(s).psi = covarianceParameters(lmm);
 
         % contrasts

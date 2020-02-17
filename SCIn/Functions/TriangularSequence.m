@@ -37,7 +37,7 @@ if nodds<=h.Settings.nstim_trial
             h.Seq.condnum=[h.Seq.condnum i*ones(1,length(thisseq))];
             seq = [seq thisseq];
         end
-        if h.Settings.randomise_conds_evenly
+        if h.Settings.randomise_conds_evenly && length(unique(h.Seq.condnum))>1
             
             % create temporary cond/signal array
             condsig = [h.Seq.condnum;seq]';
@@ -108,7 +108,7 @@ if nodds<=h.Settings.nstim_trial
                 h.Seq.signal(ns,condind) = h.Settings.PL.oddballvalue{i}(ind);
             end
         end
-else % four possible stims (patterns)
+elseif nodds>h.Settings.nstim_trial % four possible stims (patterns)
         for i = 1:size(h.Settings.PL.oddprob,1)
             ntrial_per_stimtype(i,:) = floor(h.Settings.ntrials(i)*h.Settings.PL.oddprob(i,:));
             thisseq=[];
@@ -129,7 +129,7 @@ else % four possible stims (patterns)
             % get all values except value i being left out
             oddind = 1:size(h.Settings.PL.oddprob,1);
             oddind(i) = [];
-            oddvals = h.Settings.oddballvalue(oddind);
+            oddvals = h.Settings.PL.oddballvalue(oddind);
             oddvals = oddvals(randperm(length(oddvals)));
             
             % get the indices of this 'condition' (i.e. the pattern being left out)

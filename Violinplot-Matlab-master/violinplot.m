@@ -59,6 +59,12 @@ function violins = violinplot(data, cats, pos, varargin)
             colors_in = varargin{col_ind+1};
         end
     end
+    isshape = strcmp(varargin,'Shape');
+    shapes_in = [];
+    if any(isshape) 
+        shape_ind = find(isshape);
+        shapes_in = varargin{shape_ind+1};
+    end
 
     % tabular data
     if isa(data, 'dataset') || isstruct(data) || istable(data)
@@ -79,6 +85,9 @@ function violins = violinplot(data, cats, pos, varargin)
             thisData = data.(catnames{n});
             if ~isempty(colors_in)
                 varargin{col_ind+1} = colors_in(n,:);
+            end
+            if ~isempty(shapes_in)
+                varargin{shape_ind+1} = shapes_in{n};
             end
             violins(n) = Violin(thisData, n, varargin{:});
         end
@@ -111,6 +120,9 @@ function violins = violinplot(data, cats, pos, varargin)
             thisData = data(:, n);
             if ~isempty(colors_in)
                 varargin{col_ind+1} = colors_in(n,:);
+            end
+            if ~isempty(shapes_in)
+                varargin{shape_ind+1} = shapes_in{n};
             end
             violins(n) = Violin(thisData, pos(n), varargin{:});
         end

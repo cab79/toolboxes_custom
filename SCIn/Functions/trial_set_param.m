@@ -13,7 +13,7 @@ switch h.Settings.stim(h.sn).control
             end
         end
         h.dur = h.Settings.stim(h.sn).dur; 
-       
+        
         % set initial values from GUI or settings if not already
         % defined
         set_inten_mean = 0;
@@ -304,6 +304,7 @@ switch h.Settings.stim(h.sn).control
                 elseif strcmp(h.Settings.oddballmethod,'duration')
                     h.dur = oddval;
                 end
+                dur_diff = 0;
             elseif (h.seqtype.adapt && ismember(h.sn,h.Settings.adaptive_general.stim)) || (h.seqtype.thresh && ismember(h.sn,h.Settings.adaptive_general.stim))
                 if isfield(h,'s') && length(h.s.a)>=h.Seq.adapttype(h.tr) && ~isempty(h.s.a(h.Seq.adapttype(h.tr)).StimulusLevel)
                     h.varlevel = h.s.a(h.Seq.adapttype(h.tr)).StimulusLevel;

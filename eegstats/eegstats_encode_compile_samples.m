@@ -95,6 +95,7 @@ for d = 1:nD % subject
             % random effects
             D(d).model(i).random = reshape(vertcat([M.model(i).samples(:).r]'),ddim(1),ddim(2),[]);
             % covariance
+            D(d).model(i).coeffcov = reshape(arrayfun(@(X) X.coeffcov, M.model(i).samples,'UniformOutput',0),ddim(1),ddim(2),[]);
             for ii = 1:length(M.model(i).samples(1).psi)
                 D(d).model(i).psi(ii).cov = reshape(arrayfun(@(X) X.psi{ii}, M.model(i).samples,'UniformOutput',0),ddim(1),ddim(2),[]);
             end
