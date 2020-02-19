@@ -53,7 +53,7 @@ case 'Pre_Discrim'
     h.Settings.trialdur = inf; % if 0, consecutive stimuli will occur with no gap
     % Tactile: number of pulses per trial
     h.Settings.nstim_trial = 3; % set to zero to be determined by stimdur
-    % Tactile: within-trial frequency (Hz) 
+    % Tactile: within-trial frequency (s) 
     h.Settings.wait=[2 2 2]; % one value per nstim 
     
     %% first stimulus: audio

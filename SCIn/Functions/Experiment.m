@@ -274,6 +274,11 @@ while h.i<size(h.Seq.signal,2)
                         h = stimtrain(h,opt); 
                         opt = 'set';
                         h = stimtrain(h,opt); 
+                    elseif strcmp(h.Settings.stim(i).control,'T7')
+                        opt = 'create';
+                        h = stimtrain(h,opt); 
+                        opt = 'set';
+                        h = stimtrain(h,opt); 
                     end
                     opt = 'start';
                     h = stimtrain(h,opt);

@@ -503,4 +503,296 @@ switch h.Settings.stim(h.sn).control
             end
         end
         
+     case {'T7'}
+        % this is written for Marie's generalisation study
+        
+        %% DURATION
+    
+        % create temporary variables for duration and freq
+        h.freq = h.Settings.stim(h.sn).f0;
+        h.dur = h.Settings.stim(h.sn).dur; 
+        h.varlevel = 0;
+        
+        % thresholding
+        if h.seqtype.thresh && ~h.seqtype.oddball
+            if ~isfield(h,'s')
+                h.varlevel = h.Settings.threshold.startinglevel;
+            else
+                h.varlevel = h.s.StimulusLevel;
+            end
+        end
+
+        % condition method
+        if isfield(h.Settings,'conditionmethod')
+            if ~isempty(h.Settings.conditionmethod)
+                if iscell(h.Settings.conditionmethod)
+                    for i = 1:length(h.Settings.conditionmethod)
+                        conditionmethod = h.Settings.conditionmethod{i};
+                        if strcmp(conditionmethod,'pitch') || strcmp(conditionmethod,'freq')
+                            if iscell(h.Settings.conditionvalue)
+                                h.freq = h.Settings.conditionvalue{h.Seq.signal(h.sn,h.tr),i};
+                            else
+                                h.freq = h.Settings.conditionvalue(i,h.Seq.signal(h.sn,h.tr));
+                            end
+                        end
+                    end
+                else
+                    error('h.Settings.conditionmethod must be a cell');
+                end
+            end
+        end
+        
+        % pattern method
+        if strcmp(h.Settings.stim(h.sn).patternmethod,'duration')
+            h.trialtype.durpattern=1;
+        end
+
+        % oddball method
+        if h.seqtype.oddball && any(strcmp(h.Settings.oddballmethod,{'pitch','duration','duration_shuffle','freq'}))
+            if ~h.seqtype.adapt && ~h.seqtype.thresh
+                if iscell(h.Settings.oddballvalue)
+                    if size(h.Settings.oddballvalue,1)==1
+                        oddval = h.Settings.oddballvalue{h.Seq.signal(h.sn,h.tr)};
+                    else
+                        oddval = h.Settings.oddballvalue{h.Seq.signal(h.sn,h.tr),:};
+                    end
+                else
+                    oddval = h.Settings.oddballvalue(h.Seq.signal(h.sn,h.tr),:);
+                end
+                if strcmp(h.Settings.oddballmethod,'pitch') || strcmp(h.Settings.oddballmethod,'freq')
+                    h.freq = oddval;
+                elseif strcmp(h.Settings.oddballmethod,'duration')
+                    h.dur = oddval;
+                end
+                dur_diff = 0;
+            elseif (h.seqtype.adapt && ismember(h.sn,h.Settings.adaptive_general.stim)) || (h.seqtype.thresh && ismember(h.sn,h.Settings.adaptive_general.stim))
+                if isfield(h,'s') && length(h.s.a)>=h.Seq.adapttype(h.tr) && ~isempty(h.s.a(h.Seq.adapttype(h.tr)).StimulusLevel)
+                    h.varlevel = h.s.a(h.Seq.adapttype(h.tr)).StimulusLevel;
+                else
+                    try
+                        dur_diff = str2double(h.aud_diff_gui);
+                    catch
+                        dur_diff = 0;
+                    end
+                    if h.seqtype.adapt
+                        if dur_diff~=0
+                            h.Settings.adaptive.startinglevel=dur_diff;
+                        end
+                        h.varlevel = h.Settings.adaptive.startinglevel;
+                    else
+                        if dur_diff~=0
+                            h.Settings.threshold.startinglevel=dur_diff;
+                        end
+                        h.varlevel = h.Settings.threshold.startinglevel;
+                    end  
+                end
+                if strcmp(h.Settings.oddballmethod,'pitch') || strcmp(h.Settings.oddballmethod,'freq')
+                    h.freq = [h.Settings.oddballvalue(1), (h.Settings.oddballvalue(1)+h.varlevel)]; % create new pitch pair
+                    h.freq = h.freq(h.Seq.signal(h.sn,h.tr));
+                end
+            end
+        end
+
+        
+
+        %% INTENSITY
+        if ~isfield(h.Settings.stim(h.sn),'inten_diff')
+            h.Settings.stim(h.sn).inten_diff = 0;
+        end
+        if h.seqtype.thresh
+            if ~isfield(h.Settings.threshold,'stim')
+                h.Settings.threshold.stim = 1;
+            end
+        end
+        
+        % set initial values from GUI or settings if not already
+        % defined
+        set_inten_mean = 0;
+        if ~isfield(h.stim,'inten_mean') || length(h.stim)<h.sn
+            set_inten_mean = 1;
+        elseif isempty(h.stim(h.sn).inten_mean)
+            set_inten_mean = 1;
+        end
+        if set_inten_mean
+            if ~isfield(h,'inten_mean_gui')
+                h.stim(h.sn).inten_mean=0;
+            else
+                h.stim(h.sn).inten_mean = str2double(h.inten_mean_gui);
+            end
+            if ~any(h.stim(h.sn).inten_mean) && ~isempty(h.Settings.stim(h.sn).inten)
+                h.stim(h.sn).inten_mean = h.Settings.stim(h.sn).inten;
+            end
+            h.stim(h.sn).inten_mean_start = h.stim(h.sn).inten_mean;
+        end
+        set_inten_diff = 0;
+        if ~isfield(h.stim,'inten_diff') || length(h.stim)<h.sn
+            set_inten_diff = 1;
+        elseif isempty(h.stim(h.sn).inten_diff)
+            set_inten_diff = 1;
+        end
+        if set_inten_diff
+            if ~isfield(h,'inten_diff_gui')
+                h.stim(h.sn).inten_diff=0;
+            else
+                h.stim(h.sn).inten_diff = str2double(h.inten_diff_gui);
+            end
+            if ~any(h.stim(h.sn).inten_diff) && ~isempty(h.Settings.stim(h.sn).inten_diff)
+                h.stim(h.sn).inten_diff = h.Settings.stim(h.sn).inten_diff;
+            end
+            if ~isfield(h,'inten_diff_max_gui')
+                h.stim(h.sn).inten_diff_max=0;
+            else
+                h.stim(h.sn).inten_diff_max = str2double(h.inten_diff_max_gui);
+            end
+            if ~any(h.stim(h.sn).inten_diff_max) && ~isempty(h.Settings.stim(h.sn).inten_diff_max)
+                h.stim(h.sn).inten_diff_max = h.Settings.stim(h.sn).inten_diff_max;
+            end
+            h.stim(h.sn).inten_diff_start = h.stim(h.sn).inten_diff_max;
+        end
+        h.stim(h.sn).inten = h.stim(h.sn).inten_mean;
+
+        % modify according to procedure
+        if h.seqtype.thresh && strcmp(h.Settings.threshold.type, 'intensity') && h.Settings.threshold.stim==h.sn
+            if ~isfield(h,'s')
+                h.stim(h.sn).inten = h.stim(h.sn).inten_mean+h.Settings.threshold.startinglevel;
+            else
+                h.stim(h.sn).inten = h.stim(h.sn).inten_mean+h.s.StimulusLevel;
+            end
+        % adaptive trial
+        elseif h.seqtype.adapt && strcmp(h.Settings.oddballmethod, 'index') && h.Settings.adaptive_general.stim==h.sn
+            detect = find(strcmp(h.atypes,'detect'));
+            discrim = find(strcmp(h.atypes,'discrim'));
+            % if this trial is adaptive
+            if ~isnan(h.Seq.adapttype(h.tr))
+                % update mean from adaptive procedure.
+                % do this even if it's a discrim trial
+                if ~isempty(detect) && isfield(h,'s') 
+                    if isfield(h.s.a(detect),'StimulusLevel') % if a level has been determined
+                        h.stim(h.sn).inten_mean = h.s.a(detect).StimulusLevel;
+                        if isempty(h.stim(h.sn).inten_mean)
+                            h.stim(h.sn).inten_mean = h.stim(h.sn).inten_mean_start;
+                        end
+                    end
+                % or set the adaptive starting level otherwise
+                elseif ~isempty(detect) && ~isfield(h,'s')
+                    h.Settings.adaptive(detect).startinglevel = h.stim(h.sn).inten_mean;
+                end
+
+                % update diff from adaptive
+                if ~isempty(discrim)
+                    if isfield(h,'s') && length(h.s.a)>=discrim % if a level has been determined
+                        h.stim(h.sn).inten_diff = h.s.a(discrim).StimulusLevel;
+                    elseif ~isfield(h,'s') && ~(h.stim(h.sn).inten_diff == 0 || isempty(h.stim(h.sn).inten_diff))
+                        h.Settings.adaptive(discrim).startinglevel = h.stim(h.sn).inten_diff;
+                    end
+                    if h.stim(h.sn).inten_diff == 0 || isempty(h.stim(h.sn).inten_diff) % if not set in GUI or settings
+                        h.stim(h.sn).inten_diff = h.Settings.adaptive(discrim).startinglevel;
+                    end
+                end
+
+                % only do this if it's a discrim trial, or a ratio detect
+                % trial only
+                if h.Seq.adapttype(h.tr)==discrim || (h.Seq.adapttype(h.tr)==detect && strcmp(h.Settings.adaptive(detect).subtype,'ratio'))
+                    % calculate intensity
+                    if h.Seq.signal(h.sn,h.tr)==h.sn
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean + h.Settings.adaptive(discrim).stepdir * h.stim(h.sn).inten_diff / 2;
+                    else
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.Settings.adaptive(discrim).stepdir * h.stim(h.sn).inten_diff / 2;
+                    end
+                else
+                    h.stim(h.sn).inten = h.stim(h.sn).inten_mean;
+                end
+
+            % if adaptive is part of the sequence, but not this trial
+            elseif isnan(h.Seq.adapttype(h.tr)) && h.Settings.adaptive_general.stim==h.sn
+                detect_thresh =  find(h.out.adaptive(:,10)==detect);
+                discrim_thresh =  find(h.out.adaptive(:,10)==discrim);
+                if isempty(detect_thresh)
+                    meanval = h.stim(h.sn).inten_mean;
+                else
+                    meanval = h.out.adaptive(detect_thresh(end),7);
+                end
+                if isempty(discrim_thresh)
+                    diffval = h.stim(h.sn).inten_diff;
+                else
+                    diffval = h.out.adaptive(discrim_thresh(end),7);
+                end
+                if h.Seq.signal(h.sn,h.tr)==1
+                    h.stim(h.sn).inten = meanval - diffval / 2;
+                else
+                    h.stim(h.sn).inten = meanval + diffval / 2;
+                end
+            end
+        elseif h.seqtype.adapt && ~any(h.Settings.adaptive_general.stim==h.sn)
+            h.stim(h.sn).inten = h.stim(h.sn).inten_mean;
+            
+        % Otherwise, use sequence to determine intensity
+        else
+            if strcmp(h.Settings.oddballmethod,'intensity')
+                if iscell(h.Settings.oddballvalue)
+                    if size(h.Settings.oddballvalue,1)==1
+                        h.stim(h.sn).inten = h.Settings.oddballvalue{h.Seq.signal(h.sn,h.tr)};
+                    else
+                        h.stim(h.sn).inten = h.Settings.oddballvalue{h.Seq.signal(h.sn,h.tr),:};
+                    end
+                else
+                    h.stim(h.sn).inten = h.Settings.oddballvalue(h.Seq.signal(h.sn,h.tr),:);
+                end
+            elseif strcmp(h.Settings.oddballmethod,'index') && size(h.Seq.signal,1)>=h.sn
+                if isfield(h.Settings,'AL') && any(ismember(h.Settings.AL.stimnums, h.sn)) && isempty(h.stim(h.sn).inten_diff_max)
+                    h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.Settings.AL.intenstim(h.Seq.signal(h.sn,h.tr)) * h.stim(h.sn).inten_diff/2;
+                elseif isfield(h.Settings,'AL') && any(ismember(h.Settings.AL.stimnums, h.sn)) && ~isempty(h.stim(h.sn).inten_diff_max)
+                    %h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.Settings.AL.intenstim(h.Seq.signal(h.sn,h.tr)) * h.stim(h.sn).inten_diff/2;
+                    % calculate intensity
+                    if h.Seq.signal(h.sn,h.tr)==1
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.stim(h.sn).inten_diff / 2;
+                    elseif h.Seq.signal(h.sn,h.tr)==2
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean + h.stim(h.sn).inten_diff / 2;
+                    elseif h.Seq.signal(h.sn,h.tr)==3
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.stim(h.sn).inten_diff_max / 2;
+                    elseif h.Seq.signal(h.sn,h.tr)==4
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean + h.stim(h.sn).inten_diff_max / 2;
+                    end
+                elseif isfield(h.Settings,'AL') && any(ismember(h.Settings.AL.stimnums, h.sn))
+                    % calculate intensity
+                    if h.Seq.signal(h.sn,h.tr)==1
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.stim(h.sn).inten_diff / 2;
+                    else
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean + h.stim(h.sn).inten_diff / 2;
+                    end
+                elseif isfield(h.Settings,'PL') && isempty(h.stim(h.sn).inten_diff_max)
+                    h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.Settings.PL.intenstim(h.Seq.signal(h.sn,h.tr)) * h.stim(h.sn).inten_diff/2;
+                elseif isfield(h.Settings,'PL') && ~isempty(h.stim(h.sn).inten_diff_max)
+                    %h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.Settings.AL.intenstim(h.Seq.signal(h.sn,h.tr)) * h.stim(h.sn).inten_diff/2;
+                    % calculate intensity
+                    if h.Seq.signal(h.sn,h.tr)==1
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.stim(h.sn).inten_diff / 2;
+                    elseif h.Seq.signal(h.sn,h.tr)==2
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean + h.stim(h.sn).inten_diff / 2;
+                    elseif h.Seq.signal(h.sn,h.tr)==3
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_diff_max;
+                    elseif h.Seq.signal(h.sn,h.tr)==4
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean + h.stim(h.sn).inten_diff / 2;
+                    end
+                elseif isfield(h.Settings,'PL')
+                    % calculate intensity
+                    if h.Seq.signal(h.sn,h.tr)==1
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean - h.stim(h.sn).inten_diff / 2;
+                    else
+                        h.stim(h.sn).inten = h.stim(h.sn).inten_mean + h.stim(h.sn).inten_diff / 2;
+                    end
+                else
+                    h.stim(h.sn).inten = h.Settings.stim(h.sn).inten;
+                end
+            end
+        end
+
+        % set max intensity
+        if ~isfield(h.Settings.stim,'maxinten') || length(h.stim)<h.sn
+            h.Settings.stim(h.sn).maxinten = inf;
+        end
+        h.stim(h.sn).inten = min(h.stim(h.sn).inten,h.Settings.stim(h.sn).maxinten); 
+        
+
+        
 end

@@ -142,7 +142,9 @@ elseif nodds>h.Settings.nstim_trial % four possible stims (patterns)
 end
 h.Seq.blocks=ones(1,length(h.Seq.condnum));
 
-% create patterns by randomising sub-components of the stimulus train
+% Create patterns by randomising sub-components of the stimulus train
+% Really, this code should be in settings as it's experiment-specific! But
+% kept here for backwards compatibility. One day will erase it.
 if strcmp(h.Settings.stim(1).durtype,'sequence_rand')
     if ~isempty(h.Settings.stim(1).stimrandind)
         disp('Creating patterns...');

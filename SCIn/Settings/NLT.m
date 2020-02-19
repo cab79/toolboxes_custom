@@ -223,7 +223,7 @@ switch opt
     
     %% THRESHOLDING
     % starting level and step size
-    %h.Settings.threshold.type = 'intensity'; % for intensity
+    h.Settings.threshold.type = 'intensity'; % for intensity
     h.Settings.threshold.startinglevel = 0; % for intensity)
     h.Settings.threshold.step = 2;
     h.Settings.threshold.signalval = [1 2]; % 2 = carrying on increasing; 1 = decrease

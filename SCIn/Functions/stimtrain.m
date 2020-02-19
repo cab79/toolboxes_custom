@@ -6,7 +6,7 @@ end
 
 switch h.Settings.stim(h.sn).control
 
-    case {'labjack','LJTick-DAQ'}
+    case {'labjack','LJTick-DAQ','T7'}
         
         switch opt
             case 'create'
@@ -22,8 +22,13 @@ switch h.Settings.stim(h.sn).control
         
         if h.Settings.labjack
             if ~isunix
-                ljud_LoadDriver; % Loads LabJack UD Function Library
-                ljud_Constants; % Loads LabJack UD constant file
+                if strcmp(h.Settings.stim(h.sn).control,{'labjack','LJTick-DAQ'})
+                    ljud_LoadDriver; % Loads LabJack UD Function Library
+                    ljud_Constants; % Loads LabJack UD constant file
+                elseif strcmp(h.Settings.stim(h.sn).control,{'T7'})
+                    t = h.ljmAsm.AssemblyHandle.GetType('LabJack.LJM+CONSTANTS'); % Creating an object to nested class LabJack.LJM.CONSTANTS
+                    LJM_CONSTANTS = System.Activator.CreateInstance(t);
+                end
             elseif isempty(h.ljHandle.cal)
                 getCal(h.ljHandle);
             end
@@ -54,8 +59,8 @@ switch h.Settings.stim(h.sn).control
                     end
                 end
             
-            %case 'create'
-            %    h=trial(h,'set&construct');
+            case 'create'
+               h=trial(h,'set&construct');
                 
             case 'calc'
                 h=trial(h,'set');
@@ -87,7 +92,9 @@ switch h.Settings.stim(h.sn).control
                         h.ljHandle.setDAC(h.stim(h.sn).inten*h.Settings.DAC_multiply);
                         WaitSecs(0.1);
                     else
-                        if strcmp(h.Settings.stim(h.sn).control,'LJTick-DAQ')
+                        if strcmp(h.Settings.stim(h.sn).control,'T7')
+                            LabJack.LJM.eWriteName(h.ljHandle, 'DAC1', h.stim(h.sn).inten*h.Settings.DAC_multiply);
+                        elseif strcmp(h.Settings.stim(h.sn).control,'LJTick-DAQ')
                             try
                                 Error = ljud_ePut(h.ljHandle, LJ_ioTDAC_COMMUNICATION, LJ_chTDAC_UPDATE_DACA, h.stim(h.sn).inten*h.Settings.DAC_multiply, 0); 
                                 if Error~=0
@@ -159,10 +166,10 @@ switch h.Settings.stim(h.sn).control
                         Error_Message(Error)
                         
                     else % use less accurate method for low freq
-                %Error = ljud_AddRequest(h.ljHandle, LJ_ioPUT_DAC, 0, 0.5, 0,0);
-                %Error_Message(Error)
-                %Error = ljud_GoOne(h.ljHandle);
-                %Error_Message(Error)
+                        %Error = ljud_AddRequest(h.ljHandle, LJ_ioPUT_DAC, 0, 0.5, 0,0);
+                        %Error_Message(Error)
+                        %Error = ljud_GoOne(h.ljHandle);
+                        %Error_Message(Error)
                     
                         %Set the timer/counter pin offset to 6, which will put the first timer/counter on FIO6. 
                         Error = ljud_AddRequest (h.ljHandle,  LJ_ioPUT_CONFIG, LJ_chTIMER_COUNTER_PIN_OFFSET, port, 0, 0);
@@ -206,15 +213,73 @@ switch h.Settings.stim(h.sn).control
                     Error_Message(Error)
                     disp('running')
                     
+                elseif isfield(h.Settings.stim(h.sn),'wavetype') && strcmp(h.Settings.stim(h.sn).wavetype,'digital')
+                    % assumes T7 control using StreamOut
                     
-                %Error = ljud_AddRequest(h.ljHandle, LJ_ioPUT_DAC, 0, 0, 0,0);
-                %Error_Message(Error)
-                %Error = ljud_GoOne(h.ljHandle);
-                %Error_Message(Error)
+%                     % test
+%                     value = 5;  % 2.5 V
+%                     LabJack.LJM.eWriteName(h.ljHandle, name, value);
+%                     pause(0.1)
+
+                    % seems to need zeroing
+                    LabJack.LJM.eWriteName(h.ljHandle, port, 0);
                     
+                    % Setup stream-out
+                    numAddressesOut = 1;
+                    aNamesOut = NET.createArray('System.String', numAddressesOut);
+                    aNamesOut(1) = port;
+                    aAddressesOut = NET.createArray('System.Int32', numAddressesOut);
+                    aTypesOut = NET.createArray('System.Int32', numAddressesOut);  % Dummy
+                    LabJack.LJM.NamesToAddresses(numAddressesOut, aNamesOut, ...
+                        aAddressesOut, aTypesOut);
+
+                    % Allocate memory for the stream-out buffer
+                    buffer_size = max(32,pow2(ceil(log2(length(h.mwav))))*2); % min of 32
+                    LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_ENABLE', 0);
+                    LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_TARGET', aAddressesOut(1));
+                    LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_BUFFER_SIZE', buffer_size);
+                    LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_ENABLE', 1);
+                    LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_LOOP_NUM_VALUES', 0);
+                    LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_SET_LOOP', 1);
+
+                    % Load the waveform data points
+                    LabJack.LJM.eWriteNameArray(h.ljHandle, 'STREAM_OUT0_BUFFER_F32', length(h.mwav), h.mwav, 0);
+                    
+                    % Setup stream-out
+                    numAddressesOut = 1;
+                    aNamesOut = NET.createArray('System.String', numAddressesOut);
+                    aNamesOut(1) = 'STREAM_OUT0';
+                    aAddressesOut = NET.createArray('System.Int32', numAddressesOut);
+                    aTypesOut = NET.createArray('System.Int32', numAddressesOut);  % Dummy
+                        LabJack.LJM.NamesToAddresses(numAddressesOut, aNamesOut, ...
+                            aAddressesOut, aTypesOut);
+
+                    % Configure and start stream
+                    aScanList = aAddressesOut(1); % FIO0
+                    scanRate = h.Settings.stim(h.sn).f0; % Hz
+                    scansPerRead = scanRate/2; % eStreamRead frequency = ScanRate / ScansPerRead
+                    numAddresses = length(aScanList);
+
+                    [~, scanRate] = LabJack.LJM.eStreamStart(h.ljHandle, scansPerRead, ...
+                        numAddresses, aScanList, scanRate);
+                    disp(['Stream started with a scan rate of ' num2str(scanRate) ...
+                                  ' Hz.'])
+
+                    % optional plotting
+                    if isfield(h,'fig'); close(h.fig); end
+                    incr=1/(length(h.mwav));
+                    x = (incr:incr:length(h.mwav)*incr)*(length(h.mwav)/scanRate);
+                    h.fig=figure; plot(x,h.mwav);
+                    xlabel('seconds')
+                    title('stimulus train waveform')
+                    
+                    WaitSecs(length(h.mwav)/scanRate)
+
+                    % stop stream
+                    disp('Stop Stream')
+                    LabJack.LJM.eStreamStop(h.ljHandle);
                 else
                     % pulse train instruction
-                    %port=2
                     if isempty(h.Settings.stim(h.sn).p_freq) || h.Settings.stim(h.sn).p_freq == 0
                        p_freq = 10000; % 0.1 ms delay (DS8R can detect down to 0.01ms)
                     else
@@ -225,9 +290,6 @@ switch h.Settings.stim(h.sn).control
                         for pr = 1:h.Settings.stim(h.sn).npulses_train % train
                             
                             h.ljHandle.timedTTL(port,((1000000/p_freq)/2));
-                            %h.ljHandle.setFIO(1,6);
-                            %WaitSecs((1000/p_freq)/2);
-                            %h.ljHandle.setFIO(0,6);
                             
                         end
                         t2=GetSecs;
@@ -264,24 +326,28 @@ switch h.Settings.stim(h.sn).control
                     if strcmp(h.Settings.stim(h.sn).control,'LJTick-DAQ')
                         Error = ljud_ePut(h.ljHandle, LJ_ioTDAC_COMMUNICATION, LJ_chTDAC_UPDATE_DACA, 0, 0); 
                         Error_Message(Error)
-                    else
+                    elseif strcmp(h.Settings.stim(h.sn).control,'labjack')
                         %try
                             Error = ljud_AddRequest(h.ljHandle, LJ_ioPUT_DAC, 0, 0, 0,0);
                             Error_Message(Error)
                             Error = ljud_GoOne(h.ljHandle);
                             Error_Message(Error)
                         %end
+                        if isfield(h.Settings.stim(h.sn),'labjack_timer')
+                            if h.Settings.stim(h.sn).labjack_timer
+                                Error = ljud_AddRequest (h.ljHandle,  LJ_ioPUT_CONFIG, LJ_chTIMER_COUNTER_PIN_OFFSET, port, 0, 0);
+                                Error_Message(Error)
+                                %Execute the requests. 
+                                Error = ljud_GoOne(h.ljHandle);
+                                Error_Message(Error)
+                            end
+                        end
+                    elseif strcmp(h.Settings.stim(h.sn).control,'T7')
+                        Error = LabJack.LJM.eWriteName(h.ljHandle, 'DAC0', 0);
+                        LabJack.LJM.Close(h.ljHandle);
                     end
 
-                    if isfield(h.Settings.stim(h.sn),'labjack_timer')
-                        if h.Settings.stim(h.sn).labjack_timer
-                            Error = ljud_AddRequest (h.ljHandle,  LJ_ioPUT_CONFIG, LJ_chTIMER_COUNTER_PIN_OFFSET, port, 0, 0);
-                            Error_Message(Error)
-                            %Execute the requests. 
-                            Error = ljud_GoOne(h.ljHandle);
-                            Error_Message(Error)
-                        end
-                    end
+                    
                 end
                 
         end

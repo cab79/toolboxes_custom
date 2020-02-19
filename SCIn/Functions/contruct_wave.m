@@ -2,18 +2,28 @@ function h = contruct_wave(h)
 % CONSTRUCT WAVEFORM
 
 % set default to sin wave
-if ~isfield(h.Settings,'wavetype')
-    h.Settings.wavetype = 'sin';
-elseif isempty(h.Settings.wavetype)
-    h.Settings.wavetype = 'sin';
+if ~isfield(h.Settings.stim(h.sn),'wavetype')
+    h.Settings.stim(h.sn).wavetype = 'sin';
+elseif isempty(h.Settings.stim(h.sn).wavetype)
+    h.Settings.stim(h.sn).wavetype = 'sin';
 end
 
-if ~isfield(h,'chan')
+if ~isfield(h,'chan') || ischar(h.chan)
     h.chan = 1;
 end
 if ~isfield(h,'trialtype')
     h.trialtype.freqpattern = 0;
     h.trialtype.intenpattern = 0;
+    h.trialtype.durpattern = 0;
+end
+if ~isfield(h.trialtype,'freqpattern')
+    h.trialtype.freqpattern = 0;
+end
+if ~isfield(h.trialtype,'intenpattern')
+    h.trialtype.intenpattern = 0;
+end
+if ~isfield(h.trialtype,'durpattern')
+    h.trialtype.durpattern = 0;
 end
 if ~isfield(h,'freq')
     h.freq = h.Settings.stim(h.sn).f0;
@@ -59,7 +69,11 @@ h.mwav=[];
 for i = 1:length(h.dur)
 
     % time index of sound
-    t{i} = transpose((1:h.dur(i)*h.Settings.fs)/h.Settings.fs);
+    if isfield(h.Settings,'fs')
+        t{i} = transpose((1:h.dur(i)*h.Settings.fs)/h.Settings.fs);
+    else
+        t{i}=0;
+    end
 
     % start phase to add to stim
     if h.alignphase
@@ -97,13 +111,16 @@ for i = 1:length(h.dur)
         end
         usefreq = h.freq(1);
         useinten = h.stim(h.sn).inten(i);
+    elseif h.trialtype.durpattern
+        usefreq = h.freq;
+        useinten = h.stim(h.sn).inten;
     else % no pattern
         usefreq = h.freq(i);
         useinten = h.stim(h.sn).inten(i);
     end
 
     % construction of mwav{i}
-    if strcmp(h.Settings.wavetype,'sin')
+    if strcmp(h.Settings.stim(h.sn).wavetype,'sin')
         
         % are we using decibels? If so, set to 1 so that volume is adjusted
         % later
@@ -114,7 +131,7 @@ for i = 1:length(h.dur)
         mwav{i}(h.chan(1),:) = useinten *sin(2*pi*(usefreq)*t{i} + phadd(1) + 2*pi*usefreq/h.Settings.fs);
         if df; mwav{i}(h.chan(2),:) = useinten *sin(2*pi*(usefreq+df_freq)*t{i} + phadd(2) + 2*pi*(usefreq+df_freq)/h.Settings.fs);end
         temp_sin{i} = mwav{i};
-    elseif strcmp(h.Settings.wavetype,'square')
+    elseif strcmp(h.Settings.stim(h.sn).wavetype,'square')
         if isfield(h,'dutycycle')
             if h.dutycycle>0
                 useinten = str2double(h.dutycycle);
@@ -122,13 +139,7 @@ for i = 1:length(h.dur)
         end
         mwav{i}(h.chan(1),:) = square(2*pi*(usefreq)*t{i} + phadd(1) + 2*pi*usefreq/h.Settings.fs,useinten);
         temp_sin{i}(h.chan(1),:) = sin(2*pi*(usefreq)*t{i} + phadd(1) + 2*pi*usefreq/h.Settings.fs); % for phase estimation
-    elseif strcmp(h.Settings.wavetype,'step')
-        %h.Settings.fs = 100;
-        %usefreq = 1; % rise-fall rate /s
-        %useinten = 3; % volts
-        %h.dur = 3; % duration at max intensity
-        %h.Settings.trialdur = 10;
-
+    elseif strcmp(h.Settings.stim(h.sn).wavetype,'step')
         rise = transpose((1:(useinten/usefreq)*h.Settings.fs)/h.Settings.fs);
         fall = flip(rise);
         peak = useinten*ones(h.dur*h.Settings.fs,1);
@@ -136,10 +147,17 @@ for i = 1:length(h.dur)
 
         mwav{i} = [rise;peak;fall;trough]';
         temp_sin{i} = mwav{i};
+    elseif strcmp(h.Settings.stim(h.sn).wavetype,'digital')
+        useinten = h.Settings.stim(1).patternvalue(i); % digital: 5V TTL or 0V
+        nPulse = round(h.dur(i)*usefreq);
+        mwav{i} = useinten*(ones(1,nPulse));
+        temp_sin{i} = mwav{i};
     end
 
     % instantaneous phase and direction at end of stim
-    h.iphase(:,h.tr,:,i) = [asin(temp_sin{i}(:,end-1)), temp_sin{i}(:,end)-temp_sin{i}(:,end-1)];% mwav_orig(:,end-1)-mwav_orig(:,end)];
+    if length(temp_sin{i})>1
+        h.iphase(:,h.tr,:,i) = [asin(temp_sin{i}(:,end-1)), temp_sin{i}(:,end)-temp_sin{i}(:,end-1)];% mwav_orig(:,end-1)-mwav_orig(:,end)];
+    end
 
     %optional plots
     %disp_phase=h.iphase(:,tr,:,i)
