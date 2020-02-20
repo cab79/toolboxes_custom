@@ -84,10 +84,9 @@ switch opt
     h.Settings.stim(1).dur = dur;
     % plot gap durations
     figure
-    plotdur = h.Settings.stim(1).dur(gap_ind);
+    plotdur = h.Settings.stim(1).dur;
     bar(plotdur);
     title('gap durations')
-    ylabel('seconds')
     % other settings
     h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
     h.Settings.stim(1).durtype = '';%'oddballvalue','sequence_rand'; 
@@ -215,14 +214,13 @@ switch opt
     h.Settings.target_stims = [1];
     
     %% first stimulus
-    nstim=20; % minimum frequency of duration changes. Must divide by 2 to produce integer.
-    train_dur = 5;
-    % don't change these
+    nstim=40; % minimum frequency of duration changes. Must divide by 2 to produce integer.
+    train_dur = 1;
     min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. 
     min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
     % inital settings/calculation to create gap series
-    stimsum = nstim * min_trigger; % duration all the stimuli add up to in a train
-    gapsum  = train_dur - stimsum; % duration in s that gap series must sum to
+    gapsum  = train_dur - (nstim * min_trigger); % duration in s that gap series must sum to
+    stimsum = train_dur-gapsum;
     ngaps = nstim-1; % number of gaps within series
     
     % this bit differs from the US code
@@ -250,7 +248,6 @@ switch opt
     plotdur = h.Settings.stim(1).dur(sort(stimrandind));
     bar(plotdur);
     title('gap durations')
-    ylabel('seconds')
     % other settings
     h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
     h.Settings.stim(1).durtype = '';%'oddballvalue','sequence_rand'; 
@@ -380,12 +377,11 @@ switch opt
     %% first stimulus
     nstim=20; % minimum frequency of duration changes. Must divide by 2 to produce integer.
     train_dur = 5;
-    % don't change these:
     min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. 
     min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
     % inital settings/calculation to create gap series
-    stimsum = nstim * min_trigger; % duration all the stimuli add up to in a train
-    gapsum  = train_dur - stimsum; % duration in s that gap series must sum to
+    gapsum  = train_dur - (nstim * min_trigger); % duration in s that gap series must sum to
+    stimsum = train_dur-gapsum;
     ngaps = nstim-1; % number of gaps within series
     nx = 0; for i = 1:ngaps; nx = nx+i; end % triangular number - multipler of x to get train_dur
     x=gapsum/nx;
@@ -399,14 +395,11 @@ switch opt
     stim_ind=1:2:nstim*2; % specifies the gaps so they can be randomised later
     dur(stim_ind) = (stimsum/nstim)*ones(1,nstim); % duration of stimulus in seconds. 0.0225 pips with gaps ranging from 0.01 to 0.1. Should sum to 1s for a 1s train.
     dur(gap_ind) = gaps; 
-    
     % create 7 versions in total
     h.Settings.stim(1).dur = {dur,dur,dur,dur,dur,dur,dur};
-    % define sq
     sq = [1 3 5 6 4 2]; % create sequence sq. Values from 1:6 since we are creating 6 new stimulus trains. Numbers are indices of original gap order (ascending)
     sq=[sq,sq,sq,7]; % ensure sq adds up to the total number of gaps (e.g. 19) using 7 padding. 
     
-    % create initial randomised train (e.g. for GS1)
     method = 2; 
     if method==1 % stimrandind randomisation
         stimrandind = gap_ind(randperm(length(gap_ind)));% randomises the gaps
@@ -418,9 +411,8 @@ switch opt
             stimrandind(old_ind) = gap_ind(new_ind);% randomises the gaps
         end
     end
-    h.Settings.stim(1).gaprandind = sq(stimrandind/2); % random this index in same order as actual gaps. divide by 2 since we are converting from gap indices in whole train (even numbers) to indices of gaps only
     
-    % sequential swapping of gaps to create 7 trains:
+    h.Settings.stim(1).gaprandind = sq(stimrandind/2); % random this index in same order as actual gaps. divide by 2 since we are converting from gap indices in whole train (even numbers) to indices of gaps only
     swap_order = [2 3 1]; % fixed order to swap the indices for each new train.
     h.Settings.stim(1).stimrandind{1} = stimrandind; % first train's gap order is stimrandind
     h.Settings.stim(1).dur{1}(sort(stimrandind)) = dur(h.Settings.stim(1).stimrandind{1});
@@ -431,14 +423,12 @@ switch opt
         h.Settings.stim(1).stimrandind{nr}(new_ind) = h.Settings.stim(1).stimrandind{nr-1}(old_ind);
         h.Settings.stim(1).dur{nr}(sort(stimrandind)) = dur(h.Settings.stim(1).stimrandind{nr});
     end
-    
     % plot gap durations
     figure
     for nr = 1:7 
         subplot(7,1,nr)
         plotdur = h.Settings.stim(1).dur{nr}(sort(stimrandind));
         b=bar(plotdur);
-        ylabel('seconds')
         b.FaceColor = 'flat';
         if nr>1
             old_ind = find(h.Settings.stim(1).gaprandind==(nr-1));
