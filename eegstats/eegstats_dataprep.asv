@@ -174,22 +174,10 @@ for d = 1:length(subjects)
     end
     
     %% select factor levels
-    orig_tnums = tnums;
     if ~isempty(S.prep.pred.factor.select)
-        for f = 1:size(S.prep.pred.factor.select,1)
-            pred_label = S.prep.pred.factor.select{f,1};
-            disp(['selecting conditions from factor ' pred_label])
-            fac_levels = categorical(S.prep.pred.factor.select{f,2});
-            dat = categorical(dtab.(pred_label));
-            idx = ismember(dat,fac_levels);
-            dtab = dtab(idx,:);
-            tnums = tnums(idx);
-            eventType = eventType(idx);
-            if length(unique(dtab.(pred_label)))==1
-                dtab.(pred_label) =[];
-            end
-        end
+        
     end
+   
     
     %% Covariates
     if isfield(S.prep.pred,'covariate')
@@ -265,10 +253,6 @@ for d = 1:length(subjects)
     
     % make 3D
     data=reshape(data,size(data,1),[],n_trials);
-    
-    % select data
-    data = data(:,:,ismember(orig_tnums,tnums));
-    n_trials = size(data,3);
 
     % flip channels right to left
     if ~isempty(S.prep.calc.eeg.flipchan)
