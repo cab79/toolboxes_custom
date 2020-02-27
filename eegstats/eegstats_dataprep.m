@@ -187,6 +187,9 @@ for d = 1:length(subjects)
             eventType = eventType(idx);
             if length(unique(dtab.(pred_label)))==1
                 dtab.(pred_label) =[];
+            elseif length(unique(dtab.(pred_label)))==2
+                dtab.(pred_label) = categorical(dtab.(pred_label)); % remove ordinality
+                dtab.(pred_label) = removecats(dtab.(pred_label));
             end
         end
     end
