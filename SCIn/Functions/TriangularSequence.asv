@@ -149,8 +149,8 @@ h.Seq.blocks=ones(1,length(h.Seq.condnum));
 % What the durtype options do in this function:
 % 'sequence_rand' - takes a single set of durations and randomisation
 % indices from Settings and create 4 sequences with different randomisations.
-% 'oddballvalue' - duplicates patternvalue if not already done so in
-% Settings, to be same length as dur.
+% 'oddballvalue' - takes e.g. two dur patterns form Settings and duplicates
+% each one 1 -> 1&2; 2-> 3&4.
 % 'FromSequence' - loads patterns from an existing sequence file.
 
 % What the options do in trial_set_param:
@@ -195,7 +195,7 @@ elseif strcmp(h.Settings.stim(1).durtype,'oddballvalue')
     for s = 1:length(h.Settings.stim)
         patternvalue = h.Settings.stim(s).patternvalue;
         if iscell(h.Settings.stim(s).dur) && length(h.Settings.stim(s).dur)>1 && ~iscell(patternvalue)
-            h.Settings.stim(s).patternvalue = cell(1,length(h.Settings.stim(s).dur));
+            h.Settings.stim(s).patternvalue = cell{1,length(h.Settings.stim(s).dur)};
             for i = 1:length(h.Settings.stim(s).dur)
                 h.Settings.stim(s).patternvalue{i} = patternvalue;
             end

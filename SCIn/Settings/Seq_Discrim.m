@@ -78,6 +78,18 @@ switch opt
     h.Settings.stim(1).Tukey = 0.25; % Apply Tukey window?
     h.Settings.stim(1).Tukeytype = 1; % 1 = apply to each tone within pattern; 2 = apply to whole pattern
     
+    % this bit was previously in Triangular sequence function
+    for s = 1:length(h.Settings.stim)
+        patternvalue = h.Settings.stim(s).patternvalue;
+        dur = h.Settings.stim(s).dur;
+        for i = 1:length(patternvalue)
+            h.Settings.stim(s).patternvalue{i*2-1} = patternvalue{i};
+            h.Settings.stim(s).patternvalue{i*2} = patternvalue{i};
+            h.Settings.stim(s).dur{i*2-1} = dur{i};
+            h.Settings.stim(s).dur{i*2} = dur{i};
+        end
+    end
+    
     %% first stimulus: audio pip
     pip.patternmethod = '';% Pattern type method: intensity, pitch. Not supported: channel, duration
     % play with these:
@@ -304,6 +316,17 @@ switch opt
     h.Settings.stim(1).Tukey = 0.25; % Apply Tukey window?
     h.Settings.stim(1).Tukeytype = 1; % 1 = apply to each tone within pattern; 2 = apply to whole pattern
     
+    % this bit was previously in Triangular sequence function
+    for s = 1:length(h.Settings.stim)
+        patternvalue = h.Settings.stim(s).patternvalue;
+        dur = h.Settings.stim(s).dur;
+        for i = 1:length(patternvalue)
+            h.Settings.stim(s).patternvalue{i*2-1} = patternvalue{i};
+            h.Settings.stim(s).patternvalue{i*2} = patternvalue{i};
+            h.Settings.stim(s).dur{i*2-1} = dur{i};
+            h.Settings.stim(s).dur{i*2} = dur{i};
+        end
+    end
     %% first stimulus: audio pip
     pip.patternmethod = '';% Pattern type method: intensity, pitch. Not supported: channel, duration
     % play with these:
@@ -529,6 +552,17 @@ case 'Discrim_isochron_3freqcond'
     h.Settings.stim(1).Tukey = 0.25; % Apply Tukey window?
     h.Settings.stim(1).Tukeytype = 1; % 1 = apply to each tone within pattern; 2 = apply to whole pattern
     
+    % this bit was previously in Triangular sequence function
+    for s = 1:length(h.Settings.stim)
+        patternvalue = h.Settings.stim(s).patternvalue;
+        dur = h.Settings.stim(s).dur;
+        for i = 1:length(patternvalue)
+            h.Settings.stim(s).patternvalue{i*2-1} = patternvalue{i};
+            h.Settings.stim(s).patternvalue{i*2} = patternvalue{i};
+            h.Settings.stim(s).dur{i*2-1} = dur{i};
+            h.Settings.stim(s).dur{i*2} = dur{i};
+        end
+    end
     %% first stimulus: audio pip
     pip.patternmethod = '';% Pattern type method: intensity, pitch. Not supported: channel, duration
     % play with these:
@@ -1011,6 +1045,17 @@ case 'Discrim_rand_reg'
     h.Settings.stim(1).Tukey = 0.25; % Apply Tukey window?
     h.Settings.stim(1).Tukeytype = 1; % 1 = apply to each tone within pattern; 2 = apply to whole pattern
     
+    % this bit was previously in Triangular sequence function
+    for s = 1:length(h.Settings.stim)
+        patternvalue = h.Settings.stim(s).patternvalue;
+        dur = h.Settings.stim(s).dur;
+        for i = 1:length(patternvalue)
+            h.Settings.stim(s).patternvalue{i*2-1} = patternvalue{i};
+            h.Settings.stim(s).patternvalue{i*2} = patternvalue{i};
+            h.Settings.stim(s).dur{i*2-1} = dur{i};
+            h.Settings.stim(s).dur{i*2} = dur{i};
+        end
+    end
     %% first stimulus: audio pip
     pip.patternmethod = '';% Pattern type method: intensity, pitch. Not supported: channel, duration
     % play with these:

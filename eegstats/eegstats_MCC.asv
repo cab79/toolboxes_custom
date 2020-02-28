@@ -472,12 +472,6 @@ for d=1:length(D)
                 catch
                     disp(['no significant effects for model comp ' num2str(i)])
                 end
-                ylab = 'log likelihood ratios';
-                try
-                    jitterplot(figname,plotdatX,log(plotdatY),xlab,ylab,xtl)
-                catch
-                    disp(['no significant effects for model comp ' num2str(i)])
-                end
                 clear plotdatX plotdatY xtl
             end
 
@@ -507,8 +501,8 @@ if strcmp(ylab,'Z values')
 end
 hold off
 xlim(minmax)
-xticks(-size(plotdatX,2):-1)
-xticklabels(fliplr(xtl))
+xticks(sort(unique(plotdatX(~isnan(plotdatX))),'ascend')')
+xticklabels(fliplr(xtl(any(plotdatX,1))))
 xlabel(xlab)
 ylabel(ylab)
 view([90 -90])

@@ -380,7 +380,7 @@ switch h.Settings.stim(h.sn).control
                     end
                 end
                 % for Seq_Discrim expt
-                if strcmp(h.Settings.PL.oddballmethod,'duration') || strcmp(h.Settings.PL.oddballmethod,'duration_shuffle')
+                if strcmp(h.Settings.PL.oddballmethod,'duration') || strcmp(h.Settings.PL.oddballmethod,'duration_shuffle') || strcmp(h.Settings.PL.oddballmethod,'pattern')
                     % just take the first pattern
                     if strcmp(h.Settings.stim(1).durtype,'oddballvalue')
                         h.freq = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.tr)};

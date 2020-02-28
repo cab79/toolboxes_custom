@@ -334,7 +334,7 @@ switch opt
     h = setgeneral(h);
     
     % FILENAME OF SEQUENCE CREATION FUNCTION (without .m)
-    h.SeqFun = 'SimpleSequence';
+    h.SeqFun = 'TriangularSequence';
     
     %% TRIALS or CONTINUOUS?
     h.Settings.design = 'trials';
@@ -373,16 +373,17 @@ switch opt
     % duration of trial in seconds
     h.Settings.trialdur = inf; % if 0, consecutive stimuli will occur with no gap. 'Inf' requires participant to respond to move on to next trial.
     % Tactile: number of pulses per trial
-    h.Settings.nstim_trial = 1; %
+    h.Settings.nstim_trial = 3; 
     % Which stims are targets for behavioural responses?
-    h.Settings.target_stims = [1];
+    h.Settings.target_stims = [1 2 3];
     
     %% first stimulus
     nstim=20; % minimum frequency of duration changes. Must divide by 2 to produce integer.
-    train_dur = 5;
+    train_dur = 1;
     % don't change these:
-    min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. 
-    min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
+    min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. Use 0.001 for DS8R.
+%     min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
+    min_trigger = 0.05; % AUDIO VERSION. 0.05 = 50ms.
     % inital settings/calculation to create gap series
     stimsum = nstim * min_trigger; % duration all the stimuli add up to in a train
     gapsum  = train_dur - stimsum; % duration in s that gap series must sum to
@@ -450,7 +451,7 @@ switch opt
     end
     % other settings
     h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
-    h.Settings.stim(1).durtype = '';%'oddballvalue','sequence_rand'; 
+    h.Settings.stim(1).durtype = 'oddballvalue';% 'oddballvalue' will select which sequence is presented on each trial according to the values in h.Settings.PL.oddballvalue
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff_max = []; % value between 0 and 1000mA for Digitimer DS8R
@@ -483,8 +484,12 @@ switch opt
         h.Settings.stim(1).wavetype = 'sin';
     end
     
+    % duplicate so that there are h.Settings.nstim_trial stimuli per trial
+    h.Settings.stim(2) = h.Settings.stim(1);
+    h.Settings.stim(3) = h.Settings.stim(1);
+    
     % within-trial frequency (s)
-    h.Settings.wait=[]; % one value per nstim 
+    h.Settings.wait=[1 1 1]; % one value per nstim 
     
     %% CHANGING STIMULUS INTENSITY EVERY X PULSES
     % REFER TO "TIMER STOP": https://labjack.com/support/ud/df-lj-app-guide/10.5
@@ -494,17 +499,20 @@ switch opt
     h.Settings.conditionmethod = {};
     h.Settings.conditionvalue = [];% Rows: methods. Columns: each stimtype
     % Oddball method: intensity, index, pitch, channel
-    h.Settings.PL.oddballmethod = 'duration'; % can use same type for pattern only if oddball intensity is adaptive
-    h.Settings.PL.oddballvalue = {[1]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
-    h.Settings.PL.nonoddballstimvalue = {0};
+    h.Settings.PL.oddballmethod = 'pattern'; % this will select different patterns according to h.Settings.PL.oddballvalue. Can use same type for pattern only if oddball intensity is adaptive
+    h.Settings.PL.oddballvalue = {[1 2 2],[2 1 2],[2 2 1],[6 7 7],[7 6 7],[7 7 6]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
+    h.Settings.PL.nonoddballstimvalue = {0 0 0 0 0 0};
     h.Settings.PL.oddballtype = 'classical'; % options: 'roving', 'classical'
 
     %% SEQUENCE
     % Change probablity (CP): each condition is in rows
     h.Settings.PL.oddprob = [
-       1
+        1/3 1/3 1/3
+        1/3 1/3 1/3
+        1/3 1/3 1/3
+        1/3 1/3 1/3
         ];
-    h.Settings.ntrials = [10];
+    h.Settings.ntrials = [10 10 10 10];
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1
@@ -538,7 +546,7 @@ if 0 % turn to 1 to use DS8R with EEG
     h.Settings.DAC_multiply = 0.01; % multiply DAC output by this (e.g. to get mA on DS8R)
 end
 
-if 1 % turn to 1 to use DS8R without EEG
+if 0 % turn to 1 to use DS8R without EEG
     %% EQUIPMENT CONTROL: DS8R
     % record EEG, NS: netstation, BV: brainvision, 'serial': serial port
     % serial port
@@ -550,7 +558,7 @@ if 1 % turn to 1 to use DS8R without EEG
     h.Settings.DAC_multiply = 0.01; % multiply DAC output by this (e.g. to get mA on DS8R)
 end
 
-if 0 % turn to 1 to use audio without EEG
+if 1 % turn to 1 to use audio without EEG
     %% EQUIPMENT CONTROL: AUDIO
     % serial port
     h.Settings.serial = '';

@@ -436,6 +436,14 @@ switch h.Settings.stim(h.sn).control
                 if strcmp(h.Settings.design,'trials')
                     PsychPortAudio('FillBuffer', h.pahandle, h.Seq.stimseq);
                     PsychPortAudio('Start', h.pahandle, 1, 0, 1);
+                    
+                    % optional plotting
+                    if isfield(h,'fig'); close(h.fig); end
+                    incr=1/(size(h.Seq.stimseq,2));
+                    x = (incr:incr:size(h.Seq.stimseq,2)*incr)*(size(h.Seq.stimseq,2)/h.Settings.fs);
+                    h.fig=figure; plot(x,h.Seq.stimseq(1,:));
+                    xlabel('seconds')
+                    title('stimulus train waveform')
 
                 elseif strcmp(h.Settings.design,'continuous')
                     h.pabuffer = PsychPortAudio('CreateBuffer', h.pahandle, h.Seq.stimseq);
