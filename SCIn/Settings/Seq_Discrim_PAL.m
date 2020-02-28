@@ -511,12 +511,14 @@ switch opt
     %% SEQUENCE
     % Change probablity (CP): each condition is in rows
     h.Settings.PL.oddprob = [
-        1/3 1/3 1/3
-        1/3 1/3 1/3
-        1/3 1/3 1/3
-        1/3 1/3 1/3
+        1 % for triangular sequence, each row here just has to add up to one. Simplest just to put 1 for each row.
+        1
+        1
+        1
+        1
+        1
         ];
-    h.Settings.ntrials = [10 10 10 10];
+    h.Settings.ntrials = [9 9 9 9 9 9]; % if 3 stims per trial should multiples of 3 to allow every combination as programmed in oddballvalue. 
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1
