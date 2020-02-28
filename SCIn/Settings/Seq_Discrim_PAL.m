@@ -97,6 +97,7 @@ switch opt
     h.Settings.stim(1).maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     if h.Settings.labjack
         % use labjack T7
+        h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
         h.Settings.stim(1).inten_type = 'abs'; % either 'dB' or 'abs'
@@ -109,6 +110,7 @@ switch opt
         h.Settings.stim(1).f0 = 16384/(2*sum(h.Settings.stim(1).dur)); % frequency of output (1 / min duration). 16384 bytes is the max buffer size, and each output requires 2 bytes.
     else
         % use audio
+        h.Settings.stim(1).patternvalue = [repmat([300 0],1,ngaps) 300]; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).f0 = 300; % pitch
         h.Settings.stim(1).inten_type = 'dB'; % either 'dB' or 'abs'
@@ -252,7 +254,6 @@ switch opt
     title('gap durations')
     ylabel('seconds')
     % other settings
-    h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
     h.Settings.stim(1).durtype = '';%'oddballvalue','sequence_rand'; 
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
@@ -260,6 +261,7 @@ switch opt
     h.Settings.stim(1).maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     if h.Settings.labjack
         % use labjack T7
+        h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
         h.Settings.stim(1).inten_type = 'abs'; % either 'dB' or 'abs'
@@ -272,6 +274,7 @@ switch opt
         h.Settings.stim(1).f0 = 16384/(2*sum(h.Settings.stim(1).dur)); % frequency of output (1 / min duration). 16384 bytes is the max buffer size, and each output requires 2 bytes.
     else
         % use audio
+        h.Settings.stim(1).patternvalue = [repmat([300 0],1,ngaps) 300]; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).f0 = 300; % pitch
         h.Settings.stim(1).inten_type = 'dB'; % either 'dB' or 'abs'
@@ -379,7 +382,7 @@ switch opt
     
     %% first stimulus
     nstim=20; % minimum frequency of duration changes. Must divide by 2 to produce integer.
-    train_dur = 1;
+    train_dur = 5;
     % don't change these:
     min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. Use 0.001 for DS8R.
 %     min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
@@ -450,7 +453,6 @@ switch opt
         end
     end
     % other settings
-    h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
     h.Settings.stim(1).durtype = 'oddballvalue';% 'oddballvalue' will select which sequence is presented on each trial according to the values in h.Settings.PL.oddballvalue
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
@@ -458,6 +460,7 @@ switch opt
     h.Settings.stim(1).maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     if h.Settings.labjack
         % use labjack T7
+        h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
         h.Settings.stim(1).inten_type = 'abs'; % either 'dB' or 'abs'
@@ -470,6 +473,7 @@ switch opt
         h.Settings.stim(1).f0 = 16384/(2*sum(h.Settings.stim(1).dur{1})); % frequency of output (1 / min duration). 16384 bytes is the max buffer size, and each output requires 2 bytes.
     else
         % use audio
+        h.Settings.stim(1).patternvalue = [repmat([300 0],1,ngaps) 300]; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).f0 = 300; % pitch
         h.Settings.stim(1).inten_type = 'dB'; % either 'dB' or 'abs'
@@ -488,8 +492,8 @@ switch opt
     h.Settings.stim(2) = h.Settings.stim(1);
     h.Settings.stim(3) = h.Settings.stim(1);
     
-    % within-trial frequency (s)
-    h.Settings.wait=[1 1 1]; % one value per nstim 
+    % within-trial stimulus onset asychrony (SOA) (s)
+    h.Settings.wait=[6 6 6]; % one value per nstim
     
     %% CHANGING STIMULUS INTENSITY EVERY X PULSES
     % REFER TO "TIMER STOP": https://labjack.com/support/ud/df-lj-app-guide/10.5
