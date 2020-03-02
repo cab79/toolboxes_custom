@@ -114,6 +114,7 @@ for i = 1:length(h.dur)
     elseif h.trialtype.durpattern
         usefreq = h.freq;
         useinten = h.stim(h.sn).inten;
+        usepattern = h.pattern;
     else % no pattern
         usefreq = h.freq(i);
         useinten = h.stim(h.sn).inten(i);
@@ -148,7 +149,7 @@ for i = 1:length(h.dur)
         mwav{i} = [rise;peak;fall;trough]';
         temp_sin{i} = mwav{i};
     elseif strcmp(h.Settings.stim(h.sn).wavetype,'digital')
-        useinten = h.Settings.stim(1).patternvalue(i); % digital: 5V TTL or 0V
+        useinten = usepattern(i); % digital: 5V TTL or 0V
         nPulse = round(h.dur(i)*usefreq);
         mwav{i} = useinten*(ones(1,nPulse));
         temp_sin{i} = mwav{i};

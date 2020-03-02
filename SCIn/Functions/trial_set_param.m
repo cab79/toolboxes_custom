@@ -508,9 +508,12 @@ switch h.Settings.stim(h.sn).control
         
         %% DURATION
     
-        % create temporary variables for duration and freq
+        % create variables for duration, freq, pattern assuming only one
+        % possible stimulus train - or these are modified later, e.g. for
+        % patternmethod
         h.freq = h.Settings.stim(h.sn).f0;
-        h.dur = h.Settings.stim(h.sn).dur; 
+        h.dur = h.Settings.stim(h.sn).dur;
+        h.pattern = h.Settings.stim(h.sn).patternvalue;
         h.varlevel = 0;
         
         % thresholding
@@ -521,78 +524,19 @@ switch h.Settings.stim(h.sn).control
                 h.varlevel = h.s.StimulusLevel;
             end
         end
-
-        % condition method
-        if isfield(h.Settings,'conditionmethod')
-            if ~isempty(h.Settings.conditionmethod)
-                if iscell(h.Settings.conditionmethod)
-                    for i = 1:length(h.Settings.conditionmethod)
-                        conditionmethod = h.Settings.conditionmethod{i};
-                        if strcmp(conditionmethod,'pitch') || strcmp(conditionmethod,'freq')
-                            if iscell(h.Settings.conditionvalue)
-                                h.freq = h.Settings.conditionvalue{h.Seq.signal(h.sn,h.tr),i};
-                            else
-                                h.freq = h.Settings.conditionvalue(i,h.Seq.signal(h.sn,h.tr));
-                            end
-                        end
-                    end
-                else
-                    error('h.Settings.conditionmethod must be a cell');
-                end
-            end
-        end
         
         % pattern method
-        if strcmp(h.Settings.stim(h.sn).patternmethod,'duration')
-            h.trialtype.durpattern=1;
-        end
-
-        % oddball method
-        if h.seqtype.oddball && any(strcmp(h.Settings.oddballmethod,{'pitch','duration','duration_shuffle','freq'}))
-            if ~h.seqtype.adapt && ~h.seqtype.thresh
-                if iscell(h.Settings.oddballvalue)
-                    if size(h.Settings.oddballvalue,1)==1
-                        oddval = h.Settings.oddballvalue{h.Seq.signal(h.sn,h.tr)};
-                    else
-                        oddval = h.Settings.oddballvalue{h.Seq.signal(h.sn,h.tr),:};
-                    end
-                else
-                    oddval = h.Settings.oddballvalue(h.Seq.signal(h.sn,h.tr),:);
-                end
-                if strcmp(h.Settings.oddballmethod,'pitch') || strcmp(h.Settings.oddballmethod,'freq')
-                    h.freq = oddval;
-                elseif strcmp(h.Settings.oddballmethod,'duration')
-                    h.dur = oddval;
-                end
-                dur_diff = 0;
-            elseif (h.seqtype.adapt && ismember(h.sn,h.Settings.adaptive_general.stim)) || (h.seqtype.thresh && ismember(h.sn,h.Settings.adaptive_general.stim))
-                if isfield(h,'s') && length(h.s.a)>=h.Seq.adapttype(h.tr) && ~isempty(h.s.a(h.Seq.adapttype(h.tr)).StimulusLevel)
-                    h.varlevel = h.s.a(h.Seq.adapttype(h.tr)).StimulusLevel;
-                else
-                    try
-                        dur_diff = str2double(h.aud_diff_gui);
-                    catch
-                        dur_diff = 0;
-                    end
-                    if h.seqtype.adapt
-                        if dur_diff~=0
-                            h.Settings.adaptive.startinglevel=dur_diff;
-                        end
-                        h.varlevel = h.Settings.adaptive.startinglevel;
-                    else
-                        if dur_diff~=0
-                            h.Settings.threshold.startinglevel=dur_diff;
-                        end
-                        h.varlevel = h.Settings.threshold.startinglevel;
-                    end  
-                end
-                if strcmp(h.Settings.oddballmethod,'pitch') || strcmp(h.Settings.oddballmethod,'freq')
-                    h.freq = [h.Settings.oddballvalue(1), (h.Settings.oddballvalue(1)+h.varlevel)]; % create new pitch pair
-                    h.freq = h.freq(h.Seq.signal(h.sn,h.tr));
+        h.trialtype.freqpattern=0;
+        h.trialtype.durpattern=0;
+        if isfield(h.Settings.stim(h.sn),'patternmethod')
+            if strcmp(h.Settings.stim(h.sn).patternmethod,'duration')
+                h.trialtype.durpattern=1;
+                if strcmp(h.Settings.PL.oddballmethod,'pattern') && strcmp(h.Settings.stim(1).durtype,'oddballvalue')
+                    h.pattern = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.tr)};
+                    h.dur = h.Settings.stim(h.sn).dur{h.Seq.signal(h.sn,h.tr)};
                 end
             end
         end
-
         
 
         %% INTENSITY
@@ -692,7 +636,7 @@ switch h.Settings.stim(h.sn).control
 
                 % only do this if it's a discrim trial, or a ratio detect
                 % trial only
-                if h.Seq.adapttype(h.tr)==discrim || (h.Seq.adapttype(h.tr)==detect && strcmp(h.Settings.adaptive(detect).subtype,'ratio'))
+                if (~isempty(discrim) && h.Seq.adapttype(h.tr)==discrim) || (~isempty(detect) && h.Seq.adapttype(h.tr)==detect && strcmp(h.Settings.adaptive(detect).subtype,'ratio'))
                     % calculate intensity
                     if h.Seq.signal(h.sn,h.tr)==h.sn
                         h.stim(h.sn).inten = h.stim(h.sn).inten_mean + h.Settings.adaptive(discrim).stepdir * h.stim(h.sn).inten_diff / 2;
