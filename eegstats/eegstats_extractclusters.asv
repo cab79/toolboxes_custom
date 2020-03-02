@@ -231,7 +231,7 @@ for d=1:length(D)
             end
             
             figure('name','contrast clusters')
-            plotind = find(cellfun(@(x) x>0,nclus));
+            plotind = find(cellfun(@x,nclus>0));
             plotimg = pimg(plotind);
             pterms = cterms(plotind);
             for pi = 1:length(plotimg)

@@ -223,6 +223,9 @@ for d=1:length(D)
                                 imgZ = img_t2z(T_img, DF(2), 1);
                             elseif isfield(D(d).model(i).con(c),'F')
                                 F_img = spm_read_vols(spm_vol(D(d).model(i).con(c).F_img_file));
+                                if any(F_img(:)<0)
+                                    F_img(F_img(:)<0)=0;
+                                end
                                 imgZ = img_f2z(F_img, DF(1), DF(2), 1);
                             else
                                 error('Statistical parameter type not supported');
