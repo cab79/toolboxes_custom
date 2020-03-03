@@ -544,7 +544,7 @@ switch h.Settings.stim(h.sn).control
             % set duration pattern according to oddball values
             if strcmp(h.Settings.stim(h.sn).patternmethod,'duration') || strcmp(h.Settings.PL.oddballmethod,'duration_shuffle')
                 h.trialtype.durpattern=1;
-                if strcmp(h.Settings.PL.oddballmethod,'pattern') && strcmp(h.Settings.stim(1).durtype,'oddballvalue')
+                if strcmp(h.Settings.stim(1).durtype,'oddballvalue')
                     h.pattern = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.tr)};
                     h.dur = h.Settings.stim(h.sn).dur{h.Seq.signal(h.sn,h.tr)};
                 end

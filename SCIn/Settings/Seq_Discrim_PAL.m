@@ -1232,7 +1232,7 @@ if 0 % turn to 1 to use DS8R with EEG
     h.Settings.DAC_multiply = 0.01; % multiply DAC output by this (e.g. to get mA on DS8R)end
 end
 
-if 0 % turn to 1 to use DS8R without EEG
+if 1 % turn to 1 to use DS8R without EEG
     %% EQUIPMENT CONTROL: DS8R
     % record EEG, NS: netstation, BV: brainvision, 'serial': serial port
     % serial port
@@ -1244,7 +1244,7 @@ if 0 % turn to 1 to use DS8R without EEG
     h.Settings.DAC_multiply = 0.01; % multiply DAC output by this (e.g. to get mA on DS8R)
 end
 
-if 1 % turn to 1 to use audio without EEG
+if 0 % turn to 1 to use audio without EEG
     %% EQUIPMENT CONTROL: AUDIO
     % serial port
     h.Settings.serial = '';
