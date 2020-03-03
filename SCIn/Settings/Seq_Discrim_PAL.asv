@@ -1017,7 +1017,7 @@ switch opt
     
     % these settings are unique to adaptive procedure for gap
     % randomisations
-    h.Settings.stim(1).ngap_rand_oddball=4;
+    h.Settings.stim(1).ngap_rand_oddball=4; % initial number of gaps to randomise (which update using adaptive procedure during experiment)
     h.Settings.stim(1).stimrandind_durind = [1 2]; % select which values of signal to apply stimrandind to
     h.Settings.stim(1).stimrandind_oddball = [13 10 7 4 1 8 11 14]*2; % indices to randomise as oddballs
     
@@ -1068,10 +1068,15 @@ switch opt
     % This bit was previously in Triangular sequence function but I removed
     % to put it here since it's experiment-specific
     % It simply duplicates the pattern so that one of them can have the
-    % gaps ra
+    % gaps randomised and the other one kept the same.
     for s = 1:length(h.Settings.stim)
-        patternvalue = h.Settings.stim(s).patternvalue;
-        dur = h.Settings.stim(s).dur;
+        if iscell(h.Settings.stim(s).patternvalue)
+            patternvalue = h.Settings.stim(s).patternvalue;
+            dur = h.Settings.stim(s).dur;
+        else
+            patternvalue = h.Settings.stim(s).patternvalue;
+            dur = h.Settings.stim(s).dur;
+        end
         for i = 1:length(patternvalue)
             h.Settings.stim(s).patternvalue{i*2-1} = patternvalue{i};
             h.Settings.stim(s).patternvalue{i*2} = patternvalue{i};

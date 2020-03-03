@@ -983,7 +983,7 @@ switch opt
     
     %% first stimulus
     nstim=20; % minimum frequency of duration changes. Must divide by 2 to produce integer.
-    train_dur = 5;
+    train_dur = 1;
     % don't change these
     min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. Use 0.001 for DS8R.
     min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
@@ -1070,6 +1070,10 @@ switch opt
     % It simply duplicates the pattern so that one of them can have the
     % gaps randomised and the other one kept the same.
     for s = 1:length(h.Settings.stim)
+        if ~iscell(h.Settings.stim(s).patternvalue)
+            h.Settings.stim(s).patternvalue = {h.Settings.stim(s).patternvalue};
+            h.Settings.stim(s).dur = {h.Settings.stim(s).dur};
+        end
         patternvalue = h.Settings.stim(s).patternvalue;
         dur = h.Settings.stim(s).dur;
         for i = 1:length(patternvalue)
@@ -1176,7 +1180,7 @@ switch opt
     % correct answer
     h.Settings.adaptive(1).signalval = [1 2];
     h.Settings.adaptive(1).signalcorrect = []; % correct response
-    h.Settings.adaptive(1).signaltarget = {[1 2 3 4],[1 2 1 2]}; % translate actual signal values to signalval indices
+    h.Settings.adaptive(1).signaltarget = {[1 2],[1 2]}; % translate actual signal values to signalval indices
     h.Settings.adaptive(1).response_type = 'samediff'; % discrimination is same/difference
     % reversals
     h.Settings.adaptive(1).reversals = [4;8;12];
@@ -1204,7 +1208,7 @@ switch opt
     % incorrect (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
     %h.Settings.adaptive(1).meanadjustmax = 10;
     % maximum amount of the difference value (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
-    h.Settings.adaptive(1).levelmax = length(h.Settings.stim(h.Settings.adaptive_general.stim(1)).gap_ind); % should be a DIFFERENCE value.
+    h.Settings.adaptive(1).levelmax = length(gap_ind); % should be a DIFFERENCE value.
     h.Settings.adaptive(1).levelmin = 0;
     h.Settings.adaptive(1).maxtrial = inf;
     %h.Settings.adaptive(1).expected_change = 5; % smaller value increases the precision of the prior for ZEST and reduces step size of changes in estimates
@@ -1228,7 +1232,7 @@ if 0 % turn to 1 to use DS8R with EEG
     h.Settings.DAC_multiply = 0.01; % multiply DAC output by this (e.g. to get mA on DS8R)end
 end
 
-if 1 % turn to 1 to use DS8R without EEG
+if 0 % turn to 1 to use DS8R without EEG
     %% EQUIPMENT CONTROL: DS8R
     % record EEG, NS: netstation, BV: brainvision, 'serial': serial port
     % serial port
@@ -1240,7 +1244,7 @@ if 1 % turn to 1 to use DS8R without EEG
     h.Settings.DAC_multiply = 0.01; % multiply DAC output by this (e.g. to get mA on DS8R)
 end
 
-if 0 % turn to 1 to use audio without EEG
+if 1 % turn to 1 to use audio without EEG
     %% EQUIPMENT CONTROL: AUDIO
     % serial port
     h.Settings.serial = '';

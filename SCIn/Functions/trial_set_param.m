@@ -441,7 +441,7 @@ switch h.Settings.stim(h.sn).control
                         
                     end
                     % created "random" sequences.
-                    if isfield(h.Settings.stim(h.sn),'stimrandind_durind') && ismember(h.Seq.signal(h.sn,h.tr),h.Settings.stim(1).stimrandind_durind)
+                    if isfield(h.Settings.stim(h.sn),'stimrandind') && isfield(h.Settings.stim(h.sn),'stimrandind_durind') && ismember(h.Seq.signal(h.sn,h.tr),h.Settings.stim(1).stimrandind_durind)
                         h.dur(sort(h.Settings.stim(h.sn).stimrandind)) = h.dur(h.Settings.stim(h.sn).stimrandind);
                     end
                 end
