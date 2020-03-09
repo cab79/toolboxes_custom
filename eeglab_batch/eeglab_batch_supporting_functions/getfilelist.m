@@ -95,7 +95,7 @@ Ngrp = length(ugrp);
 SubInd = cell(Ngrp,1);
 Subs = [];
 gn=0;
-for g = 1:length(ugrp)
+for g = 1:Ngrp
     gn=gn+1;
     inc_idx = find(cellfun(@(x) x>0, pdata(2:end,inc_col), 'UniformOutput', 1));
     if ~isempty(inc_col_custom)

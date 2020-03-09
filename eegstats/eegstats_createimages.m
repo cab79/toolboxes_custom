@@ -117,6 +117,7 @@ for d=1:length(D)
                 % save images
                 D(d).model(i).coeff(b).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_coeff_' num2str(b) '_b.nii']);
                 V.fname = D(d).model(i).coeff(b).b_img_file;
+                V.dim = size(mask_img);
                 spm_write_vol(V,b_img.*mask_img);
             end
             

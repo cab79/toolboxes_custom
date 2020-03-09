@@ -162,15 +162,30 @@ for d=1:length(D)
                 end
                 input_vol=reshape(input_vol,[],size(input_vol,4));
             end
-            
+            input_avg=reshape(mean(input_vol,2),size(img{1},1),size(img{1},2),size(img{1},3));
             
             %% run on con
-            pi=0;
+            pi=0; nclus={}; pimg={};
             for c = S.clus.model.contrast{i}
-                % find clusters using connected components analysis
-                cc = ccon(img{c},C,S);
-                D(d).model(i).con(c).vox = cc.PixelIdxList(1:min(length(cc.PixelIdxList),S.clus.connected_clusters.ClusMaxNum));
                 
+                if ~any(img{c}(:))
+                    nclus{c} = 0;
+                    continue
+                end
+                
+                D(d).model(i).con(c).vox = [];
+                D(d).model(i).con(c).clus = [];
+                D(d).model(i).con(c).pca = [];
+                
+                % find clusters using connected components analysis
+                % break up into positive and negative polarity clusters
+                posc = img{c}.*input_avg>0;
+                cc = ccon(posc,C,S);
+                D(d).model(i).con(c).vox = cc.PixelIdxList(1:min(length(cc.PixelIdxList),S.clus.connected_clusters.ClusMaxNum));
+                negc = img{c}.*input_avg<0;
+                cc = ccon(negc,C,S);
+                D(d).model(i).con(c).vox = [D(d).model(i).con(c).vox, cc.PixelIdxList(1:min(length(cc.PixelIdxList),S.clus.connected_clusters.ClusMaxNum))];
+
                 % refine and/or dissect clusters using PCA
                 if S.clus.cluster_pca_thresh
                     nc=numel(D(d).model(i).con(c).vox);
@@ -184,39 +199,138 @@ for d=1:length(D)
                         randind=randperm(size(X,2));
                         maxind = min(size(X,2),S.clus.cluster_pca_maxclussize);
                         Xsub=X(:,randind(1:maxind));
-                        % Do PCA
-                        [~,score,~,~,explained] = pca(Xsub,'Algorithm','eig');
-                        % Create sub-clusters that explain sufficient variance
-                        score_sub = score(:,explained>S.clus.cluster_pca_minvarexplained | explained<-S.clus.cluster_pca_minvarexplained);
-                        if ~isempty(score_sub)
-                            remove = [remove ci];
-                            ind = length(D(d).model(i).con(c).vox);
-                            for ve = 1:size(score_sub,2)
-                                r=corr(X,score_sub(:,ve));
-                                D(d).model(i).con(c).vox{ind+ve}=cii(r>S.clus.cluster_pca_minvoxelcorr);
-                                D(d).model(i).con(c).clus(ind+ve).eig=score_sub';
+                        
+                        if S.clus.cluster_pca_thresh==1
+                            % Do PCA
+                            [coeff,score,~,~,explained] = pca(Xsub,'Algorithm','eig');
+                            % Create sub-clusters that explain sufficient variance
+                            score_sub = score(:,explained>S.clus.cluster_pca_minvarexplained | explained<-S.clus.cluster_pca_minvarexplained);
+                            score_sub = score_sub(:,1:min(size(score_sub,2),round(size(Xsub,2)*S.clus.cluster_pca_fracretainfac)));
+                            D(d).model(i).con(c).pca(ci).explained = explained;
+                        elseif S.clus.cluster_pca_thresh==2
+                            % use erp_pca
+                            NUM_FAC = [];
+                            FactorResults = erp_pca(Xsub,NUM_FAC);
+                            randResults = erp_pca(randn(size(Xsub)),NUM_FAC);
+                            randResults.scree = randResults.scree*(sum(FactorResults.scree)/sum(randResults.scree)); %scale to same size as real data
+                            % estimate the number of components
+                            nfac = find(FactorResults.scree<randResults.scree);
+                            % apply PCA to all voxels to get coefficients
+                            % and scores
+                            FactorResults = erp_pca(X,nfac(1));
+                            FactorResults.nfac = nfac(1);
+                            
+                            % keep all components explaining over e.g. 5%
+                            varkeep = FactorResults.facVar>S.clus.cluster_pca_min_var_explained;
+                            % keep any others required to reach overall
+                            % explained of e.g. 50%
+                            varthresh = find(cumsum(FactorResults.facVar)>S.clus.cluster_pca_frac_explained);
+                            varkeep(1:varthresh(1))=1;
+                            FactorResults.nfac_varkeep = sum(varkeep);
+                            
+                            if sum(varkeep)==0
+                                continue
                             end
+                            
+                            % To obtain sparse voxels/components, threshold the coefficients by maximising product-of-sums of cluster size over cluster overlap 
+                            % first, weight the absolute coefficients by
+                            % variance explained
+                            abs_coeff = bsxfun(@times,abs(FactorResults.FacCof(:,varkeep)),FactorResults.facVar(1,varkeep));
+                            thresh_range = linspace(min(abs_coeff(:)),max(abs_coeff(:)),100);
+                            prod_ratio=[];
+                            for th = 1:length(thresh_range)
+                                thresh=thresh_range(th);
+                                coeff_thresh=abs_coeff>thresh;
+                                % cluster size: prod of non-zero sums
+                                clus_size = sum(coeff_thresh,1);
+                                prod_clus_size = prod(clus_size(clus_size>0));
+                                % cluster overlap: prod of non-zero sums
+                                clus_over = sum(coeff_thresh,2);
+                                prod_clus_over = prod(clus_over(clus_over>0));
+                                % ratio
+                                prod_ratio(th) = prod_clus_size/prod_clus_over;
+                            end
+                            pratios = find(prod_ratio==max(prod_ratio));
+                            thresh = thresh_range(pratios(1));
+                            coeff_new = FactorResults.FacCof(:,varkeep).*(abs_coeff>thresh);
+                            
+                            figure('name',['model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)]); 
+                            subplot(2,2,1);hold on; 
+                            yyaxis left
+                            plot(FactorResults.scree(1:FactorResults.nfac),'b'); 
+                            plot(randResults.scree(1:FactorResults.nfac),'k')
+                            line([FactorResults.nfac,FactorResults.nfac],[0,max(FactorResults.scree(1:FactorResults.nfac))],'LineStyle','--','Color','r')
+                            line([FactorResults.nfac_varkeep,FactorResults.nfac_varkeep],[0,max(FactorResults.scree(1:FactorResults.nfac))],'LineStyle','--','Color','b')
+                            ylabel('scree')
+                            yyaxis right
+                            bar(1:length(FactorResults.facVar),FactorResults.facVar,'FaceColor',[0.7 0.7 0.7])
+                            plot(cumsum(FactorResults.facVar),'g'); 
+                            ylabel('cum var explained')
+                            subplot(2,2,2);plot(thresh_range,prod_ratio);
+                            subplot(2,2,3);imagesc(abs_coeff);
+                            subplot(2,2,4);imagesc(abs_coeff>thresh);
+                            drawnow
+                            pause(1)
+                            
+                            % calculate new scores
+                            if any(coeff_new(:))
+                                score_sub = X*coeff_new;
+                                remove = [remove ci];
+                                ind = length(D(d).model(i).con(c).vox);
+                                for ve = 1:size(score_sub,2)
+                                    D(d).model(i).con(c).vox{ind+ve}=cii(coeff_new(:,ve)~=0);
+                                    D(d).model(i).con(c).clus(ind+ve).eig=score_sub(:,ve)';
+                                end
+                            end
+                            
+                            %OLD
+%                             score_sub = FactorResults.FacScr(:,FactorResults.facVar>(S.clus.cluster_pca_minvarexplained/100) | FactorResults.facVar<-(S.clus.cluster_pca_minvarexplained/100));
+%                             score_sub = score_sub(:,1:min(size(score_sub,2),round(FactorResults.nfac*S.clus.cluster_pca_fracretainfac)));
+                            
+                            FactorResults.FacCofNew=coeff_new;
+                            FactorResults.nFacThresh = sum(any(coeff_new,1));
+                            FactorResults.FacCofThresh=thresh;
+                            D(d).model(i).con(c).pca(ci).FactorResults = FactorResults;
+%                         end
+%                         if ~isempty(score_sub)
+%                             remove = [remove ci];
+%                             ind = length(D(d).model(i).con(c).vox);
+%                             for ve = 1:size(score_sub,2)
+%                                 r=corr(X,score_sub(:,ve));
+%                                 D(d).model(i).con(c).vox{ind+ve}=cii(r>S.clus.cluster_pca_minvoxelcorr);
+%                                 D(d).model(i).con(c).clus(ind+ve).eig=score_sub(:,ve)';
+%                             end
                         else % store 1st PC
-                            D(d).model(i).con(c).clus(ci).eigen=score(:,1)'; 
+                            [~,score] = pca(Xsub,'Algorithm','eig','NumComponents',1);
+                            D(d).model(i).con(c).clus(ci).eig=score'; 
                         end
                     end
                     if ~isempty(remove)
                         D(d).model(i).con(c).vox(remove)=[];
                         D(d).model(i).con(c).clus(remove)=[];
                     end
-                    % re-order with largest cluster first
-                    [~,si]=sort(cellfun(@length,D(d).model(i).con(c).vox),'descend');
-                    D(d).model(i).con(c).vox = D(d).model(i).con(c).vox(si);
-                    D(d).model(i).con(c).clus = D(d).model(i).con(c).clus(si);
-                    % remove small clusters
-                    rmclus = cellfun(@length,D(d).model(i).con(c).vox)<S.clus.connected_clusters.ClusExtentThresh;
-                    D(d).model(i).con(c).vox(rmclus)=[];
-                    D(d).model(i).con(c).clus(rmclus)=[];
-                    % reduce number of clusters
-                    rdclus = 1:min(length(D(d).model(i).con(c).vox),S.clus.connected_clusters.ClusMaxNum);
-                    D(d).model(i).con(c).vox = D(d).model(i).con(c).vox(rdclus);
-                    D(d).model(i).con(c).clus = D(d).model(i).con(c).clus(rdclus);
+                    
                 
+                end
+                % re-order with largest cluster first
+                [~,si]=sort(cellfun(@length,D(d).model(i).con(c).vox),'descend');
+                D(d).model(i).con(c).vox = D(d).model(i).con(c).vox(si);
+                if ~isempty(D(d).model(i).con(c).clus)
+                    D(d).model(i).con(c).clus = D(d).model(i).con(c).clus(si);
+                end
+                % remove small clusters
+                rmclus = cellfun(@length,D(d).model(i).con(c).vox)<S.clus.connected_clusters.ClusExtentThresh;
+                D(d).model(i).con(c).vox(rmclus)=[];
+                if ~isempty(D(d).model(i).con(c).clus)
+                    D(d).model(i).con(c).clus(rmclus)=[];
+                end
+                D(d).model(i).con(c).nRemoved = sum(rmclus);
+                % reduce number of clusters
+                rdclus = 1:min(length(D(d).model(i).con(c).vox),S.clus.connected_clusters.ClusMaxNum);
+                D(d).model(i).con(c).nReduced = length(D(d).model(i).con(c).vox) - max(rdclus);
+                D(d).model(i).con(c).vox = D(d).model(i).con(c).vox(rdclus);
+                if ~isempty(D(d).model(i).con(c).clus)
+                    D(d).model(i).con(c).clus = D(d).model(i).con(c).clus(rdclus);
                 end
                 
                 % make image
@@ -230,17 +344,22 @@ for d=1:length(D)
 
             end
             
-            figure('name','contrast clusters')
-            plotind = find(cellfun(@(x) x>0,nclus));
-            plotimg = pimg(plotind);
-            pterms = cterms(plotind);
-            for pi = 1:length(plotimg)
-                subplot(length(plotimg),1,pi)
-                imagesc(reshape(plotimg{pi},[],size(plotimg{pi},3)))
-                colormap(cmp)
-                ylabel(pterms{pi})
-                set(get(gca,'YLabel'),'Rotation',45)
-                set(gca,'xtick',[])
+            if ~isempty(pimg)
+                figure('name','contrast clusters')
+                rmclus = cellfun(@isempty,nclus);
+                nclus(rmclus)=[];
+                pimg(rmclus)=[];
+                plotind = find(cellfun(@(x) x>0,nclus));
+                plotimg = pimg(plotind);
+                pterms = cterms(plotind);
+                for pi = 1:length(plotimg)
+                    subplot(length(plotimg),1,pi)
+                    imagesc(reshape(plotimg{pi},[],size(plotimg{pi},3)))
+                    colormap(cmp)
+                    ylabel(pterms{pi})
+                    set(get(gca,'YLabel'),'Rotation',45)
+                    set(gca,'xtick',[])
+                end
             end
             
             %% run on conUC
@@ -305,16 +424,15 @@ for d=1:length(D)
                             D(d).model(i).con(c).clus(ci).input_mean=squeeze(nanmean(input_vol(cii,:),1));
                         end
 
-%                         if any(strcmp(types,'eig')) && 
-%                             disp(['eigenvariate for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
-%                             X=input_vol(cii,:)';
-%                             randind=randperm(size(X,2));
-%                             maxind = min(size(X,2),1000);
-%                             X=X(:,randind(1:maxind));
-%                             [coeff,score] = pca(X,'Algorithm','eig','NumComponents',1);
-%                             D(d).model(i).con(c).clus(ci).eigen=score';
-%                             figure;scatter(D(d).model(i).con(c).clus(ci).input_mean,score)
-%                         end
+                        if any(strcmp(types,'eig'))
+                            disp(['eigenvariate for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
+                            X=input_vol(cii,:)';
+                            randind=randperm(size(X,2));
+                            maxind = min(size(X,2),S.clus.cluster_pca_maxclussize);
+                            Xsub=X(:,randind(1:maxind));
+                            [~,score] = pca(Xsub,'Algorithm','eig','NumComponents',1);
+                            D(d).model(i).con(c).clus(ci).eig=score';
+                        end
                         
                         % calculate covariance explained by fixed and
                         % random factors - useful for comparing models -

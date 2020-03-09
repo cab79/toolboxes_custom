@@ -68,9 +68,13 @@ for d=1:length(D)
             if S.MCC.estimate && (S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF'))
             % First, estimate of smoothness based on [residual] images
                 D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
-                D(d).model(i).resid_vol_dir = strrep(D(d).model(i).resid_vol_file,'.mat','_dir');
-                if ~exist(D(d).model(i).resid_vol_dir,'dir')
-                    mkdir(D(d).model(i).resid_vol_dir)
+                
+                % REMOVE
+%                 D(d).model(i).resid_vol_dir = strrep(D(d).model(i).resid_vol_file,'.mat','_dir');
+%                 if ~exist(D(d).model(i).resid_vol_dir,'dir')
+%                     mkdir(D(d).model(i).resid_vol_dir)
+%                 end
+                    
                     if exist(D(d).model(i).resid_vol_file,'file')
                         disp(['MCC: for model ' num2str(i) ', loading resid vol file'])
                         load(D(d).model(i).resid_vol_file);
@@ -96,23 +100,24 @@ for d=1:length(D)
                     szR = size(resid_vol_z,4);
                     clear resid_vol
                 
+                    % REMOVE
                     % save as multiple volumes
-                    pcc=0;
-                    for tr = 1:szR
-                        pc = floor(tr*100/szR);
-                        if pcc<pc
-                            pcc=pc;
-                            disp(['writing resid volumes: ' num2str(pc) '%'])
-                        end
-                        trn = sprintf( '%06d', tr );
-                        V.fname = fullfile(D(d).model(i).resid_vol_dir,['resid' trn '.nii']);
-                        spm_write_vol(V,resid_vol_z(:,:,:,tr));
-                    end
-                end
-                clear resid_vol_z
-                fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
-                resid_vol_z = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
-                
+%                     pcc=0;
+%                     for tr = 1:szR
+%                         pc = floor(tr*100/szR);
+%                         if pcc<pc
+%                             pcc=pc;
+%                             disp(['writing resid volumes: ' num2str(pc) '%'])
+%                         end
+%                         trn = sprintf( '%06d', tr );
+%                         V.fname = fullfile(D(d).model(i).resid_vol_dir,['resid' trn '.nii']);
+%                         spm_write_vol(V,resid_vol_z(:,:,:,tr));
+%                     end
+%                 end
+%                 clear resid_vol_z
+%                 fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
+%                 resid_vol_z = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
+                 
                 %- Filename of mapped mask image
                 if ~isempty(S.MCC.mask_img)
                     VM    = S.MCC.mask_img;

@@ -91,6 +91,15 @@ for d = 1:length(subjects)
                 n_trials = length(D(d).prep.fdata.dat{1, 1}.time);
                 timecourse = reshape(permute(timecourse,[2 3 1]),n_chans,[]);
                 eventType = D(d).prep.fdata.dat{1, 1}.conds; tnums = D(d).prep.fdata.dat{1, 1}.tnums; fnums = D(d).prep.fdata.dat{1, 1}.fnums; bnums = D(d).prep.fdata.dat{1, 1}.bnums;
+            elseif isfield(S.prep.fname,'struct')
+                eeg = D(d).prep.(fename{1})(1).dat.(S.prep.fname.struct{2}); 
+                n_chans = size(eeg,1);
+                n_samples = size(eeg,2);
+                n_trials = size(eeg,3);
+                eventType = ones(1,n_trials);
+                tnums=1:length(eventType); % assumes all trials present
+                D(d).prep.dim = [n_chans,n_samples,n_trials];
+                timecourse = reshape(eeg,n_chans,[]); % make 2D: chans x (time*trials)
             else % this is for processing group ICA data files
                 try
                     topography = D(d).prep.topography.dat;
@@ -210,6 +219,11 @@ for d = 1:length(subjects)
                         CVs(ci),...
                         D(d).prep.subname{:},...
                         tnums);
+                case 'eegfile'
+                    pred_out = eegfile_covariate(...
+                        CVs(ci),...
+                        D(d).prep.(fename{1})(1).dat,...
+                        tnums);
             end
             repl=find(ismember(pred_out.Properties.VariableNames,dtab.Properties.VariableNames));
             if ~isempty(repl)
@@ -281,8 +295,10 @@ for d = 1:length(subjects)
     end
 
     % select samples
-    select = dsearchn(total_samples',[select_samples(1),select_samples(end)]');
-    data = data(:,select(1):select(2),:);
+    if exist('select_samples','var')
+        select = dsearchn(total_samples',[select_samples(1),select_samples(end)]');
+        data = data(:,select(1):select(2),:);
+    end
     
     % subtractions
 %     if ~isempty(S.prep.pred.factor.subtract)
@@ -600,6 +616,19 @@ for ci = 1:length(cv.def)
     % remove trials not in EEG and put in order of EEG data trials
     for pr = 1:length(pred_label)
         pred.(pred_label{pr})=predtemp(tnums,pr);
+    end
+end
+
+
+function pred = eegfile_covariate(cv,dat,tnums)
+% imports from substructure within eeg data file. Designed for Andrej's
+% painloc experiment.
+pred=table;
+for ci = 1:size(cv.def,1)
+    ncov = size(dat.(cv.def{ci}{1}),2);
+    for nc = 1:ncov
+        predtemp = dat.(cv.def{ci}{1})(:,nc);
+        pred.(cv.def{ci,2}{nc})=predtemp(tnums);
     end
 end
 
