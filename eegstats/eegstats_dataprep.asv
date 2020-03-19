@@ -759,7 +759,7 @@ for d = 1:length(D)
                         temp(:,:,nf) = bsxfun(@minus,temp(:,:,nf),mean(temp(:,select(1):select(2),nf),2));
                     end
                 end
-                tempsz = [size(temp,2),size(temp,3)];
+                D(d).prep.dim([1 2]) = [size(temp,1),size(temp,2)];
 
                 if strcmp(pcatype,'spatial')
                     temp = reshape(permute(temp,[1 3 2]),[],dim(obs_dim)*D(d).prep.dim(obs_dim));
@@ -776,7 +776,7 @@ for d = 1:length(D)
             if obs_dim
                 D(d).prep.dim(var_dim) = dim(obs_dim);
             else
-                D(d).prep.dim([1 2]) = tempsz;
+                D(d).prep.dim
             end
         end
 

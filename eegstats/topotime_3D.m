@@ -59,10 +59,11 @@ if isfield(S.img.file,'coord')
         [xi,yi] = meshgrid(xi,yi);
         
         % indices to keep
-        Ik = find(inpolygon(xi, yi, sel(ch, 1), sel(ch, 2)));
+        Ik = find(inpolygon(xi, yi, S.img.bbox(:,1), S.img.bbox(:,2)));
         % indices to make NaN
-        Ir = find(inpolygon(xi, yi, S.img.bbox(:,1), S.img.bbox(:,2))==0 | inpolygon(xi,yi,S.img.bbox_inner(:,1),S.img.bbox_inner(:,2)));
+        Ir = find(inpolygon(xi,yi,S.img.bbox_inner(:,1),S.img.bbox_inner(:,2)));
         Ic = setdiff(Ik,Ir);
+        xi = xi(Ic); yi = yi(Ic);
     else
         % indices to keep
         Ic = find(inpolygon(x, y, Cel(ch, 1), Cel(ch, 2)));
@@ -79,7 +80,11 @@ end
 %dat = file_array('', [n n length(timeind)], 'FLOAT32-LE'); 
 %cdat       = dat;
 dimi = [n n length(timeind)];
-dim   = [dimi ones(1, 3-length(dimi)) length(trialind)];
+if length(trialind)>1
+    dim   = [dimi ones(1, 3-length(dimi)) length(trialind)];
+else
+    dim   = [dimi ones(1, 3-length(dimi))];
+end
         
 % convert
 if exist('files','var')
@@ -100,14 +105,14 @@ if exist('files','var')
                 if isfield(S.img,'interp_method') && strcmp(S.img.interp_method,'gdatav4')
                     switch length(dim)
                         case 2
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:), x, y);
-                            YI(:,:)     = YY;
+                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:), xi, yi);
+                            YI(:,:)     = YY';
                         case 3
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j), x, y);
-                            YI(:,:, j)  = YY;
+                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j), xi, yi);
+                            YI(:,:, j)  = YY';
                         case 4
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j,i), x, y);
-                            YI(:,:,j,i) = YY;
+                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j,i), xi, yi);
+                            YI(:,:,j,i) = YY';
                         otherwise
                             error('Invalid output file');
                     end
@@ -154,14 +159,27 @@ else
             if isfield(S.img,'interp_method') && strcmp(S.img.interp_method,'gdatav4')
                 switch length(dim)
                     case 2
-                        YY(sub2ind([n n], x, y)) = gdatav4(Cel(:,1),Cel(:,2),Y(:), x, y);
-                        YI(:,:)     = YY;
+                        YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:), xi, yi);
+                        YI(:,:)     = YY';
                     case 3
-                        YY(sub2ind([n n], x, y)) = gdatav4(Cel(:,1),Cel(:,2),Y(:,j), x, y);
-                        YI(:,:, j)  = YY;
+                        YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j), xi, yi);
+                        YI(:,:, j)  = YY';
+                        
+                        
+%                         Zi  = gdatav4(sel(:,1),sel(:,2),Y(:,j), xi, yi);
+% 
+%                         for i=1:n
+%                             for j=1:n
+%                                 if (inpolygon(xi(i,j),yi(i,j),S.img.bbox(:,1),S.img.bbox(:,2))==0 | inpolygon(xi(i,j),yi(i,j),S.img.bbox_inner(:,1),S.img.bbox_inner(:,2)))
+%                                     Zi(i,j)=NaN;
+%                                 end;
+% 
+%                             end;
+%                         end;
+                        
                     case 4
-                        YY(sub2ind([n n], x, y)) = gdatav4(Cel(:,1),Cel(:,2),Y(:,j,i), x, y);
-                        YI(:,:,j,i) = YY;
+                        YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j,i), xi, yi);
+                        YI(:,:,j,i) = YY';
                     otherwise
                         error('Invalid output file');
                 end
