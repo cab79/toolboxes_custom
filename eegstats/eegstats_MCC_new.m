@@ -47,7 +47,7 @@ for d=1:length(D)
     end
     
     % initialise V for saving images later
-    V=makeV;
+    V=spm_vol(S.MCC.file.SPMimg);
 
     % mask
     if ~isempty(S.MCC.mask_img)
@@ -61,23 +61,27 @@ for d=1:length(D)
             mask_img = spm_read_vols(spm_vol(D(d).model_comp(mii(1)).mask_img_file));
         end
     end
-    V.dim(1:length(size(mask_img))) = size(mask_img);
+    V.dim = size(mask_img);
     
     if S.MCC.model.index
         for i = S.MCC.model.index
             if S.MCC.estimate && (S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF'))
             % First, estimate of smoothness based on [residual] images
                 D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
-                D(d).model(i).resid_vol_dir = strrep(D(d).model(i).resid_vol_file,'.mat','_dir');
-                if ~exist(D(d).model(i).resid_vol_dir,'dir') || length(dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'))) ~= length(D.model.fixeddesign)
-                    mkdir(D(d).model(i).resid_vol_dir)
+                
+                % REMOVE
+%                 D(d).model(i).resid_vol_dir = strrep(D(d).model(i).resid_vol_file,'.mat','_dir');
+%                 if ~exist(D(d).model(i).resid_vol_dir,'dir')
+%                     mkdir(D(d).model(i).resid_vol_dir)
+%                 end
+                    
                     if exist(D(d).model(i).resid_vol_file,'file')
                         disp(['MCC: for model ' num2str(i) ', loading resid vol file'])
                         load(D(d).model(i).resid_vol_file);
                     else
                         disp(['MCC: for model ' num2str(i) ', loading resid file'])
                         load(D(d).model(i).resid_file);
-                        if ~exist('resid_vol','var') && ~isempty(S.img.file.coord)
+                        if ~exist('resid_vol','var')
                             disp(['MCC: for model ' num2str(i) ', creating resid vol'])
                             resid_vol = topotime_3D(resid,S);
                             disp(['MCC: for model ' num2str(i) ', saving resid vol'])
@@ -85,42 +89,35 @@ for d=1:length(D)
                             save(D(d).model(i).resid_vol_file,'resid_vol','-v7.3');
                         else
                             D(d).model(i).resid_vol_file = D(d).model(i).resid_file;
-                            if ~exist('resid_vol','var')
-                                resid_vol=resid;
-                            end
                         end
                         %delete(D(d).model(i).resid_file)
                     end
                     
                     disp('MCC: standardise residuals')
-                    ndim_resid = ndims(resid_vol);
-                    resid_vol_mean=mean(resid_vol,ndim_resid);
-                    resid_vol_std=std(resid_vol,[],ndim_resid);
+                    resid_vol_mean=mean(resid_vol,4);
+                    resid_vol_std=std(resid_vol,[],4);
                     resid_vol_z = bsxfun(@rdivide,bsxfun(@minus,resid_vol,resid_vol_mean),resid_vol_std);
-                    szR = size(resid_vol_z,ndim_resid);
+                    szR = size(resid_vol_z,4);
                     clear resid_vol
                 
+                    % REMOVE
                     % save as multiple volumes
-                    pcc=0;
-                    for tr = 1:szR
-                        pc = floor(tr*100/szR);
-                        if pcc<pc
-                            pcc=pc;
-                            disp(['writing resid volumes: ' num2str(pc) '%'])
-                        end
-                        trn = sprintf( '%06d', tr );
-                        V.fname = fullfile(D(d).model(i).resid_vol_dir,['resid' trn '.nii']);
-                        if ndim_resid ==4
-                            spm_write_vol(V,resid_vol_z(:,:,:,tr));
-                        elseif ndim_resid ==3
-                            spm_write_vol(V,resid_vol_z(:,:,tr));
-                        end
-                    end
-                end
-                clear resid_vol_z
-                fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
-                resid_vol_z = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
-                
+%                     pcc=0;
+%                     for tr = 1:szR
+%                         pc = floor(tr*100/szR);
+%                         if pcc<pc
+%                             pcc=pc;
+%                             disp(['writing resid volumes: ' num2str(pc) '%'])
+%                         end
+%                         trn = sprintf( '%06d', tr );
+%                         V.fname = fullfile(D(d).model(i).resid_vol_dir,['resid' trn '.nii']);
+%                         spm_write_vol(V,resid_vol_z(:,:,:,tr));
+%                     end
+%                 end
+%                 clear resid_vol_z
+%                 fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
+%                 resid_vol_z = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
+                 
                 %- Filename of mapped mask image
                 if ~isempty(S.MCC.mask_img)
                     VM    = S.MCC.mask_img;
@@ -130,18 +127,7 @@ for d=1:length(D)
                 
                 % smoothness estimation
                 disp('MCC: smoothness estimation')
-                
-%                 % run one or multiple estimations?
-%                 mask_dims = 1:ndims(mask_img);
-%                 rep_dim = mask_dims(~ismember(mask_dims,S.MCC.dim));
-%                 if isempty(rep_dim)
-                    [L,Ve,ssq,Dx,Ix,Iy,Iz] = resid_smoothness(resid_vol_z,VM);
-%                 else
-%                     nrep = size(mask_img,rep_dim);
-%                     for nr = 1:nrep
-%                         [L,Ve,ssq,Dx,Ix,Iy,Iz] = resid_smoothness(resid_vol_z,VM);
-%                     end
-%                 end
+                [L,Ve,ssq,Dx,Ix,Iy,Iz] = resid_smoothness(resid_vol_z,VM);
             end
 
             for c = S.MCC.model.contrast{i}
@@ -193,7 +179,7 @@ for d=1:length(D)
                     if S.MCC.use_pTFCE
                         nv = sum(mask_img(:)); % Number of voxels in mask (e.g. SPM.xVol.S)
                         % R:  Resel count, e.g. SPM.xVol.R(4).
-                        minR = max(1,R(4));
+                        minR = max(1,D(d).model(i).con(c).MCC.R(4));
                         [pTFCE_Z, pTFCE_p] = pTFCE(Z_img,mask_img,minR,nv);
                         pTFCE_Z(mask_img==0)=NaN;
                         pTFCE_p(mask_img==0)=NaN;
@@ -399,13 +385,3 @@ xticklabels(fliplr(xtl))
 xlabel(xlab)
 ylabel(ylab)
 view([90 -90])
-
-function V = makeV
-V.fname = '';
-V.dim = [1 1 1];
-V.dt = [16,0];
-V.pinfo = [1;0;352];
-V.mat = [-4.25000000000000,0,0,68;0,5.37500000000000,0,-100;0,0,1,-201;0,0,0,1];
-V.n = [1,1];
-V.descrip = '';
-% V.private

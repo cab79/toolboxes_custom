@@ -52,60 +52,6 @@ for d=1:length(D)
         end
     end
     C = S.clus.connected_clusters.connectivity;
-    
-    %% create/load input volume
-    types = S.clus.summary_types;
-    if ~isempty(types)
-        i=S.clus.model.index(1);
-        D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
-        if exist(D(d).model(i).input_vol_file,'file')
-            disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
-            load(D(d).model(i).input_vol_file);
-        else
-            disp('loading data table')
-            Ddtab = load(S.clus.path.dtab_inputs);
-            datadim = Ddtab.D.prep.dim;
-            samples=struct;
-            disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
-            for s = 1:length(Ddtab.D.prep.Y)
-                input=Ddtab.D.prep.Y(s).dtab.data;
-                input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-scale
-                samples(s).input_scaled=input_scaled;
-            end
-            input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
-            input_vol = topotime_3D(input_scaled_mat,S);
-            clear input_scaled input_scaled_mat
-            if S.clus.save_vols
-                disp([save_pref num2str(d) ', model ' num2str(i) ', saving input image'])
-                save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
-            end
-        end
-%                 D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
-%                 if exist(D(d).model(i).input_vol_file,'file')
-%                     disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
-%                     load(D(d).model(i).input_vol_file);
-%                 else
-%                     disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
-%                     temp=load(D(d).model(i).input_file);
-%                     if isfield(temp,'input_vol')
-%                         input_vol=temp.input_vol;
-%                     else
-%                         disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
-%                         input_vol = topotime_3D(temp.input,S);
-%                         if S.clus.save_vols
-%                             disp([save_pref num2str(d) ', model ' num2str(i) ', saving input image'])
-%                             save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
-%                             %delete(D(d).model(i).input_file)
-%                         end
-%                     end
-%                     clear temp
-%                 end
-        sz=size(input_vol);
-        input_vol=reshape(input_vol,[],size(input_vol,4));
-        input_avg=reshape(mean(input_vol,2),sz(1),sz(2),sz(3));
-    end
-
-    
     if S.clus.model.index
         for i = S.clus.model.index
             disp(['extracting clusters for ' save_pref num2str(d) ', model ' num2str(i)])
@@ -191,6 +137,33 @@ for d=1:length(D)
             end
             
             
+            %% create/load input volume
+            types = S.clus.summary_types;
+            if ~isempty(types)
+                D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
+                if exist(D(d).model(i).input_vol_file,'file')
+                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
+                    load(D(d).model(i).input_vol_file);
+                else
+                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
+                    temp=load(D(d).model(i).input_file);
+                    if isfield(temp,'input_vol')
+                        input_vol=temp.input_vol;
+                    else
+                        disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
+                        input_vol = topotime_3D(temp.input,S);
+                        if S.clus.save_vols
+                            disp([save_pref num2str(d) ', model ' num2str(i) ', saving input image'])
+                            save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
+                            %delete(D(d).model(i).input_file)
+                        end
+                    end
+                    clear temp
+                end
+                input_vol=reshape(input_vol,[],size(input_vol,4));
+            end
+            input_avg=reshape(mean(input_vol,2),size(img{1},1),size(img{1},2),size(img{1},3));
+            
             %% run on con
             pi=0; nclus={}; pimg={};
             for c = S.clus.model.contrast{i}
@@ -208,23 +181,11 @@ for d=1:length(D)
                 % break up into positive and negative polarity clusters
                 posc = img{c}.*input_avg>0;
                 cc = ccon(posc,C,S);
-                cc.PixelIdxList = cc.PixelIdxList(1:min(length(cc.PixelIdxList),S.clus.connected_clusters.ClusMaxNum));
-                D(d).model(i).con(c).vox = cc.PixelIdxList;
-                
+                D(d).model(i).con(c).vox = cc.PixelIdxList(1:min(length(cc.PixelIdxList),S.clus.connected_clusters.ClusMaxNum));
                 negc = img{c}.*input_avg<0;
                 cc = ccon(negc,C,S);
-                cc.PixelIdxList = cc.PixelIdxList(1:min(length(cc.PixelIdxList),S.clus.connected_clusters.ClusMaxNum));
-                D(d).model(i).con(c).vox = [D(d).model(i).con(c).vox, cc.PixelIdxList];
+                D(d).model(i).con(c).vox = [D(d).model(i).con(c).vox, cc.PixelIdxList(1:min(length(cc.PixelIdxList),S.clus.connected_clusters.ClusMaxNum))];
 
-                figure('name',['model ' num2str(i) ', contrast ' num2str(c)])
-                hold on
-                cmap = colormap(jet(length(D(d).model(i).con(c).vox)));
-                for ci = 1:length(D(d).model(i).con(c).vox)
-                    [x,y,z] = ind2sub(size(img{c}),D(d).model(i).con(c).vox{ci});
-                    scatter3(x,y,z, 100, cmap(ci,:), 'filled')
-                end
-                view(-30,10)
-                
                 % refine and/or dissect clusters using PCA
                 if S.clus.cluster_pca_thresh
                     nc=numel(D(d).model(i).con(c).vox);

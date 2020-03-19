@@ -93,7 +93,11 @@ for d = 1:nD % subject
                 D(d).model(i).con(ii).p = reshape(arrayfun(@(X) X.p(ii), M.model(i).samples),ddim(1),ddim(2));
             end
             % random effects
-            D(d).model(i).random = reshape(vertcat([M.model(i).samples(:).r]'),ddim(1),ddim(2),[]);
+            try
+                D(d).model(i).random = reshape(vertcat([M.model(i).samples(:).r]'),ddim(1),ddim(2),[]);
+            catch % in case dimension are inconsistent, save as cell
+                D(d).model(i).random = {M.model(i).samples(:).r};
+            end
             % covariance
             D(d).model(i).coeffcov = reshape(arrayfun(@(X) X.coeffcov, M.model(i).samples,'UniformOutput',0),ddim(1),ddim(2),[]);
             for ii = 1:length(M.model(i).samples(1).psi)

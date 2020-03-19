@@ -91,6 +91,15 @@ for d = 1:length(subjects)
                 n_trials = length(D(d).prep.fdata.dat{1, 1}.time);
                 timecourse = reshape(permute(timecourse,[2 3 1]),n_chans,[]);
                 eventType = D(d).prep.fdata.dat{1, 1}.conds; tnums = D(d).prep.fdata.dat{1, 1}.tnums; fnums = D(d).prep.fdata.dat{1, 1}.fnums; bnums = D(d).prep.fdata.dat{1, 1}.bnums;
+            elseif isfield(S.prep.fname,'struct')
+                eeg = D(d).prep.(fename{1})(1).dat.(S.prep.fname.struct{2}); 
+                n_chans = size(eeg,1);
+                n_samples = size(eeg,2);
+                n_trials = size(eeg,3);
+                eventType = ones(1,n_trials);
+                tnums=1:length(eventType); % assumes all trials present
+                D(d).prep.dim = [n_chans,n_samples,n_trials];
+                timecourse = reshape(eeg,n_chans,[]); % make 2D: chans x (time*trials)
             else % this is for processing group ICA data files
                 try
                     topography = D(d).prep.topography.dat;
@@ -126,6 +135,7 @@ for d = 1:length(subjects)
             D(d).prep.dim = [n_chans,n_samples,n_trials];
             timecourse = reshape(D(d).prep.data.dat,n_chans,[]); % make 2D: chans x (time*trials)
     end
+    D(d).prep.tnums = tnums;
     
     if exist('topography','var')
         comps = 1:size(timecourse,1);
@@ -134,6 +144,7 @@ for d = 1:length(subjects)
         data= timecourse;  
     end
     total_samples=S.prep.original_samples;
+    select_samples=S.prep.select.samples;
     
     
     %% Predictors: factors from EEG markers - ASSUMES THEY ARE NUMERIC IN EEG DATA FILE but this can be updated if needed
@@ -210,6 +221,11 @@ for d = 1:length(subjects)
                         CVs(ci),...
                         D(d).prep.subname{:},...
                         tnums);
+                case 'eegfile'
+                    pred_out = eegfile_covariate(...
+                        CVs(ci),...
+                        D(d).prep.(fename{1})(1).dat,...
+                        tnums);
             end
             repl=find(ismember(pred_out.Properties.VariableNames,dtab.Properties.VariableNames));
             if ~isempty(repl)
@@ -281,8 +297,10 @@ for d = 1:length(subjects)
     end
 
     % select samples
-    select = dsearchn(total_samples',[select_samples(1),select_samples(end)]');
-    data = data(:,select(1):select(2),:);
+    if exist('select_samples','var')
+        select = dsearchn(total_samples',[select_samples(1),select_samples(end)]');
+        data = data(:,select(1):select(2),:);
+    end
     
     % subtractions
 %     if ~isempty(S.prep.pred.factor.subtract)
@@ -368,8 +386,10 @@ switch S.prep.output.format
         % create a single vertical concatenated design matrix
         dim=D(1).prep.dim;
         prep.dtab=D(1).prep.dtab;
+        prep.tnums{1} = D(1).prep.tnums;
         for d = 2:length(D)
             prep.dtab = vertcat(prep.dtab,D(d).prep.dtab);
+            prep.tnums{d} = D(d).prep.tnums;
         end
         dim(3)=height(prep.dtab);
         D=struct;
@@ -509,6 +529,303 @@ for d = 1:length(D)
 %     if rk==size(D(d).prep.dtab,2)
 %         disp('Design matrix is full rank')
 %     end
+
+    
+    if S.prep.calc.eeg.cca.on
+        
+        [U,~,iU]=unique(D(d).prep.dtab.ID);
+        
+        for pt = 1:length(S.prep.calc.eeg.cca.type)
+            pcatype = S.prep.calc.eeg.cca.type{pt};
+%             if exist('NUM_FAC','var')
+%                 NUM_FAC = min([NUM_FAC; S.prep.calc.eeg.cca.numfac{pt}]);
+%             else
+                NUM_FAC = S.prep.calc.eeg.cca.numfac{pt};
+%             end
+            dim=D(d).prep.dim;
+            newgrpdata={};
+            
+            subdata={};
+            switch S.prep.calc.eeg.cca.data_in
+                case 'conds'
+                    % Average over trials within each condition, per subject.
+                    % Currently assumes there are no missing conditions - needs
+                    % updating to allow missing conditions.
+                    [C,~,iC]=unique(double(D(d).prep.dtab.eventTypes));
+                    nreps = C(end);
+                    for u=1:length(U)
+                        dat={};
+                        for c=1:length(C)
+                            dat{u}(c,:,:) = reshape(mean(grpdata{d}(iU==u & iC==c,:),1),1,dim(1),dim(2));
+                        end
+                        repidx{u} = C;
+                    end
+                case 'trials'
+                    trialidx = unique([D.prep.tnums{:}]); % repetitions
+                    nreps = trialidx(end);
+                    for u=1:length(U)
+                        dat{u} = reshape(grpdata{d}(iU==u,:),[],dim(1),dim(2));
+                        repidx{u} = D.prep.tnums{u};
+                    end
+            end
+        
+%         % baseline correct
+%         if any(S.prep.calc.eeg.cca.base)
+%             for u=1:length(U)
+%                 if exist('select_samples','var')
+%                     select = dsearchn(select_samples',[S.prep.calc.eeg.cca.base(1),S.prep.calc.eeg.cca.base(end)]');
+%                 else
+%                     select = dsearchn(total_samples',[S.prep.calc.eeg.cca.base(1),S.prep.calc.eeg.cca.base(end)]');
+%                 end
+%                 subdata{u} = bsxfun(@minus,subdata{u},mean(subdata{u}(:,select(1):select(2)),2));
+%             end
+%         end
+            
+            if strcmp(pcatype,'spatial')
+                obs_dim = 2; % observation dimension
+                var_dim = 1; % variable dimension
+                % split observations?
+                if pt>1
+                    for obs = 1:dim(2)
+                        for u=1:length(U)
+                            subdata{obs}{u} = reshape(permute(dat{u}(:,:,obs),[2 1 3]),dim(1),[]); % chan x trials*time
+                            subdata{obs}{u} = permute(subdata{obs}{u},[2 1]);
+                        end
+                    end
+                    dim(obs_dim)=1;
+                else
+                    % reshape
+                    for u=1:length(U)
+                        subdata{1}{u} = reshape(permute(dat{u},[2 1 3]),dim(1),[]); % chan x trials*time
+                        subdata{1}{u} = permute(subdata{1}{u},[2 1]);
+                    end
+                end
+            elseif strcmp(pcatype,'temporal')
+                obs_dim = 1; % observation dimension
+                var_dim = 2; % variable dimension
+                % split observations?
+                if pt>1
+                    for obs = 1:dim(1)
+                        for u=1:length(U)
+                            subdata{obs}{u} = reshape(dat{u}(:,obs,:),[],dim(2)); % chan x trials*time
+                        end
+                    end
+                    dim(obs_dim)=1;
+                else
+                    for u=1:length(U)
+                        subdata{1}{u} = reshape(dat{u},[],dim(2)); % trials*chan x time
+                    end
+                end
+            elseif strcmp(pcatype,'both')
+                obs_dim = 0; % observation dimension
+                var_dim = 0; % variable dimension
+                for u=1:length(U)
+                    subdata{1}{u} = reshape(dat{u},[],dim(1)*dim(2)); % trials x chan*time
+                end
+            end
+          
+            % repetitions (usually time or chan, multiplied by conds or trials)
+            for u=1:length(U)
+                rep{u} = repidx{u};
+                if obs_dim && dim(obs_dim)>1
+                    for di = 2:dim(obs_dim)
+                        rep{u} = [rep{u}, repidx{u} + (di-1)*nreps];
+                    end
+                end
+            end
+            
+            %%% PCA/CCA function %%%
+            O=struct;
+            for o = 1:length(subdata)
+                [O(o).W,O(o).mdata,O(o).COEFF,O(o).mu,O(o).sigma,NUM_FAC] = perform_CCA(subdata{o},NUM_FAC,S,rep);
+                sz=size(O(o).mdata);
+                if ~obs_dim
+                    obsdim=1;
+                else
+                    obsdim=dim(obs_dim);
+                end
+                O(o).mdata_avg = squeeze(mean(reshape(O(o).mdata,sz(1),nreps,obsdim,sz(3)),2));
+            end
+            dim(1) = sz(1); %UPDATE
+
+%             
+            % get PCA and CCA scores for single trials
+            for u=1:length(U)
+                if strcmp(pcatype,'spatial')
+                    temp = permute(reshape(grpdata{d}(iU==u,:),[],D(d).prep.dim(1),D(d).prep.dim(2)),[1 3 2]);% trials x time x chan
+                    temp = reshape(temp,[],size(temp,3)); 
+                elseif strcmp(pcatype,'temporal')
+                    temp = reshape(grpdata{d}(iU==u,:),[],D(d).prep.dim(1),D(d).prep.dim(2));% trials x chan x time
+                    temp = reshape(temp,[],size(temp,3)); 
+                elseif strcmp(pcatype,'both')
+                    temp = reshape(grpdata{d}(iU==u,:),[],D(d).prep.dim(1),D(d).prep.dim(2));% trials x chan x time
+                    temp = reshape(temp,[],size(temp,2)*size(temp,3)); 
+                end
+                
+                
+                CCAs = [];
+                for o = 1:length(O)
+                    O(o).PCAs{u} = temp*O(o).COEFF{u}(:,1:NUM_FAC(1));
+                    tmu = repmat(O(o).mu{u}(1:NUM_FAC(1)),size(temp,1),1);
+                    tsigma = repmat(O(o).sigma{u}(1:NUM_FAC(1)),size(temp,1),1);
+                    O(o).PCAs{u} = (O(o).PCAs{u}-tmu)./tsigma;   
+                    CCAs = [CCAs,O(o).PCAs{u}*O(o).W(:,:,u)];
+                end
+                O(o).CCAs{u} = CCAs;
+                if obs_dim
+                    dim(obs_dim) = length(O)*NUM_FAC(2);
+                end
+
+                % normalise
+            %                     for cc = 1:NUM_FAC(2)
+            %                         CCAs{u}(:,cc) =CCAs{u}(:,cc)/norm(CCAs{u}(:,cc));
+            %                     end
+
+                temp = reshape(O(o).CCAs{u},length(repidx{u}),[],NUM_FAC(2)); % trials x time/chan x cc
+
+                % baseline correct
+                if strcmp(pcatype,'spatial') && any(S.prep.calc.eeg.cca.base)
+                    if exist('select_samples','var')
+                        select = dsearchn(select_samples',[S.prep.calc.eeg.cca.base(1),S.prep.calc.eeg.cca.base(end)]');
+                    else
+                        select = dsearchn(total_samples',[S.prep.calc.eeg.cca.base(1),S.prep.calc.eeg.cca.base(end)]');
+                    end
+                    for nf = 1:size(temp,3)
+                        temp(:,:,nf) = bsxfun(@minus,temp(:,:,nf),mean(temp(:,select(1):select(2),nf),2));
+                    end
+                end
+                tempsz = [size(temp,2),size(temp,3)];
+
+                if strcmp(pcatype,'spatial')
+                    temp = reshape(permute(temp,[1 3 2]),[],dim(obs_dim)*D(d).prep.dim(obs_dim));
+                elseif strcmp(pcatype,'temporal')
+                    temp = reshape(temp,[],dim(obs_dim)*D(d).prep.dim(obs_dim));
+                elseif strcmp(pcatype,'both')
+                    temp = squeeze(temp);
+                end
+
+                newgrpdata{d}(iU==u,:) = temp;
+            end
+                
+            grpdata=newgrpdata;
+            D(d).prep.CCA(pt).O = O;
+            if obs_dim
+                D(d).prep.dim(var_dim) = dim(obs_dim);
+            else
+                D(d).prep.dim([1 2]) = tempsz;
+            end
+            
+            
+            % PLOT
+            cidx=floor(linspace(1,NUM_FAC(2),min(NUM_FAC(2),16)));
+            for o = 1:length(O)
+                figure('name',[pcatype ', obs ' num2str(o)]); clf;
+                cci=0;
+                for cc = 1:NUM_FAC(2)
+                    if strcmp(pcatype,'spatial')
+                        
+                        % topo data
+                        O(o).chandata=[];
+                        for u=1:length(U)
+                            O(o).chandata(cc,:,u) = O(o).COEFF{u}(:,1:NUM_FAC(1))*O(o).W(1:NUM_FAC(1),cc,u);
+                        end
+                        
+                        % PLOTS
+                        if ismember(cc,cidx)
+                            % waveform plot
+                            cci=cci+1;
+                            mCCA = mean(O(o).mdata_avg(cc,:,:),3);
+                            if length(mCCA) == length(S.prep.select.samples)
+                                subplot(4,4*2,cci)
+                                hold on
+                                for u=1:length(U)
+                                    % plot(CCA{u}(:,cc));
+                                    plot(O(o).mdata_avg(cc,:,u));
+                                end
+                                % mean
+                                % ccall = cellfun(@(X) X(:,cc), CCA,'UniformOutput',0);
+                                % mCCA = mean(horzcat(ccall{:}),2);
+                                plot(mCCA,'k','LineWidth',2);
+                                hold off
+                            end
+                        
+                            % topoplot
+                            cci=cci+1;
+                            subplot(4,4*2,cci)
+                            mchandata = squeeze(mean(O(o).chandata(cc,:,:),3))';
+                            topo = topotime_3D(mchandata,S);
+                            pcolor(topo), shading interp; axis off
+                            title(['comp ' num2str(cc)])
+                        end
+
+                    elseif strcmp(pcatype,'temporal')
+                        
+                        % waveform data
+                        for u=1:length(U)
+                            O(o).timedata(cc,:,u) = O(o).COEFF{u}(:,1:NUM_FAC(1))*O(o).W(1:NUM_FAC(1),cc,u);  
+                        end
+                        
+                        % PLOTS
+                        if ismember(cc,cidx)
+                            % waveform plot
+                            cci=cci+1;
+                            subplot(4,4*2,cci)
+                            hold on
+                            for u=1:length(U)
+                                plot(O(o).timedata(cc,:,u));
+                            end
+                            mtimedata = squeeze(mean(O(o).timedata(cc,:,:),2));
+                            plot(mtimedata,'k','LineWidth',2);
+                            hold off
+                            
+                            % topoplot
+                            cci=cci+1;
+                            subplot(4,4*2,cci)
+                            mCCA = mean(O(o).mdata_avg(cc,:,:),3)';
+                            if length(mCCA) == length(S.img.chansel)
+                                topo = topotime_3D(mCCA,S);
+                                pcolor(topo), shading interp; axis off
+                            end
+                            title(['comp ' num2str(cc)])
+                        end
+
+                    end
+
+                end
+            end
+               
+            
+        end
+
+
+%         % check data looks ok
+%         condmean=[];
+%         for u=1:length(U)
+%             for c=1:length(allrep)
+%                 condmean(:,:,c,u) = reshape(mean(grpdata{d}(iU==u & iC==c,:),1),NUM_FAC(2),dim(2));
+%             end
+%         end
+%         figure(); clf;
+%         cci=0;
+%         cidx=floor(linspace(1,NUM_FAC(2),min(NUM_FAC(2),16)));
+%         for cc = 1:NUM_FAC(2)
+%             if ismember(cc,cidx)
+%                 cci=cci+1;
+%                 subplot(4,4,cci)
+%                 plot(squeeze(condmean(cc,:,1,:)));
+%             end
+%         end
+
+        
+%         % OLD
+%         newgrpdata{d}=nan(size(grpdata{d},1),size(subdata,1));
+%         for u=1:length(U)
+%             zz=subdata(:,:,u)*AA{u};
+%             newgrpdata{d}(iU==u,cidx) = zz;
+%         end
+%         grpdata=newgrpdata;
+        
+    end
     
     % FOR EVERY SAMPLE OVER ALL SUBJECTS:
     for s = 1:size(grpdata{d},2)
@@ -518,7 +835,10 @@ for d = 1:length(D)
         
         % add EEG after z-scoring over trials (unit variance) so that statistical coefficients are normalised
         if S.prep.calc.eeg.zscore
-            [D(d).prep.Y(s).dtab.data, D(d).prep.Y(s).data_mean, D(d).prep.Y(s).data_std] = zscore(double(grpdata{d}(:,s)));
+            D(d).prep.Y(s).data_mean = nanmean(double(grpdata{d}(:,s)));
+            D(d).prep.Y(s).data_std = nanstd(double(grpdata{d}(:,s)));
+            D(d).prep.Y(s).dtab.data = (double(grpdata{d}(:,s)) - D(d).prep.Y(s).data_mean) / D(d).prep.Y(s).data_std;
+%             [D(d).prep.Y(s).dtab.data, D(d).prep.Y(s).data_mean, D(d).prep.Y(s).data_std] = zscore(double(grpdata{d}(:,s)));
         else
             D(d).prep.Y(s).dtab.data = double(grpdata{d}(:,s));
         end
@@ -603,6 +923,19 @@ for ci = 1:length(cv.def)
     end
 end
 
+
+function pred = eegfile_covariate(cv,dat,tnums)
+% imports from substructure within eeg data file. Designed for Andrej's
+% painloc experiment.
+pred=table;
+for ci = 1:size(cv.def,1)
+    ncov = size(dat.(cv.def{ci}{1}),2);
+    for nc = 1:ncov
+        predtemp = dat.(cv.def{ci}{1})(:,nc);
+        pred.(cv.def{ci,2}{nc})=predtemp(tnums);
+    end
+end
+
 function [conds, tnums, fnums, bnums] = get_markers(EEG,type)
 
 conds = nan(1,length(EEG.epoch));
@@ -649,3 +982,266 @@ switch type
         end
 end
 
+function [W,mdata,COEFF,mu,sigma,NUM_FAC] = perform_CCA(dataAll,NUM_FAC,S,rep)
+% feed in index of 2nd dimension (trials or time)
+               
+if isempty(NUM_FAC)
+    NUM_FAC([1,2]) = repmat(size(dataAll{1},2),1,2);
+end
+
+maxmat = floor((S.prep.calc.eeg.cca.maxGig*1e9)^(1/2));
+if size(dataAll,2)>maxmat
+    error(['downsample the data by ' num2str(size(dataAll,2)/maxmat) ' to enable CCA'])
+end
+
+% normalise data
+zdata={};
+for i = 1:length(dataAll)
+    tmpscore = squeeze(dataAll{i});
+    mu{i} = mean(tmpscore);
+    zdata{i} = tmpscore - repmat(mu{i},size(tmpscore,1),1);
+end
+
+
+% apply MCCA
+switch S.prep.calc.eeg.cca.method
+
+    case 'FA'
+        % find nfac for each subject
+        for i = 1:length(zdata)
+            FactorResults = erp_pca(zdata{i},NUM_FAC(1));
+            randResults = erp_pca(randn(size(zdata{i})),NUM_FAC(1));
+            randResults.scree = randResults.scree*(sum(FactorResults.scree)/sum(randResults.scree)); %scale to same size as real data
+            nfac_temp = find(FactorResults.scree<randResults.scree);
+            nfac(i) = min(NUM_FAC(1),nfac_temp(1)-1);
+        end
+        % take median nfac
+        NUM_FAC(1) = floor(median(nfac));
+        for i = 1:length(zdata)
+            FactorResults = erp_pca(zdata{i},NUM_FAC(1));
+            COEFF{i} = FactorResults.FacCof;
+            W(:,:,i) = COEFF{i}';
+            score{i} = FactorResults.FacScr;
+        end
+    case 'PCA'
+       for i = 1:length(zdata)
+            [COEFF{i}, score{i}] = pca(zdata{i});
+            W(:,:,i) = COEFF{i}(:,1:NUM_FAC(1))';
+            score{i} = score{i}(:,1:NUM_FAC(1));
+       end
+end
+% obtain subject-specific PCAs
+maxrep = max([rep{:}]);
+PCdata = nan(NUM_FAC(1),maxrep);
+for i = 1:length(zdata)
+   sigma{i} = sqrt(var(score{i}));
+   score{i} = score{i}./repmat(sqrt(var(score{i})),size(score{i},1),1); % normalized 
+   PCdata(:,rep{i},i) = score{i}';
+end
+
+% apply M-CCA
+% https://onlinelibrary.wiley.com/doi/full/10.1002/hbm.23689
+reg=1; r= 0.2;
+NUM_FAC(2) = min(NUM_FAC(2),NUM_FAC(1));
+[W,mdata] = mccas(PCdata,NUM_FAC(2),reg,r,W,S);
+
+function [W, mdata, mWeights] = mccas(data,K,reg,r,weights,Sx)
+%% regularized-multiset CCA
+%   Date           Programmers               Description of change
+%   ====        =================            =====================
+%  09/10/2016     Qiong Zhang                 Original code
+%% Citation
+%  Zhang,Q., Borst,J., Kass, R.E., & Anderson, J.A. (2016) Between-Subject
+%  Alignment of MEG Datasets at the Neural Representational Space. 
+
+%% INPUT
+% data - input training data to CCA (samples * sensors * subjects)
+% K - number of CCAs to retain
+% reg - add regularization (1) or not (0)
+% r - degree of regularization added
+% weights - PCA weight maps for each subject
+
+%% OUTPUT
+% W - CCA weights that transform PCAs to CCAs for each subject (PCAs * CCAs * subjects)
+% mdata - transformed averaged data (CCAs * sapmles * subjects)
+% mWeights - projection weights from sensor to CCAs (CCAs * sensors * subjects)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+dim = size(data,1);
+num = size(data,2);
+sub = size(data,3);
+dim2 = size(weights,1);
+num2 = size(weights,2);
+sub2 = size(weights,3);
+if(K>dim)
+    K = dim;
+end
+temp=[];
+for i=1:sub
+    temp=[temp;data(:,:,i)];
+end
+R=cov(temp.','partialrows'); % cab: added partialrows to allow missing data (nan)
+S = zeros(size(R));
+for i = 1:dim*sub;
+    tmp = ceil(i/dim);
+    S((tmp-1)*dim+1:tmp*dim,i) = R((tmp-1)*dim+1:tmp*dim,i); 
+end
+
+% add regularization 
+if(reg==1)    
+    if(K>dim2)
+        K = dim2;
+    end
+    temp=[];
+    for i=1:sub2
+        temp=[temp;weights(:,:,i)];
+    end
+    R2=cov(temp.');
+    S2 = zeros(size(R2));
+    for i = 1:dim2*sub2;
+        tmp = ceil(i/dim2);
+        S2((tmp-1)*dim2+1:tmp*dim2,i) = R2((tmp-1)*dim2+1:tmp*dim2,i); 
+    end
+    R = R + r*R2;
+    S = S + r*S2;
+end
+
+
+% obtain CCA solutions 
+for k = K:-1:1
+    [tempW,values]=eigs((R-S),S,K);
+    var_explained = diag(values)/sum(diag(values));
+    cum_var = cumsum(var_explained);
+    facs = find(var_explained>Sx.prep.calc.eeg.cca.minvar & cum_var>Sx.prep.calc.eeg.cca.frac_explained);
+    if ~isempty(facs)
+        break
+    end
+end
+
+W = zeros(dim,K,sub);
+for i=1:sub
+    W(:,:,i)=tempW((i-1)*dim+1:i*dim,:)./norm(tempW((i-1)*dim+1:i*dim,:));
+end
+
+% projected data
+mdata = zeros(K,num,sub);
+for i = 1:sub
+    mdata(:,:,i) = W(:,:,i)'*data(:,:,i);
+    for j = 1:K
+        mdata(j,:,i) = mdata(j,:,i)/norm(mdata(j,:,i));
+    end
+end
+
+
+% projection weights
+mWeights = 0;
+if(reg==1)
+    mWeights = zeros(K,num2,sub2);
+    for i = 1:sub2
+        mWeights(:,:,i) = W(:,:,i)'*weights(:,:,i);
+    end
+end
+
+%% OLD
+%             case 'PCA'
+
+%                 cca_dat=subdata(:,:); % concatenate channelwise
+% 
+%                 maxmat = floor((S.prep.calc.eeg.cca.maxGig*1e9)^(1/2));
+%                 if size(cca_dat,2)>maxmat
+%                     error(['downsample the data by ' num2str(size(cca_dat,2)/maxmat) ' to enable CCA'])
+%                 end
+
+%                 NUM_FAC = S.prep.calc.eeg.cca.numfac(1);
+%                 cca_dat = zscore(cca_dat')';
+%                 CCC=cca_dat'*cca_dat;
+%                 [~,score]=nt_mcca(CCC,nChan,[],NUM_FAC);
+%                 % keep variance outliers only
+%                 keep = find(score>S.prep.calc.eeg.cca.minvar*100);
+%                 Nkeep=max(keep);
+%                 [A,score]=nt_mcca(CCC,nChan,[],Nkeep);
+%                 z=cca_dat*A;
+%                 
+%                 % CCA: separating into sets
+%                 AA=[];
+%                 N=nChan;
+%                 nblocks=size(CCC,1)/N;
+%                 for iBlock=1:nblocks
+%                     AA{iBlock}=A(N*(iBlock-1)+(1:N),:);
+%                 end
+%                 
+%                 figure(); clf
+%                 hold on
+%                 plot(score, '.-');
+%                 plot(score(keep), 'r.-');
+%                 title('CCA: variance per SC');
+%                 ylabel('variance'); xlabel('SC');
+%                 
+%                 figure(); clf;
+%                 cci=0;
+%                 cidx=floor(linspace(1,NUM_FAC,min(NUM_FAC,16)));
+%                 for cc = 1:NUM_FAC
+%                     if ismember(cc,cidx)
+%                         cci=cci+1;
+%                         subplot(4,4*2,cci)
+% %                         yyaxis left
+%                         hold on
+%                         for u=1:length(U)
+%                             subdat = zscore(subdata(:,:,u));
+%                             zz(:,:,u)=subdat*AA{u};
+%                             plot(zz(:,cc,u));
+%                         end
+%                         title(['comp ' num2str(cc)])
+%                         % mean
+% %                         plot(mean(zz(:,cc,:),3),'k','LineWidth',2);
+% %                         yyaxis right
+%                         plot(z(:,cc),'k','LineWidth',2);
+%                         hold off
+%                         % topo
+%                         cci=cci+1;
+%                         subplot(4,4*2,cci)
+%                         mchandata = mean(reshape(A(:,cc),[],length(U)),2);
+%                         topo = topotime_3D(mchandata,S);
+%                         pcolor(topo), shading interp; axis off
+%                         title(['comp ' num2str(cc)])
+%                     end
+%                 end
+%                 
+%                 % multiply single-trial data by CCA coeff
+%                 for u=1:length(U)
+%                     temp = permute(reshape(grpdata{d}(iU==u,:),[],dim(1),dim(2)),[1 3 2]);
+%                     temp = reshape(temp,[],size(temp,3)); % trials*time x chan
+%                     temp = zscore(temp);
+%                     temp = temp*AA{u}; % change chans to CCs
+%                     temp = reshape(temp,[],dim(2),NUM_FAC); % trials x time x cc
+%                     
+%                     % baseline correct
+%                     if any(S.prep.calc.eeg.cca.base)
+%                         if exist('select_samples','var')
+%                             select = dsearchn(select_samples',[S.prep.calc.eeg.cca.base(1),S.prep.calc.eeg.cca.base(end)]');
+%                         else
+%                             select = dsearchn(total_samples',[S.prep.calc.eeg.cca.base(1),S.prep.calc.eeg.cca.base(end)]');
+%                         end
+%                         for nf = 1:size(temp,3)
+%                             temp(:,:,nf) = bsxfun(@minus,temp(:,:,nf),mean(temp(:,select(1):select(2),nf),2));
+%                         end
+%                     end
+%                     
+%                     temp = reshape(permute(temp,[1 3 2]),[],NUM_FAC*dim(2));
+%                     newgrpdata{d}(iU==u,:) = temp;
+%                 end
+%                 grpdata=newgrpdata;
+%                 D(d).prep.dim(1) = NUM_FAC;
+%                 
+%                 % check data looks ok
+%                 condmean=[];
+%                 for u=1:length(U)
+%                     for c=1:length(C)
+%                         condmean(:,:,c,u) = reshape(mean(grpdata{d}(iU==u & iC==c,:),1),NUM_FAC,dim(2));
+%                     end
+%                 end
+%                 figure(); clf;
+%                 for fc = 1:size(condmean,1)
+%                     subplot(size(condmean,1),1,fc)
+%                     plot(squeeze(condmean(fc,:,1,:)))
+%                 end
+                

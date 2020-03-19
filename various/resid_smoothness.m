@@ -87,11 +87,6 @@ VM      = spm_vol(VM);
 %-Dimensionality of image
 %--------------------------------------------------------------------------
 D        = 3 - sum(VM.dim(1:3) == 1);
-if D == 0
-    FWHM = [Inf Inf Inf];
-    R    = [0 0 0];
-    return;
-end
 
 %-Find voxels within mask
 %--------------------------------------------------------------------------
@@ -113,10 +108,10 @@ for i = 1:Ve
     if isnumeric(V)
         d=V(:,:,:,i);
         [dx,dy,dz] = gradient(d); 
-        d=d(Ix);dx=dx(Ix);dy=dy(Ix);dz=dz(Ix);
-        dx(isnan(dx))=0;dy(isnan(dy))=0;dz(isnan(dz))=0;
+        ind = sub2ind(size(d),Ix,Iy,Iz);
+        d=d(ind);dx=dx(ind);dy=dy(ind);dz=dz(ind);
     else
-        [d,dx,dy,dz] = spm_sample_vol(V(i),Ix,Iy,Iz,1);
+        [d,dx,dy,dz] = spm_sample_vol(V{i},Ix,Iy,Iz,1);
     end
     
     % sum of squares

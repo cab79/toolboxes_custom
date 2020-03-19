@@ -46,6 +46,11 @@ VRpv   = spm_create_vol(VRpv);
 
 %-Evaluate determinant (and xyz components for FWHM)
 %--------------------------------------------------------------------------
+if D == 0
+    FWHM = [Inf Inf Inf];
+    R    = [0 0 0];
+    return;
+end
 if D == 1
     resel_xyz = L;
     resel_img = L;
