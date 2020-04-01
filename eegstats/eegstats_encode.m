@@ -35,7 +35,7 @@ for d = 1:length(D)
         chunk_info.n_chunks_d = n_chunks_d;
         chunk_info.sample_index=si;
         chunk_info.d=d;
-        chunk_info.dim=D(d).prep.dim;
+        chunk_info.dim=reshape(D(d).prep.dim,[],1);
 
         % chunk index
         c = (d-1)*n_chunks_d +nc;
@@ -72,19 +72,19 @@ for d = 1:length(D)
         for i=1:LM
             if S.encode.save_residuals
                 disp(['creating resid file, model ' num2str(i)])
-                resid=nan(D(d).prep.dim);
+                resid=nan(reshape(D(d).prep.dim,1,[]));
                 save(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_resid_mi' num2str(i) '_' S.encode.sname '.mat']),'resid','-v7.3');
             end
             % fitted
             if S.encode.save_fitted
                 disp(['creating fitted file, model ' num2str(i)])
-                fitted=nan(D(d).prep.dim);
+                fitted=nan(reshape(D(d).prep.dim,1,[]));
                 save(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_fitted_mi' num2str(i) '_' S.encode.sname '.mat']),'fitted','-v7.3');
             end
             % input
             if S.encode.save_input
                 disp(['creating input file, model ' num2str(i)])
-                input=nan(D(d).prep.dim);
+                input=nan(reshape(D(d).prep.dim,1,[]));
                 save(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_input_mi' num2str(i) '_' S.encode.sname '.mat']),'input','-v7.3');
             end
         end

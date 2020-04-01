@@ -608,7 +608,7 @@ for d = 1:length(D)
                 obs_dim = 1; % observation dimension
                 var_dim = 2; % variable dimension
                 % split observations?
-                if separate
+                if pt>1
                     for obs = 1:currdim(1)
                         for u=1:length(U)
                             subdata{obs}{u} = reshape(dat{u}(:,obs,:),[],currdim(2)); % chan x trials*time

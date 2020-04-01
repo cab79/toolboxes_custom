@@ -1,0 +1,59 @@
+Example: 20 subjects, 60 trials, 40 channels, 300 time-points.
+
+
+TEMPORAL (e.g. 19 components found)
+
+mdata (CCAs): CCAs(19) x trial*chan(2400) x sub(20) - scores
+
+W: PCAs(19) x CCAs(19) x sub(20) - transform from CCA to PCA
+
+COEFF: time(300) x PCAs(19) - transform from PCA to time
+
+timedata: COEFF(300x19) x W(19x19x20) = time(300) x CCAs(19) x sub(20).
+
+PCAs = W(19x19x20) x mdata(19x2400x20) = PCAs(19) x trial*chan(2400) x sub(20) - scores
+
+t_subdata(300x2400x20, CCA/PCA reduced): COEFF(300x19) x PCAs(19x2400x20)
+t_subdata(mean/SD adjusted): [ COEFF(300x19) x [ PCAs(19x2400x20) x sigma(19) ] ] + mu(300).
+
+
+SPATIAL (e.g. 3 components found from each of 19 temporal components)
+
+input: chan(40) x trials(60) x sub(20) for each of 19
+
+mdata (CCAs): CCAs(3) x trial(60) x sub(20) - scores for each of 19
+
+W: PCAs(3) x CCAs(3) x sub(20) - transform from CCA to PCA
+
+COEFF: chan(40) x PCAs(3) - transform from PCA to chan
+
+chandata: COEFF(40x3) x W(3x3x20) = chan(40) x CCAs(3) x sub(20).
+
+PCAs = W(3x3x20) x mdata(3x60x20) = PCAs(3) x trial(60) x sub(20) - scores
+
+s_subdata(40x60x20, CCA/PCA reduced): COEFF(40x3) x PCAs(3x60x20)
+s_subdata(mean/SD adjusted): [ COEFF(40x3) x [ PCAs(3x60x20) x sigma(3) ] ] + mu(40).
+
+for each 19: correlate over observations (trials)
+chandata_corr = s_subdata(40x60x20) :x: mdata(3x60x20) = 3x40x20 -> use for validation
+time*chan = t_subdata(300x40x60x20) :x: mdata(3x60x20) = 3x300x40x20
+
+SPATIOTEMPORAL (e.g. 3 spatial components found from each of 19 temporal components)
+
+input: chantimecomp(3x19=57) x trials(60) x sub(20)
+
+mdata (CCAs): CCAs(16) x trial(60) x sub(20) - scores
+
+W: PCAs(16) x CCAs(16) x sub(20) - transform from CCA to PCA
+
+COEFF: chantimecomp(3x19=57) x PCAs(16) - transform from PCA to chan
+
+chandata: COEFF(57x3) x W(16x16x20) = chantimecomp(3x19=57) x CCAs(16) x sub(20).
+
+PCAs = W(16x16x20) x mdata(16x60x20) = PCAs(16) x trial(60) x sub(20) - scores
+
+st_subdata(57x60x20, CCA/PCA reduced): COEFF(57x16) x PCAs(16x60x20)
+st_subdata(mean/SD adjusted): [ COEFF(57x16) x [ PCAs(16x60x20) x sigma(16) ] ] + mu(57).
+
+for each 19: correlate over observations (trials)
+time*chan = t_subdata(300x40x60x20) :x: mdata(16x60x20) = 16x300x40x20

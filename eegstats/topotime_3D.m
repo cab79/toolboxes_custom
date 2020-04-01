@@ -123,15 +123,15 @@ if exist('files','var')
                         case 2
                             YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
                                 double(Y(:)), x, y,'linear');
-                            YI(:,:)     = YY;
+                            YI(:,:)     = YY';
                         case 3
                             YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
                                 double(Y(:,j)), x, y,'linear');
-                            YI(:,:, j)  = YY;
+                            YI(:,:, j)  = YY';
                         case 4
                             YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
                                 double(Y(:,j,i)), x, y,'linear');
-                            YI(:,:,j,i) = YY;
+                            YI(:,:,j,i) = YY';
                         otherwise
                             error('Invalid output file');
                     end
@@ -190,15 +190,15 @@ else
                     case 2
                         YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
                             double(Y(:)), x, y,'linear');
-                        YI(:,:)     = YY;
+                        YI(:,:)     = YY';
                     case 3
                         YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
                             double(Y(:,j)), x, y,'linear');
-                        YI(:,:, j)  = YY;
+                        YI(:,:, j)  = YY';
                     case 4
                         YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
                             double(Y(:,j,i)), x, y,'linear');
-                        YI(:,:,j,i) = YY;
+                        YI(:,:,j,i) = YY';
                     otherwise
                         error('Invalid output file');
                 end
