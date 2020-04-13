@@ -2,10 +2,11 @@ function eegstats_cca_reconstruct
 dbstop if error
 close all
 pth='C:\Data\CORE\eeg\ana\prep\cleaned\part2\eegstats_dataprep';
-fname = 'eegstats_dtab20200330T125514_temporalboth.mat';
+fname = 'eegstats_dtab20200403T170900_temporalspatialbothPCA.mat';
+cd(pth);
 
 load(fullfile(pth,fname))
-cca_comp_select = [];
+cca_comp_select = [1];
 d=1;
 [U,~,iU]=unique(D(d).prep.dtab.ID,'stable');
 dat={};
@@ -123,18 +124,22 @@ save(fullfile(pth,strrep(fname,'.mat',['_CCAcomp' sname '.mat'])),'D','-v7.3')
 
 % check recontructions against original data
 if 1
-    close all
-    E=load('eegstats_dtab20200325T161941_noCCA.mat');
+    E=load(fullfile(pth,'eegstats_dtab20200325T161941_noCCA.mat'));
     figure; scatter([D.prep.Y(:).data_mean],[E.D.prep.Y(:).data_mean])
     figure; scatter(D.prep.Y(1).dtab.data,E.D.prep.Y(1).dtab.data)
     figure; plot(D.prep.Y(1).dtab.data)
     figure; plot(E.D.prep.Y(1).dtab.data)
-    plotdiff(E.D,D,'ODD');
-    plotdiff(E.D,D,'group');
+    rescale=0;
+    do_boxplots = 0; % much slower!
+    plotdiff(E.D,D,'ODD',{'group','CRPS'},rescale,do_boxplots,fname);
+    plotdiff(E.D,D,'ODD',{'group','HC'},rescale,do_boxplots,fname);
+    plotdiff(E.D,D,'ODD',{},rescale,do_boxplots,fname);
+    plotdiff(E.D,D,'group',{},rescale,do_boxplots,fname);
     
 end
 
-function plotdiff(D1,D2,fac)
+function plotdiff(D1,D2,fac,selectfac,rescale,do_boxplots,fname)
+% plots data WITHOUT RE-SCALING TO ORIGINAL MEAN/STD
 
 S.img.file.coord = 'G:\Q_backup\Projects\CORE\eeg\egilocdata.mat';
 S.img.file.coord_struct = 'c2d'; % name of structure within file that has coordinates
@@ -142,13 +147,37 @@ S.img.chansel = [2,3,4,5,6,7,9,10,11,12,13,15,16,18,19,20,22,23,24,26,27,28,29,3
 S.img.imgsize = 32;
 S.img.interp_method = '';
 
-
-figure('name',fac)
 % original
-[ulev,~,uind] = unique(D1.prep.dtab.(fac));
-for y=1:length(D1.prep.Y)
-    lev1(y,1)=mean(D1.prep.Y(y).dtab.data(uind==1));
-    lev2(y,1)=mean(D1.prep.Y(y).dtab.data(uind==2));
+if ~isempty(selectfac)
+    figure('name',[fac ', ' selectfac{1} num2str(selectfac{2})])
+    [ulev,~,uind] = unique(D1.prep.dtab.(selectfac{1}));
+    levind = find(ismember(ulev,selectfac{2}));
+    dtab = D1.prep.dtab(uind==levind,:);
+    for s=1:length(D1.prep.Y)
+        D1.prep.Y(s).dtab=D1.prep.Y(s).dtab(uind==levind,:);
+    end
+else
+    figure('name',fac)
+    dtab = D1.prep.dtab;
+end
+[ulev,~,uind] = unique(dtab.(fac));
+for s=1:length(D1.prep.Y)
+    if rescale
+        input(s,:) = bsxfun(@plus,bsxfun(@times,D1.prep.Y(s).dtab.data,D1.prep.Y(s).data_std),D1.prep.Y(s).data_mean);
+    else
+        input(s,:) = D1.prep.Y(s).dtab.data;
+    end
+    lev1(s,1)=mean(input(s, uind==1));
+    lev2(s,1)=mean(input(s, uind==2));
+end
+if do_boxplots
+    sname = strrep(fname,'.mat','_D1topo.mat');
+    if ~exist(sname,'file')
+        topo_input_2D = reshape(topotime_3D(reshape(input,D1.prep.dim(1),D1.prep.dim(2),[]),S),[],D1.prep.dim(2),size(input,2));
+        save(sname,'topo_input_2D','-V7.3');
+    else
+        load(sname,'topo_input_2D');
+    end
 end
 topo_lev1 = topotime_3D(reshape(lev1,D1.prep.dim(1),D1.prep.dim(2)),S);
 topo_lev2 = topotime_3D(reshape(lev2,D1.prep.dim(1),D1.prep.dim(2)),S);
@@ -156,24 +185,95 @@ topo_lev1_2D=reshape(topo_lev1,[],size(topo_lev1,3));
 topo_lev2_2D=reshape(topo_lev2,[],size(topo_lev2,3));
 [~,maxdiff] = max(nanstd(topo_lev1_2D)-nanstd(topo_lev2_2D));
 [~,maxvar] = max(topo_lev1_2D(:,maxdiff)-topo_lev2_2D(:,maxdiff));
-subplot(3,3,1); pcolor(topo_lev1(:,:,maxdiff)), shading interp; axis off; title('lev1 orig')
-subplot(3,3,2); pcolor(topo_lev2(:,:,maxdiff)), shading interp; axis off; title('lev2 orig')
-subplot(3,3,3); plot(topo_lev1_2D(maxvar,:),'r'); hold on; plot(topo_lev2_2D(maxvar,:),'b'); 
+subplot(3,5,1); pcolor(topo_lev1(:,:,maxdiff)), shading interp; axis off; title('lev1 orig')
+subplot(3,5,2); pcolor(topo_lev2(:,:,maxdiff)), shading interp; axis off; title('lev2 orig')
+subplot(3,5,3); plot(topo_lev1_2D(maxvar,:),'r'); hold on; plot(topo_lev2_2D(maxvar,:),'b'); 
+if do_boxplots
+    subplot(3,5,4); boxplot(squeeze(topo_input_2D(maxvar,maxdiff,:)),uind); title('trials') 
+    % subject means
+    [slev,~,sind] = unique(D1.prep.dtab.ID);
+    subdat={};
+    for u = 1:length(ulev)
+        for sub = 1:length(slev)
+            subdat{u}(sub,1) =mean(squeeze(topo_input_2D(maxvar,maxdiff, uind==u & sind==sub)));
+        end
+        subdat{u} = subdat{u}(~isnan(subdat{u}));
+    end
+    suind = [ones(length(subdat{1}),1);2*ones(length(subdat{2}),1)];
+    subdat = vertcat(subdat{:});
+    subplot(3,5,5); boxplot(subdat,suind); title('subjects') 
+end
 % CCA
-[ulev,~,uind] = unique(D2.prep.dtab.(fac));
-for y=1:length(D2.prep.Y)
-    lev1(y,1)=mean(D2.prep.Y(y).dtab.data(uind==1));
-    lev2(y,1)=mean(D2.prep.Y(y).dtab.data(uind==2));
+if ~isempty(selectfac)
+    [ulev,~,uind] = unique(D2.prep.dtab.(selectfac{1}));
+    levind = find(ismember(ulev,selectfac{2}));
+    dtab = D2.prep.dtab(uind==levind,:);
+    for s=1:length(D2.prep.Y)
+        D2.prep.Y(s).dtab=D2.prep.Y(s).dtab(uind==levind,:);
+    end
+else
+    dtab = D2.prep.dtab;
+end
+[ulev,~,uind] = unique(dtab.(fac));
+input=[];
+for s=1:length(D2.prep.Y)
+    if rescale
+        input(s,:) = bsxfun(@plus,bsxfun(@times,D2.prep.Y(s).dtab.data,D2.prep.Y(s).data_std),D2.prep.Y(s).data_mean);
+    else
+        input(s,:) = D2.prep.Y(s).dtab.data;
+    end
+    lev1(s,1)=mean(input(s,uind==1));
+    lev2(s,1)=mean(input(s,uind==2));
+end
+
+if do_boxplots
+    sname = strrep(fname,'.mat','_D2topo.mat');
+    if ~exist(sname,'file')
+        topo_input_2D = reshape(topotime_3D(reshape(input,D2.prep.dim(1),D2.prep.dim(2),[]),S),[],D2.prep.dim(2),size(input,2));
+        save(sname,'topo_input_2D','-V7.3');
+    else
+        load(sname,'topo_input_2D');
+    end
 end
 topo_lev1 = topotime_3D(reshape(lev1,D2.prep.dim(1),D2.prep.dim(2)),S);
 topo_lev2 = topotime_3D(reshape(lev2,D2.prep.dim(1),D2.prep.dim(2)),S);
 topo_lev1_2D=reshape(topo_lev1,[],size(topo_lev1,3));
 topo_lev2_2D=reshape(topo_lev2,[],size(topo_lev2,3));
-subplot(3,3,4); pcolor(topo_lev1(:,:,maxdiff)), shading interp; axis off; title('lev1 CCA at orig')
-subplot(3,3,5); pcolor(topo_lev2(:,:,maxdiff)), shading interp; axis off; title('lev2 CCA at orig')
-subplot(3,3,6); plot(topo_lev1_2D(maxvar,:),'r'); hold on; plot(topo_lev2_2D(maxvar,:),'b'); 
+subplot(3,5,6); pcolor(topo_lev1(:,:,maxdiff)), shading interp; axis off; title('lev1 CCA at orig')
+subplot(3,5,7); pcolor(topo_lev2(:,:,maxdiff)), shading interp; axis off; title('lev2 CCA at orig')
+subplot(3,5,8); plot(topo_lev1_2D(maxvar,:),'r'); hold on; plot(topo_lev2_2D(maxvar,:),'b'); 
+if do_boxplots
+    subplot(3,5,9); boxplot(squeeze(topo_input_2D(maxvar,maxdiff,:)),uind); title('trials') 
+    % subject means
+    [slev,~,sind] = unique(D2.prep.dtab.ID);
+    subdat={};
+    for u = 1:length(ulev)
+        for sub = 1:length(slev)
+            subdat{u}(sub,1) =mean(squeeze(topo_input_2D(maxvar,maxdiff, uind==u & sind==sub)));
+        end
+        subdat{u} = subdat{u}(~isnan(subdat{u}));
+    end
+    suind = [ones(length(subdat{1}),1);2*ones(length(subdat{2}),1)];
+    subdat = vertcat(subdat{:});
+    subplot(3,5,10); boxplot(subdat,suind); title('subjects') 
+end
 [~,maxdiff] = max(nanstd(topo_lev1_2D)-nanstd(topo_lev2_2D));
 [~,maxvar] = max(topo_lev1_2D(:,maxdiff)-topo_lev2_2D(:,maxdiff));
-subplot(3,3,7); pcolor(topo_lev1(:,:,maxdiff)), shading interp; axis off; title('lev1 CCA at CCA')
-subplot(3,3,8); pcolor(topo_lev2(:,:,maxdiff)), shading interp; axis off; title('lev2 CCA at CCA')
-subplot(3,3,9); plot(topo_lev1_2D(maxvar,:),'r'); hold on; plot(topo_lev2_2D(maxvar,:),'b'); 
+subplot(3,5,11); pcolor(topo_lev1(:,:,maxdiff)), shading interp; axis off; title('lev1 CCA at CCA')
+subplot(3,5,12); pcolor(topo_lev2(:,:,maxdiff)), shading interp; axis off; title('lev2 CCA at CCA')
+subplot(3,5,13); plot(topo_lev1_2D(maxvar,:),'r'); hold on; plot(topo_lev2_2D(maxvar,:),'b'); 
+if do_boxplots
+    subplot(3,5,14); boxplot(squeeze(topo_input_2D(maxvar,maxdiff,:)),uind); title('trials') 
+    % subject means
+    [slev,~,sind] = unique(D2.prep.dtab.ID);
+    subdat={};
+    for u = 1:length(ulev)
+        for sub = 1:length(slev)
+            subdat{u}(sub,1) =mean(squeeze(topo_input_2D(maxvar,maxdiff, uind==u & sind==sub)));
+        end
+        subdat{u} = subdat{u}(~isnan(subdat{u}));
+    end
+    suind = [ones(length(subdat{1}),1);2*ones(length(subdat{2}),1)];
+    subdat = vertcat(subdat{:});
+    subplot(3,5,15); boxplot(subdat,suind); title('subjects') 
+end

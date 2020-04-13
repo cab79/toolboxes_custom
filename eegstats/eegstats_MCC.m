@@ -166,7 +166,7 @@ for d=1:length(D)
                 else
                     DF = D(d).model(i).con(c).DF;
                     p_img = spm_read_vols(spm_vol(D(d).model(i).con(c).p_img_file));
-                    szR = length(resid_vol_z);
+                    szR = length(D(d).model(i).fixeddesign);
                     if S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF')
                         [FWHM,VRpv,R] = smoothness_df_correct(L,Ve,ssq,Dx,Ix,Iy,Iz,VM,[szR DF(2)]);
                         D(d).model(i).con(c).MCC.FWHM = FWHM;

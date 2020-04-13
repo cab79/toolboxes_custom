@@ -592,7 +592,7 @@ for d = 1:length(D)
                 if separate
                     for obs = 1:currdim(2)
                         for u=1:length(U)
-                            subdata{obs}{u} = reshape(permute(dat{u}(:,:,obs),[2 1 3]),currdim(1),[]); % chan x trials*time
+                            subdata{obs}{u} = reshape(permute(dat{u}(:,:,obs),[2 1 3]),currdim(1),[]); 
                             subdata{obs}{u} = permute(subdata{obs}{u},[2 1]);
                         end
                     end
@@ -601,7 +601,7 @@ for d = 1:length(D)
                     % reshape
                     for u=1:length(U)
                         subdata{1}{u} = reshape(permute(dat{u},[2 1 3]),currdim(1),[]); % chan x trials*time
-                        subdata{1}{u} = permute(subdata{1}{u},[2 1]);
+                        subdata{1}{u} = permute(subdata{1}{u},[2 1]); % trials*time x chan 
                     end
                 end
             elseif strcmp(pcatype,'temporal')
@@ -611,7 +611,7 @@ for d = 1:length(D)
                 if separate
                     for obs = 1:currdim(1)
                         for u=1:length(U)
-                            subdata{obs}{u} = reshape(dat{u}(:,obs,:),[],currdim(2)); % chan x trials*time
+                            subdata{obs}{u} = reshape(dat{u}(:,obs,:),[],currdim(2));
                         end
                     end
 %                     newdim(obs_dim)=1;
@@ -641,13 +641,13 @@ for d = 1:length(D)
             %%% PCA/CCA function %%%
             O=struct;
             for o = 1:length(subdata)
-                [O(o).W,O(o).mdata,O(o).COEFF,O(o).mu,O(o).sigma,NUM_FAC] = perform_CCA(subdata{o},NUM_FAC,S,rep);
-                sz=size(O(o).mdata);
                 if ~obs_dim || length(subdata)>1
                     obsdim=1;
                 else
                     obsdim=newdim(obs_dim);
                 end
+                [O(o).W,O(o).mdata,O(o).COEFF,O(o).mu,O(o).sigma,NUM_FAC] = perform_CCA(subdata{o},NUM_FAC,S,rep,nreps*obsdim);
+                sz=size(O(o).mdata);
                 O(o).mdata_avg = squeeze(mean(reshape(O(o).mdata,sz(1),nreps,obsdim,sz(3)),2));
             end
             %newdim(var_dim) = sz(1); %UPDATE
@@ -745,7 +745,7 @@ for d = 1:length(D)
                         % topo data
                         O(o).chandata=[];
                         for u=1:length(U)
-                            O(o).chandata(cc,:,u) = O(o).COEFF{u}(:,1:NUM_FAC(1))*O(o).W(1:NUM_FAC(1),cc,u);
+                            O(o).chandata(cc,:,u) = O(o).COEFF{u}*O(o).W(:,cc,u);
                         end
                         
                         % PLOTS
@@ -834,7 +834,7 @@ for d = 1:length(D)
             for cc = 1:NUM_FAC(2)
                 temp = [];
                 for u=1:length(U)
-                    temp(1,:,u) = corr(O(o).mdata(cc,repidx{u},u)',origgrpdata{d}(iU==u,:)); % 3x60x20 x trials(57)xComp(1083=57x19)
+                    temp(1,:,u) = corr(O(o).mdata(cc,repidx{u},u)',origgrpdata{d}(iU==u,:),'type','Spearman'); % 3x60x20 x trials(57)xComp(1083=57x19)
                 end
                 temp = nanmean(temp,3);
                 st_subdata = reshape(temp,D(d).prep.dim(1),D(d).prep.dim(2));
@@ -1170,7 +1170,7 @@ switch type
         end
 end
 
-function [W,mdata,COEFF,mu,sigma,NUM_FAC] = perform_CCA(dataAll,NUM_FAC,S,rep)
+function [W,mdata,COEFF,mu,sigma,NUM_FAC] = perform_CCA(dataAll,NUM_FAC,S,rep,nobs)
 % feed in index of 2nd dimension (trials or time)
                
 TEMP_FAC=repmat(size(dataAll{1},2),1,2);
@@ -1216,14 +1216,37 @@ switch S.prep.calc.eeg.cca.method
         end
     case 'PCA'
        for i = 1:length(cdata)
-            [COEFF{i}, score{i}] = pca(cdata{i});
-            W(:,:,i) = COEFF{i}(:,1:NUM_FAC(1))';
-            score{i} = score{i}(:,1:NUM_FAC(1));
+            [COEFF{i}, score{i},~,~,explained] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
+            [COEFFrand{i}, scorerand{i},~,~,explainedrand] = pca(randn(size(cdata{i})),'NumComponents',NUM_FAC(1));
+            nfac_temp = find(explained<explainedrand);
+            nfac(i) = min(NUM_FAC(1),nfac_temp(1)-1);
        end
+        % take median nfac
+        NUM_FAC(1) = floor(median(nfac));
+        for i = 1:length(cdata)
+            COEFF{i} = COEFF{i}(:,1:NUM_FAC(1));
+            W(:,:,i) = COEFF{i}';
+            score{i} = score{i}(:,1:NUM_FAC(1));
+        end
+    case 'eigs'
+       for i = 1:length(cdata)
+            [COEFF{i},values]=eigs(cdata{i},NUM_FAC(1));
+            explained = diag(values)/sum(diag(values));
+            [COEFFrand{i},valuesrand]=eigs(randn(size(cdata{i})),NUM_FAC(1));
+            explainedrand = diag(valuesrand)/sum(diag(valuesrand));
+            nfac_temp = find(explained<explainedrand);
+            nfac(i) = min(NUM_FAC(1),nfac_temp(1)-1);
+       end
+        % take median nfac
+        NUM_FAC(1) = floor(median(nfac));
+        for i = 1:length(cdata)
+            COEFF{i} = COEFF{i}(:,1:NUM_FAC(1));
+            W(:,:,i) = COEFF{i}';
+            score{i} = cdata{i}*COEFF{i}(:,1:NUM_FAC(1));
+        end
 end
 % obtain subject-specific PCAs
-maxrep = max([rep{:}]);
-PCdata = nan(NUM_FAC(1),maxrep);
+PCdata = nan(NUM_FAC(1),nobs);
 sigma = {};
 for i = 1:length(cdata)
     if S.prep.calc.eeg.cca.standardise
@@ -1301,15 +1324,15 @@ end
 
 
 % obtain CCA solutions 
-for k = K:-1:1
+%for k = K:-1:1
     [tempW,values]=eigs((R-S),S,K);
-    var_explained = diag(values)/sum(diag(values));
-    cum_var = cumsum(var_explained);
-    facs = find(var_explained>Sx.prep.calc.eeg.cca.minvar & cum_var>Sx.prep.calc.eeg.cca.frac_explained);
-    if ~isempty(facs)
-        break
-    end
-end
+%    var_explained = diag(values)/sum(diag(values)); % ARE THEY SORTED?
+%    cum_var = cumsum(var_explained);
+%    facs = find(var_explained>Sx.prep.calc.eeg.cca.minvar & cum_var>Sx.prep.calc.eeg.cca.frac_explained);
+%    if ~isempty(facs)
+%        break
+%    end
+%end
 
 W = zeros(dim,K,sub);
 for i=1:sub
@@ -1325,7 +1348,11 @@ mdata = zeros(K,num,sub);
 for i = 1:sub
     mdata(:,:,i) = W(:,:,i)'*data(:,:,i);
     for j = 1:K
-        mdata(j,:,i) = mdata(j,:,i)/norm(mdata(j,:,i));
+        if Sx.prep.calc.eeg.cca.normalise_weights
+            mdata(j,:,i) = mdata(j,:,i)/norm(mdata(j,:,i));
+        else
+            mdata(j,:,i) = mdata(j,:,i);
+        end
     end
 end
 
