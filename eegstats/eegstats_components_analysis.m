@@ -20,7 +20,7 @@ function [D,grpdata]=eegstats_components_analysis(D,grpdata,S,varargin)
     
 
 % optional Y for PLS
-if ~isempty(varagarin)
+if ~isempty(varargin)
     Y=varargin{1};
 else
     Y=[];
@@ -32,8 +32,9 @@ origgrpdata=grpdata;
 newdim = D.prep.dim;
 
 for pt = 1:length(S.type)
+    disp(['running PCA: ' S.type{pt}])
     NUM_FAC = S.type_numfac{pt};
-    newgrpdata{pt}={};
+    newgrpdata{pt}=[];
     currdim = newdim;
 
     subdata={};
@@ -47,7 +48,7 @@ for pt = 1:length(S.type)
             nreps = C(end);
             for u=1:length(U)
                 for c=1:length(C)
-                    dat{u}(c,:,:) = reshape(mean(grpdata{d}(iU==u & iC==c,:),1),1,currdim(1),currdim(2));
+                    dat{u}(c,:,:) = reshape(mean(grpdata(iU==u & iC==c,:),1),1,currdim(1),currdim(2));
                 end
                 repidx{u} = C;
             end
@@ -55,7 +56,7 @@ for pt = 1:length(S.type)
             trialidx = unique([D.prep.tnums{:}]); % repetitions
             nreps = trialidx(end);
             for u=1:length(U)
-                dat{u} = reshape(grpdata{d}(iU==u,:),[],currdim(1),currdim(2));
+                dat{u} = reshape(grpdata(iU==u,:),[],currdim(1),currdim(2));
                 repidx{u} = D.prep.tnums{u};
             end
     end
@@ -136,9 +137,11 @@ for pt = 1:length(S.type)
         
         % PCA
         [O(o).COEFF,O(o).W,O(o).scores,O(o).mu,O(o).sigma,NUM_FAC,YL] = perform_PCA(subdata{o},NUM_FAC,S,rep,nreps*obsdim,Y);
+        sz=size(O(o).scores);
         O(o).scores_avg = squeeze(mean(reshape(O(o).scores,sz(1),nreps,obsdim,sz(3)),2));
         
         if S.CCA
+            disp(['CCA: ' S.type{pt}])
             % CCA % https://onlinelibrary.wiley.com/doi/full/10.1002/hbm.23689
             reg=1; r= 0.2;
             NUM_FAC(2) = min(NUM_FAC(2),NUM_FAC(1));
@@ -153,24 +156,24 @@ for pt = 1:length(S.type)
     for u=1:length(U)
         if strcmp(S.type{pt},'spatial')
             if length(O)==1
-                temp = permute(reshape(grpdata{d}(iU==u,:),[],currdim(1),currdim(2)),[1 3 2]);% trials x time x chan
+                temp = permute(reshape(grpdata(iU==u,:),[],currdim(1),currdim(2)),[1 3 2]);% trials x time x chan
                 temp = reshape(temp,[],size(temp,3)); 
             else
-                temp = reshape(grpdata{d}(iU==u,:),[],currdim(1),currdim(2));% trials x chan x comp 
+                temp = reshape(grpdata(iU==u,:),[],currdim(1),currdim(2));% trials x chan x comp 
             end
         elseif strcmp(S.type{pt},'temporal')
             if length(O)==1
-                temp = reshape(grpdata{d}(iU==u,:),[],currdim(1),currdim(2));% trials x chan x time
+                temp = reshape(grpdata(iU==u,:),[],currdim(1),currdim(2));% trials x chan x time
                 temp = reshape(temp,[],size(temp,3)); 
             else
-                temp = permute(reshape(grpdata{d}(iU==u,:),[],currdim(1),currdim(2)),[1 3 2]);% trials x time x comp
+                temp = permute(reshape(grpdata(iU==u,:),[],currdim(1),currdim(2)),[1 3 2]);% trials x time x comp
             end
         elseif strcmp(S.type{pt},'both')
             if length(O)==1
-                temp = reshape(grpdata{d}(iU==u,:),[],currdim(1),currdim(2));% trials x chan x time
+                temp = reshape(grpdata(iU==u,:),[],currdim(1),currdim(2));% trials x chan x time
                 temp = reshape(temp,[],size(temp,2)*size(temp,3)); 
             else
-                temp = permute(reshape(grpdata{d}(iU==u,:),[],currdim(1),currdim(2)),[1 3 2]);% trials x time x chan
+                temp = permute(reshape(grpdata(iU==u,:),[],currdim(1),currdim(2)),[1 3 2]);% trials x time x chan
             end
         end
 
@@ -226,7 +229,7 @@ for pt = 1:length(S.type)
             temp = squeeze(temp);
         end
 
-        newgrpdata{pt}{d}(iU==u,:) = temp;
+        newgrpdata{pt}(iU==u,:) = temp;
     end
     grpdata=newgrpdata{pt};
     if ~obs_dim
@@ -238,7 +241,7 @@ for pt = 1:length(S.type)
     D.prep.PCA(pt).O = O;
     D.prep.PCA(pt).oind = oind;
     D.prep.PCA(pt).currdim = currdim;
-    D.prep.PCA(pt).options = S.prep.calc.eeg.cca;
+    D.prep.PCA(pt).options = S;
     D.prep.PCA(pt).PCA = PCAs;
     if S.CCA
         D.prep.PCA(pt).CCA = CCAs;
@@ -273,7 +276,7 @@ for pt = 1:length(S.type)
                     % waveform plot
                     cci=cci+1;
                     mCCA = mean(plot_mdata_avg{o}(cc,:,:),3);
-                    if length(mCCA) == length(S.prep.select.samples)
+                    if length(mCCA) == D.prep.dim(2)
                         subplot(4,4*2,cci)
                         hold on
                         for u=1:length(U)
@@ -300,7 +303,7 @@ for pt = 1:length(S.type)
 %                             subplot(4,4*2,cci)
 %                             temp = [];
 %                             for u=1:length(U)
-%                                 s_subdata = reshape(newgrpdata{1}{d}(iU==u,:),[],40,19);
+%                                 s_subdata = reshape(newgrpdata{1}(iU==u,:),[],40,19);
 %                                 temp(1,:,u) = corr(plot_mdata{o}(cc,repidx{u},u)',s_subdata(:,:,o)); % 3x60x20 x trials(57)xComp(1083=57x19)
 %                             end
 %                             chandatacorr(cc,:) = mean(temp,3); % mean over subjects
@@ -354,7 +357,7 @@ for o = 1:length(O)
     for cc = 1:NUM_FAC(2)
         temp = [];
         for u=1:length(U)
-            temp(1,:,u) = corr(plot_mdata{o}(cc,repidx{u},u)',origgrpdata{d}(iU==u,:),'type','Spearman'); % 3x60x20 x trials(57)xComp(1083=57x19)
+            temp(1,:,u) = corr(plot_mdata{o}(cc,repidx{u},u)',origgrpdata(iU==u,:),'type','Spearman'); % 3x60x20 x trials(57)xComp(1083=57x19)
         end
         temp = nanmean(temp,3);
         st_subdata = reshape(temp,D.prep.dim(1),D.prep.dim(2));
@@ -561,8 +564,9 @@ switch S.PCAmethod
         % take median nfac
         NUM_FAC(1) = floor(median(nfac));
         for i = 1:length(cdata)
+            [COEFF{i}, score{i}] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
             COEFF{i} = COEFF{i}(:,1:NUM_FAC(1));
-            W(:,:,i) = COEFF{i}';
+            W(:,:,i) = COEFF{i}(:,1:NUM_FAC(1))';
             score{i} = score{i}(:,1:NUM_FAC(1));
         end
     case 'eigs'
@@ -577,8 +581,9 @@ switch S.PCAmethod
         % take median nfac
         NUM_FAC(1) = floor(median(nfac));
         for i = 1:length(cdata)
+            COEFF{i}=eigs(cdata{i},NUM_FAC(1));
             COEFF{i} = COEFF{i}(:,1:NUM_FAC(1));
-            W(:,:,i) = COEFF{i}';
+            W(:,:,i) = COEFF{i}(:,1:NUM_FAC(1))';
             score{i} = cdata{i}*COEFF{i}(:,1:NUM_FAC(1));
         end
     case 'sPCA'
@@ -589,9 +594,24 @@ switch S.PCAmethod
         verbose = false;
         
         for i = 1:length(cdata)
-            [COEFF{i},values] = spca(cdata{i}, [], NUM_FAC(1), delta, -NUM_FAC(1), maxiter, convergenceCriterion, verbose);
-            W(:,:,i) = COEFF{i}';
-            score{i} = cdata{i}*COEFF{i};
+            nfac(i)=NUM_FAC(1);
+            nfac_temp = inf;
+            while nfac_temp(1) ~=nfac(i) || nfac(i)==0
+                [COEFF{i},values] = spca(cdata{i}, [], nfac(i), delta, -nfac(i), maxiter, convergenceCriterion, verbose);
+                explained = diag(values)/sum(diag(values));
+                [COEFFrand{i},valuesrand] = spca(randn(size(cdata{i})), [], nfac(i), delta, -nfac(i), maxiter, convergenceCriterion, verbose);
+                explainedrand = diag(valuesrand)/sum(diag(valuesrand));
+                nfac_temp = find(explained<explainedrand)-1;
+                nfac(i) = min(NUM_FAC(1),nfac_temp(1));
+            end
+        end
+        % take median nfac
+        NUM_FAC(1) = floor(median(nfac));
+        for i = 1:length(cdata)
+            COEFF{i} = spca(cdata{i}, [], NUM_FAC(1), delta, -NUM_FAC(1), maxiter, convergenceCriterion, verbose);
+            COEFF{i} = COEFF{i}(:,1:NUM_FAC(1));
+            W(:,:,i) = COEFF{i}(:,1:NUM_FAC(1))';
+            score{i} = cdata{i}*COEFF{i}(:,1:NUM_FAC(1));
         end
     case 'PLS'
         [XL,YL,XS,YS,BETA,PCTVAR,MSE,stats] = plsregress(cdata{i},Y,NUM_FAC(1));
