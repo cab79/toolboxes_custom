@@ -535,8 +535,8 @@ for d = 1:length(D)
     if S.prep.calc.eeg.cca.on
         
         %% inputs for CCA
-        Sf.PCAmethod = 'sPCA';
         Sf.CCA = 1;
+        Sf.PCAmethod = S.prep.calc.eeg.cca.PCAmethod;
         Sf.type = S.prep.calc.eeg.cca.type;
         Sf.type_obs_sep = S.prep.calc.eeg.cca.type_sep; % analyse "observation" separately. E.g. if temporal PCA, apply separately to each spatial channel?
         Sf.type_numfac = S.prep.calc.eeg.cca.numfac; % max number of factors
@@ -546,26 +546,32 @@ for d = 1:length(D)
         Sf.maxGig = S.prep.calc.eeg.cca.maxGig;
         Sf.normalise_cca_weights = S.prep.calc.eeg.cca.normalise_weights;
         Sf.img=S.img;
-        
-        if strcmp(Sf.PCAMethod,'PLS')
-            S.prep.calc.eeg.PLS_Y = {'epsi'};
+        % PLS
+        if strcmp(Sf.PCAmethod,'PLS')
+            
             % find columns with relevant predictors
-            col_idx=contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov);
+            col_idx=contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.eeg.PLS_Y);
             col_names = D(d).prep.dtab.Properties.VariableNames(col_idx);
-            dtab_PCA=D(d).prep.dtab;
-
-            % extract predictors
-            X=[];
+            Y=[];
             for nc = 1:length(col_names)
-                X(:,nc)=D(d).prep.dtab.(col_names{nc});
+                Y(:,nc)=D(d).prep.dtab.(col_names{nc});
             end
+        else
+            Y=[];
         end
-        
-        Y=[];
-        
-        
-        [D(d),grpdata{d}]=eegstats_components_analysis(D(d),grpdata{d},Sf,Y);
-
+        % RUN function
+        [D(d),grpdata{d}]=eegstats_components_analysis(D(d),grpdata{d},Sf,{Y,col_names});
+        % PLS outputs
+%         if strcmp(Sf.PCAmethod,'PLS')
+%             D(d).prep.PCA.O.PLS
+%             for k = 1:K
+%                 disp(['adding component M' num2str(K) 'PC' num2str(k)])
+%                 pcname=['M' num2str(K) 'PC' num2str(k)];
+%                 dtab_PCA.(pcname) = out(K).scores(:,k);
+%                 Btable.(pcname) = out(K).B(:,k);
+%             end
+%             D(d).prep.pca{K}=Btable;
+%         end
         
     end
     
