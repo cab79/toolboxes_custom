@@ -228,8 +228,10 @@ end
 
 % Calculate autocorrelation of residuals
 res = r.optim.res;
-res(isnan(res)) = 0; % Set residuals of irregular trials to zero
-r.optim.resAC = tapas_autocorr(res);
+res(isnan(res),:) = 0; % Set residuals of irregular trials to zero
+for i = 1:size(res,2) % cab
+    r.optim.resAC(:,i) = tapas_autocorr(res(:,i));
+end
 
 % Print results
 ftbrm = {'p', 'ptrans'};

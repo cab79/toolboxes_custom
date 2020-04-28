@@ -33,16 +33,13 @@ catch
     l=1;
 end
 
-% Decision based on which representation?
-c.rep = r.c_prc.response.rep; 
-
 c.nparams =[];
 c.priormus=[];
 c.priorsas=[];
 c.st = [];
 c.pn=0;
 
-% for prediction error, use abs?
+% for prediction error, use absolute values?
 try
     c.abs = S.resp_modelspec.PE_abs;
 catch
@@ -51,6 +48,9 @@ end
 
 if any(strcmp(c.responses , 'Ch'))
     % USE SOFTMAX MODEL
+    
+    % Decision based on which representation?
+    c.rep = r.c_prc.response.rep; 
     
     % Beta
     c.soft.logbemu = log(48);

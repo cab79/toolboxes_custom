@@ -43,6 +43,7 @@ if any(strcmp(r.c_obs.responses, 'Ch'))
 %     be = exp(ptrans(8));
 
     ycol=1;
+    logp_so(1:n,ycol) = NaN;
 
     % Softmax: Weed irregular trials out from inferred states, responses, and inputs
     x = r.traj.(r.c_obs.model).(r.c_obs.rep)(:,1);
@@ -70,10 +71,10 @@ if any(strcmp(r.c_obs.responses, 'Ch'))
         % Probability of observed choice
         probc = 1./(1+exp(-be.*(r1.*x-r0.*(1-x)).*(2.*ys-1)));
     end
-    logp_so(reg) = log(probc);
+    logp_so(reg,ycol) = log(probc);
     yh = ys.*probc +(1-ys).*(1-probc);
-    yhat(reg) = yh;
-    res(reg) = (ys -yh)./sqrt(yh.*(1 -yh));
+    yhat(reg,ycol) = yh;
+    res(reg,ycol) = (ys -yh)./sqrt(yh.*(1 -yh));
 end
 
 %% Regression
@@ -97,6 +98,7 @@ if any(strcmp(r.c_obs.responses, 'RT')) || any(strcmp(r.c_obs.responses, 'EEG'))
             ycol=3;
         end
     end
+    logp_reg(1:n,ycol) = NaN;
 
     % Weed irregular trials out from responses and inputs
     yr = r.y(:,ycol); % RTs are in column 2, EEG in column 3 or greater
@@ -239,9 +241,11 @@ if any(strcmp(r.c_obs.responses, 'RT')) || any(strcmp(r.c_obs.responses, 'EEG'))
     % Calculate log-probabilities for non-irregular trials
     % Note: 8*atan(1) == 2*pi (this is used to guard against
     % errors resulting from having used pi as a variable).
-    logp_reg(reg) = -1/2.*log(8*atan(1).*ze) -(yr-logresp).^2./(2.*ze);
-    yhat(reg) = logresp;
-    res(reg) = yr-logresp;
+    for i = ycol
+        logp_reg(reg,ycol) = -1/2.*log(8*atan(1).*ze) -(yr-logresp).^2./(2.*ze);
+    end
+    yhat(reg,ycol) = logresp;
+    res(reg,ycol) = yr-logresp;
 end
 
 if ~exist('logp_so','var')

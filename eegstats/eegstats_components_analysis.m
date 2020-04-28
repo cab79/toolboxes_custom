@@ -24,7 +24,7 @@ if ~isempty(varargin)
     Y=varargin{1}{1};
     Ynames=varargin{1}{2};
 else
-    Y=[];
+    Y={};
 end
 
 %%
@@ -60,7 +60,9 @@ for pt = 1:length(S.type)
                 dat{u} = reshape(grpdata(iU==u,:),[],currdim(1),currdim(2));
                 repidx{u} = D.prep.tnums{u};
                 if ~isempty(Y)
-                    Ydat{u} = Y(iU==u,:);
+                    for ym = 1:length(Y)
+                        Ydat{ym}{u} = Y{ym}(iU==u,:);
+                    end
                 end
             end
     end
@@ -95,7 +97,9 @@ for pt = 1:length(S.type)
                 subdata{1}{u} = reshape(permute(dat{u},[2 1 3]),currdim(1),[]); % chan x trials*time
                 subdata{1}{u} = permute(subdata{1}{u},[2 1]); % trials*time x chan 
                 if ~isempty(Y)
-                    Ydat{u} = repmat(Ydat{u},currdim(obs_dim),1);
+                    for ym = 1:length(Ydat)
+                        Ydat{ym}{u} = repmat(Ydat{ym}{u},currdim(obs_dim),1);
+                    end
                 end
             end
         end
@@ -114,7 +118,9 @@ for pt = 1:length(S.type)
             for u=1:length(U)
                 subdata{1}{u} = reshape(dat{u},[],currdim(2)); % trials*chan x time
                 if ~isempty(Y)
-                    Ydat{u} = repmat(Ydat{u},currdim(obs_dim),1);
+                    for ym = 1:length(Ydat)
+                        Ydat{ym}{u} = repmat(Ydat{ym}{u},currdim(obs_dim),1);
+                    end
                 end
             end
         end
@@ -550,17 +556,22 @@ D.prep.dim = newdim;
 if ~isempty(Y)
     % cross-correlation heat map of PLS-CCA components vs. Y
     f=figure;
-    corrmat=corr(Y,grpdata);
-    imagesc(corrmat); % Display correlation matrix as an image
-    set(gca, 'XTick', 1:size(grpdata,2)); % center x-axis ticks on bins
-    set(gca, 'YTick', 1:size(Y,2)); % center y-axis ticks on bins
-%     set(gca, 'XTickLabel', varname); % set x-axis labels
-    set(gca, 'YTickLabel', Ynames); % set y-axis labels
-    xlabel('PLS/CCA components')
-    ylabel('predicted Y variables')
-    title('Cross-correlation matrix: PLS components vs. Y', 'FontSize', 10); % set title
-    colormap('jet'); % Choose jet or any other color scheme
-    colorbar 
+    rs = floor(sqrt(length(Y)));
+    cs = ceil(length(Y)/rs);
+    for ym = 1:length(Y)
+        subplot(rs,cs,ym)
+        corrmat=corr(Y{ym},grpdata);
+        imagesc(corrmat); % Display correlation matrix as an image
+        set(gca, 'XTick', 1:size(grpdata,2)); % center x-axis ticks on bins
+        set(gca, 'YTick', 1:size(Y{ym},2)); % center y-axis ticks on bins
+    %     set(gca, 'XTickLabel', varname); % set x-axis labels
+        set(gca, 'YTickLabel', Ynames{ym}); % set y-axis labels
+        xlabel('PLS/CCA components')
+        ylabel('predicted Y variables')
+        title('Cross-correlation matrix: PLS components vs. Y', 'FontSize', 10); % set title
+        colormap('jet'); % Choose jet or any other color scheme
+        colorbar 
+    end
 end
 
 function [COEFF,W,PCdata,mu,sigma,NUM_FAC,PLS_Y] = perform_PCA(dataAll,NUM_FAC,S,rep,nobs,Y)
@@ -670,64 +681,73 @@ switch S.PCAmethod
             score{i} = cdata{i}*COEFF{i}(:,1:NUM_FAC(1));
         end
     case 'PLS'
-        for i = 1:length(cdata)
-            [~,~,~,~,BETA{i},explained(:,:,i),MSE(:,:,i),stats] = plsregress(cdata{i},Y{i},NUM_FAC(1),'cv',5);
+        for ym = 1:length(Y) % for each Y model
+            for i = 1:length(cdata)
+                [~,~,~,~,BETA{ym}{i},explained{ym}(:,:,i),MSE{ym}(:,:,i)] = plsregress(cdata{i},Y{ym}{i},NUM_FAC(1),'cv',5);
 
-            % scale random data
-            si = std(cdata{i}(:));
-            randcdata=randn(size(cdata{i}))*si;
-            [~,~,~,~,BETArand{i},explainedrand(:,:,i),MSErand(:,:,i)] = plsregress(randcdata,Y{i},NUM_FAC(1),'cv',5);
+                % scale random data
+                si = std(cdata{i}(:));
+                randcdata=randn(size(cdata{i}))*si;
+                [~,~,~,~,BETArand{ym}{i},explainedrand{ym}(:,:,i),MSErand{ym}(:,:,i)] = plsregress(randcdata,Y{ym}{i},NUM_FAC(1),'cv',5);
 
+            end
+            nfac_temp = find(mean(MSE{ym}(2,:,:),3)<mean(MSErand{ym}(2,:,:),3))-1;
+            grp_nfac{ym} = nfac_temp(end);
+
+            figure('name',['PLS MSE and explained variance: Model ' num2str(ym)])
+            subplot(2,2,1); hold on
+                plot(0:NUM_FAC(1),mean(MSE{ym}(1,:,:),3)'); xlabel('n comp'), ylabel('X CV MSE'); %gcaExpandable;
+                plot(0:NUM_FAC(1),mean(MSErand{ym}(1,:,:),3)','r'); 
+            subplot(2,2,2); hold on
+                plot(0:NUM_FAC(1),mean(MSE{ym}(2,:,:),3)'); xlabel('n comp'), ylabel('Y CV MSE'); %gcaExpandable;
+                plot(0:NUM_FAC(1),mean(MSErand{ym}(2,:,:),3)','r');
+                plot([grp_nfac{ym},grp_nfac{ym}],[0 max(mean(MSE{ym}(2,:,:),3))],'k'); 
+            subplot(2,2,3); hold on
+                plot(1:NUM_FAC(1),mean(explained{ym}(1,:,:),3)'); xlabel('n comp'), ylabel('X explained variance'); %gcaExpandable;
+                plot(1:NUM_FAC(1),mean(explainedrand{ym}(1,:,:),3)','r'); 
+            subplot(2,2,4); hold on
+                plot(1:NUM_FAC(1),mean(explained{ym}(2,:,:),3)'); xlabel('n comp'), ylabel('Y explained variance'); %gcaExpandable;
+                plot(1:NUM_FAC(1),mean(explainedrand{ym}(2,:,:),3)','r'); 
+
+            nr=ceil(sqrt(length(cdata)));
+            figure('name',['PLS fitted responses: Model ' num2str(ym)])
+            for i = 1:length(cdata)
+                subplot(nr,nr,i); plot(Y{ym}{i},[ones(size(cdata{i},1),1) cdata{i}]*BETA{ym}{i},'bo');
+                    xlabel('Observed Response');
+                    ylabel('Fitted Response');
+            end
+            figure('name',['PLS fitted responses: random: Model ' num2str(ym)])
+            for i = 1:length(cdata)
+                subplot(nr,nr,i); plot(Y{ym}{i},[ones(size(cdata{i},1),1) cdata{i}]*BETArand{ym}{i},'bo');
+                    xlabel('Observed Response');
+                    ylabel('Fitted Response');
+            end
         end
-        nfac_temp = find(mean(MSE(2,:,:),3)<mean(MSErand(2,:,:),3))-1;
-        grp_nfac = nfac_temp(end);
         
-        figure('name','PLS MSE and explained variance')
-        subplot(2,2,1); hold on
-            plot(0:NUM_FAC(1),mean(MSE(1,:,:),3)'); xlabel('n comp'), ylabel('X CV MSE'); %gcaExpandable;
-            plot(0:NUM_FAC(1),mean(MSErand(1,:,:),3)','r'); 
-        subplot(2,2,2); hold on
-            plot(0:NUM_FAC(1),mean(MSE(2,:,:),3)'); xlabel('n comp'), ylabel('Y CV MSE'); %gcaExpandable;
-            plot(0:NUM_FAC(1),mean(MSErand(2,:,:),3)','r');
-            plot([grp_nfac,grp_nfac],[0 max(mean(MSE(2,:,:),3))],'k'); 
-        subplot(2,2,3); hold on
-            plot(1:NUM_FAC(1),mean(explained(1,:,:),3)'); xlabel('n comp'), ylabel('X explained variance'); %gcaExpandable;
-            plot(1:NUM_FAC(1),mean(explainedrand(1,:,:),3)','r'); 
-        subplot(2,2,4); hold on
-            plot(1:NUM_FAC(1),mean(explained(2,:,:),3)'); xlabel('n comp'), ylabel('Y explained variance'); %gcaExpandable;
-            plot(1:NUM_FAC(1),mean(explainedrand(2,:,:),3)','r'); 
-            
-        nr=ceil(sqrt(length(cdata)));
-        figure('name','PLS fitted responses')
-        for i = 1:length(cdata)
-            subplot(nr,nr,i); plot(Y{i},[ones(size(cdata{i},1),1) cdata{i}]*BETA{i},'bo');
-                xlabel('Observed Response');
-                ylabel('Fitted Response');
-        end
-        figure('name','PLS fitted responses: random')
-        for i = 1:length(cdata)
-            subplot(nr,nr,i); plot(Y{i},[ones(size(cdata{i},1),1) cdata{i}]*BETArand{i},'bo');
-                xlabel('Observed Response');
-                ylabel('Fitted Response');
-        end
+        % select model based on minimum MSE
+        MSEym = mean(MSE{ym}(2,grp_nfac{ym},:),3); 
+        [minMSE, minidx] = min(MSEym);
+        figure; hold on
+                plot(1:length(MSEym),MSEym); xlabel('model'), ylabel('mean MSE'); %gcaExpandable;
+                plot([minidx,minidx],[0 minMSE],'k'); 
         
         % take grp nfac
-        NUM_FAC(1) = grp_nfac;
+        NUM_FAC(1) = grp_nfac{minidx};
         for i = 1:length(cdata)
-            [XCOEFF,YCOEFF,Xscore,Yscore,BETA{i},~,~,stats] = plsregress(cdata{i},Y{i},NUM_FAC(1));
+            [XCOEFF,YCOEFF,Xscore,Yscore,BETA{i},~,~,stats] = plsregress(cdata{i},Y{minidx}{i},NUM_FAC(1));
             COEFF{i} = XCOEFF;
             W(:,:,i) = COEFF{i}';
             score{i} = Xscore;
             PLS_Y.YCOEFF{i}=YCOEFF;
             PLS_Y.Yscore{i}=Yscore;
             PLS_Y.BETA{i}=BETA{i};
-            PLS_Y.MSE{i}=MSE(:,:,i);
+            PLS_Y.MSE{i}=MSE{minidx}(:,:,i);
             PLS_Y.W{i}=stats.W;
             PLS_Y.Yfitted{i} = [ones(size(cdata{i},1),1) cdata{i}]*BETA{i};
         end
         figure('name',['PLS fitted responses: first ' num2str(NUM_FAC(1)) ' components'])
         for i = 1:length(cdata)
-            subplot(nr,nr,i); plot(Y{i},PLS_Y.Yfitted{i},'bo');
+            subplot(nr,nr,i); plot(Y{minidx}{i},PLS_Y.Yfitted{i},'bo');
                 xlabel('Observed Response');
                 ylabel('Fitted Response');
         end
