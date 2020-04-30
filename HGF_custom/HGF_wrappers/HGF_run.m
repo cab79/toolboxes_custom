@@ -24,7 +24,7 @@ obs_model = S.obs_config;
 opt_algo = 'tapas_quasinewton_optim_config';
 
 if ~S.bayes_opt
-    S.use_y_col = find([any(strcmp(S.resp_modelspec.responses,'Ch')), any(strcmp(S.resp_modelspec.responses,'RT')),any(strcmp(S.resp_modelspec.responses,'EEG'))]);
+    S.use_y_col = find([any(strcmp(S.resp_modelspec.responses,'Ch')), any(strcmp(S.resp_modelspec.responses,'RT')),any(strcmp(S.resp_modelspec.responses,'EEG')),any(strcmp(S.resp_modelspec.responses,'HGFvar'))]);
 end
 
 % when simulating there may be multiple y created
@@ -51,8 +51,8 @@ end
 % fit = tapas_fitModel_CAB([], D(1).HGF(1).u, prc_model, S.bayesopt_config, opt_algo,S, 0);
 % sim=fit;
 fit=cell(length(D),1);sim=cell(length(D),1);
-parfor (d = 1:length(D),parforArg)
-% for d = 1:length(D)
+% parfor (d = 1:length(D),parforArg)
+for d = 1:length(D)
     
     disp(['testing perc model ' num2str(S.perc_model) ', resp model ' num2str(S.resp_model) ', subject ' num2str(d) '/' num2str(length(D))])
 

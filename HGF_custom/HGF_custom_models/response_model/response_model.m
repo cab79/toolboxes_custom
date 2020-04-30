@@ -76,6 +76,7 @@ if any(strcmp(r.c_obs.responses, 'Ch'))
     res(reg) = (ys -yh)./sqrt(yh.*(1 -yh));
 end
 
+
 %% Regression
 if any(strcmp(r.c_obs.responses, 'RT')) || any(strcmp(r.c_obs.responses, 'EEG'))
 
@@ -88,14 +89,10 @@ if any(strcmp(r.c_obs.responses, 'RT')) || any(strcmp(r.c_obs.responses, 'EEG'))
     end
     
     % switch the data input column
-    if isfield(S.resp_modelspec,'responsecol') && ~isempty(S.resp_modelspec.responsecol)
-        ycol = S.resp_modelspec.responsecol;
-    else
-        if any(strcmp(r.c_obs.responses, 'RT'))
-            ycol=2;
-        elseif any(strcmp(r.c_obs.responses, 'EEG'))
-            ycol=3;
-        end
+    if any(strcmp(r.c_obs.responses, 'RT'))
+        ycol=2;
+    elseif any(strcmp(r.c_obs.responses, 'EEG'))
+        ycol=3:size(r.y,2);
     end
 
     % Weed irregular trials out from responses and inputs
@@ -242,6 +239,100 @@ if any(strcmp(r.c_obs.responses, 'RT')) || any(strcmp(r.c_obs.responses, 'EEG'))
     logp_reg(reg) = -1/2.*log(8*atan(1).*ze) -(yr-logresp).^2./(2.*ze);
     yhat(reg) = logresp;
     res(reg) = yr-logresp;
+end
+
+%% Regression
+if any(strcmp(r.c_obs.responses, 'HGFvar'))
+
+    % Create param struct
+    type='reg'; % regression
+    for pn=1:length(nme)
+        if strcmp(nme{pn,1}(1:length(type)),type)
+            eval([nme_gen{pn} ' = pvec(idx{pn})'';']);
+        end
+    end
+    
+    % switch the data input column
+    ycol = 3:size(r.y,2);
+    if ~isempty(r.c_obs.ynum)
+        ycol = ycol(r.c_obs.ynum);
+    end
+
+    % Weed irregular trials out from responses and inputs
+    yr = r.y(:,ycol); % RTs are in column 2, EEG in column 3 or greater
+%     yr = r.y(:,2); % HACK: NEED TO CHANGE BACK!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    yr(r.irr,:) = [];
+    u = r.u(:,1);
+    u(r.irr) = [];
+    
+    logp_reg(reg,1) = 0;
+    ynames = r.c_obs.ynames;
+    for y=1:length(ynames)
+        switch ynames{y}
+            case 'HGF_PL_epsi_1'
+                ep1 = r.traj.(r.c_obs.model).epsi(:,1);
+                ep1(r.irr) = [];
+                logresp = be06 +be6.*ep1;
+            case 'HGF_PL_epsi_2'
+                ep2 = r.traj.(r.c_obs.model).epsi(:,2);
+                ep2(r.irr) = [];
+                logresp = be08 +be8.*ep2;
+            case 'HGF_PL_epsi_3'
+                ep3 = r.traj.(r.c_obs.model).epsi(:,3);
+                ep3(r.irr) = [];
+                logresp = be010 +be10.*ep3;
+            case 'HGF_PL_epsi-abs_1'
+                ep1 = abs(r.traj.(r.c_obs.model).epsi(:,1));
+                ep1(r.irr) = [];
+                logresp = be06 +be6.*ep1;
+            case 'HGF_PL_epsi-abs_2'
+                ep2 = abs(r.traj.(r.c_obs.model).epsi(:,2));
+                ep2(r.irr) = [];
+                logresp = be08 +be8.*ep2;
+            case 'HGF_PL_epsi-abs_3'
+                ep3 = abs(r.traj.(r.c_obs.model).epsi(:,3));
+                ep3(r.irr) = [];
+                logresp = be010 +be10.*ep3;
+            case 'HGF_PL_mu_1'
+                mu1 = r.traj.(r.c_obs.model).mu(:,1);
+                mu1(r.irr) = [];
+                logresp = be012 +be12.*mu1;
+            case 'HGF_PL_mu_2'
+                mu2 = r.traj.(r.c_obs.model).mu(:,2);
+                mu2(r.irr) = [];
+                logresp = be013 +be13.*mu2;
+            case 'HGF_PL_mu_3'
+                mu3 = r.traj.(r.c_obs.model).mu(:,3);
+                mu3(r.irr) = [];
+                logresp = be014 +be14.*mu3;
+            case 'HGF_PL_sa_1'
+                sa1 = r.traj.(r.c_obs.model).sa(:,1);
+                sa1(r.irr) = [];
+                logresp = be02 +be2.*sa1;
+            case 'HGF_PL_inferv_1'
+                mu2 = r.traj.(r.c_obs.model).mu(:,2);
+                mu2(r.irr) = [];
+                sa2 = r.traj.(r.c_obs.model).sa(:,2);
+                sa2(r.irr) = [];
+                sigmoid_mu2 = 1./(1+exp(-mu2)); % transform down to 1st level
+                inferv = sigmoid_mu2.*(1 -sigmoid_mu2).*sa2; 
+                inferv(r.irr) = [];
+                logresp = be03 +be3.*inferv;
+            case 'HGF_PL_pv_1'
+                mu2 = r.traj.(r.c_obs.model).mu(:,2);
+                mu2(r.irr) = [];
+                mu3 = r.traj.(r.c_obs.model).mu(:,3);
+                mu3(r.irr) = [];
+                sigmoid_mu2 = 1./(1+exp(-mu2)); % transform down to 1st level
+                pv = sigmoid_mu2.*(1-sigmoid_mu2).*exp(mu3); 
+                pv(r.irr) = [];
+                logresp = be04 +be4.*pv;
+        end
+        logp_reg(reg) = logp_reg(reg) + -1/2.*log(8*atan(1).*ze) -(yr(:,y)-logresp).^2./(2.*ze);
+        
+    end
+
+
 end
 
 if ~exist('logp_so','var')

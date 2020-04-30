@@ -548,10 +548,10 @@ for d = 1:length(D)
         Sf.img=S.img;
         % PLS
         Y={};
-        if strcmp(Sf.PCAmethod,'PLS')
-            for ym = 1:length(S.prep.calc.eeg.PLS_Y{1}) % for each Y model
+        if strcmp(Sf.PCAmethod,'PLS') || strcmp(Sf.PCAmethod,'CCA')
+            for ym = 1:length(S.prep.calc.eeg.Y) % for each Y model
                 % find columns with relevant predictors
-                col_idx=contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.eeg.PLS_Y{ym});
+                col_idx=contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.eeg.Y{ym});
                 col_names{ym} = D(d).prep.dtab.Properties.VariableNames(col_idx);
                 
                 for nc = 1:length(col_names{ym})

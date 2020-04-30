@@ -156,7 +156,11 @@ for pt = 1:length(S.type)
         sz=size(O(o).scores);
         O(o).scores_avg = squeeze(mean(reshape(O(o).scores,sz(1),nreps,obsdim,sz(3)),2));
         if ~isempty(varargout)
-            O(o).PLS = varargout{1};
+            if strcmp(S.PCAmethod,'PLS')
+                O(o).PLS = varargout{1};
+            elseif strcmp(S.PCAmethod,'CCA')
+                O(o).CCA = varargout{1};
+            end
         end
         
         if S.CCA
@@ -167,12 +171,14 @@ for pt = 1:length(S.type)
             % cross-validated r
             reg=1; r= [0:0.05:1];
             CV_fold=5;
-            CVsample = randsample(CV_fold,size(O(o).scores,2),true);
+%             CVsample = randsample(CV_fold,size(O(o).scores,2),true);
+%             CVsample = crossvalind('Kfold',size(O(o).scores,2),CV_fold);
+            CVsample = cvpartition(size(O(o).scores,2),'KFold',CV_fold);
             for ri = 1:length(r) 
                 disp(['CCA CV: shrinkage: ' num2str(ri) '/' num2str(length(r))])
                 for cv = 1:CV_fold
-                    CVdata_train = O(o).scores(:,CVsample~=cv,:);
-                    CVdata_test = O(o).scores(:,CVsample==cv,:);
+                    CVdata_train = O(o).scores(:,training(CVsample,cv),:);
+                    CVdata_test = O(o).scores(:,test(CVsample,cv),:);
                     [CV_W,~] = mccas(CVdata_train,NUM_FAC(2),reg,r(ri),O(o).W,S);
                     [~,CV_mdata_test] = mccas(CVdata_test,NUM_FAC(2),reg,r(ri),O(o).W,S);
                     % recontructed PCs
@@ -554,27 +560,100 @@ end
 D.prep.dim = newdim;
 
 if ~isempty(Y)
+    
+    % reconstruct Y variables from CCA/PLS/PCA components.
+    % currently assumes Y underwent PCA prior to PLS.
+    % also assume 'both' option (temporal* spatial).
+    if strcmp(S.PCAmethod,'PLS')
+        
+        % PCA variables
+        YCOEFF_PCA = D.prep.PCA(1).O(1).PLS.YCOEFF_PCA; % (PC x Y) 
+        % PLS variables
+        YCOEFF = D.prep.PCA(1).O(1).PLS.YCOEFF; % (PC x PLS)
+        % CCA variables
+        CCA_COEFF = D.prep.PCA(1).O(1).W; % CCA weights/coeffs
+        
+        % reconstruct
+        for u=1:length(U)
+            subCCA = grpdata(iU==u,:);
+            Yrecon{u} = subCCA * CCA_COEFF(:,:,u) * YCOEFF{u}' * YCOEFF_PCA{u}';
+            allYrecon(iU==u,:) = Yrecon{u};
+        end
+        
+        % store outputs
+        D.prep.PCA(1).O(1).PLS.Yrecon = Yrecon;
+        ym = D.prep.PCA(1).O(1).PLS.Ymodel;
+        D.prep.PCA(1).O(1).PLS.Ynames = Ynames{ym};
+        
+        % cross-correlation heat map of recon Y vs. Y
+        f=figure;
+        corrmat=corr(Y{ym},allYrecon);
+        imagesc(corrmat); % Display correlation matrix as an image
+        set(gca, 'XTick', 1:size(allYrecon,2)); % center x-axis ticks on bins
+        set(gca, 'YTick', 1:size(Y{ym},2)); % center y-axis ticks on bins
+        set(gca, 'XTickLabel', Ynames{ym}); % set x-axis labels
+        set(gca, 'YTickLabel', Ynames{ym}); % set y-axis labels
+        xlabel('reconstructed Y variables')
+        ylabel('predicted Y variables')
+        title('Cross-correlation matrix: recon Y vs. Y', 'FontSize', 10); % set title
+        colormap('jet'); % Choose jet or any other color scheme
+        colorbar 
+        caxis([-max(abs(corrmat(:))),max(abs(corrmat(:)))])
+        
+    end
+    
     % cross-correlation heat map of PLS-CCA components vs. Y
+    f=figure;
+    corrmat=corr(Y{ym},grpdata);
+    imagesc(corrmat); % Display correlation matrix as an image
+    set(gca, 'XTick', 1:size(grpdata,2)); % center x-axis ticks on bins
+    set(gca, 'YTick', 1:size(Y{ym},2)); % center y-axis ticks on bins
+%     set(gca, 'XTickLabel', varname); % set x-axis labels
+    set(gca, 'YTickLabel', Ynames{ym}); % set y-axis labels
+    xlabel('PLS/CCA components')
+    ylabel('predicted Y variables')
+    title('Cross-correlation matrix: PLS components vs. Y', 'FontSize', 10); % set title
+    colormap('jet'); % Choose jet or any other color scheme
+    colorbar 
+    caxis([-max(abs(corrmat(:))),max(abs(corrmat(:)))])
+    
+     % cross-correlation between Y components
     f=figure;
     rs = floor(sqrt(length(Y)));
     cs = ceil(length(Y)/rs);
     for ym = 1:length(Y)
         subplot(rs,cs,ym)
-        corrmat=corr(Y{ym},grpdata);
+        corrmat=corr(Y{ym});
         imagesc(corrmat); % Display correlation matrix as an image
-        set(gca, 'XTick', 1:size(grpdata,2)); % center x-axis ticks on bins
+        set(gca, 'XTick', 1:size(Y{ym},2)); % center x-axis ticks on bins
         set(gca, 'YTick', 1:size(Y{ym},2)); % center y-axis ticks on bins
-    %     set(gca, 'XTickLabel', varname); % set x-axis labels
+        set(gca, 'XTickLabel', Ynames{ym}); % set x-axis labels
         set(gca, 'YTickLabel', Ynames{ym}); % set y-axis labels
-        xlabel('PLS/CCA components')
-        ylabel('predicted Y variables')
-        title('Cross-correlation matrix: PLS components vs. Y', 'FontSize', 10); % set title
+        xlabel('PLS Y variables')
+        ylabel('PLS Y variables')
+        title('Cross-correlation matrix: PLS Y variables', 'FontSize', 10); % set title
         colormap('jet'); % Choose jet or any other color scheme
         colorbar 
+        caxis([-max(abs(corrmat(:))),max(abs(corrmat(:)))])
     end
+    
+    % cross-correlation heat map of PLS-CCA components
+    f=figure;
+    corrmat=corr(grpdata);
+    imagesc(corrmat); % Display correlation matrix as an image
+    set(gca, 'XTick', 1:size(grpdata,2)); % center x-axis ticks on bins
+    set(gca, 'YTick', 1:size(grpdata,2)); % center y-axis ticks on bins
+%         set(gca, 'XTickLabel', varname); % set x-axis labels
+%         set(gca, 'YTickLabel', varname); % set y-axis labels
+    xlabel('PLS/CCA components')
+    ylabel('PLS/CCA components')
+    title('Cross-correlation matrix: PLS components', 'FontSize', 10); % set title
+    colormap('jet'); % Choose jet or any other color scheme
+    colorbar 
+    caxis([-max(abs(corrmat(:))),max(abs(corrmat(:)))])
 end
 
-function [COEFF,W,PCdata,mu,sigma,NUM_FAC,PLS_Y] = perform_PCA(dataAll,NUM_FAC,S,rep,nobs,Y)
+function [COEFF,W,PCdata,mu,sigma,NUM_FAC,out_Y] = perform_PCA(dataAll,NUM_FAC,S,rep,nobs,Y)
 % feed in index of 2nd dimension (trials or time)
                
 TEMP_FAC=repmat(size(dataAll{1},2),1,2);
@@ -597,7 +676,7 @@ for i = 1:length(dataAll)
     cdata{i} = tmpscore - repmat(mu{i},size(tmpscore,1),1);
 end
 
-PLS_Y=[];
+out_Y=[];
 % apply MCCA
 switch S.PCAmethod
 
@@ -682,6 +761,28 @@ switch S.PCAmethod
         end
     case 'PLS'
         for ym = 1:length(Y) % for each Y model
+            
+            %if rank(Y{ym}{1})~= size(Y{ym}{1},2)
+                % PCA of Y
+                nfac=[];
+                ncomp=size(Y{ym}{i},2);
+                for i = 1:length(Y{ym})
+                    [~,~,~,~,explained] = pca(Y{ym}{i},'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+                    [~,~,~,~,explainedrand] = pca(randn(size(Y{ym}{i})),'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+                    nfac_temp = find(explained<explainedrand);
+                    nfac(i) = nfac_temp(1)-1;
+                end
+                % take median nfac
+                ncomp = floor(median(nfac));
+                for i = 1:length(Y{ym})
+                    [YCOEFFPCA{ym}{i}, YscorePCA{ym}{i}] = pca(Y{ym}{i},'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+%                     YCOEFFPCA{ym}{i} = YCOEFFPCA{ym}{i};
+%                     YW(:,:,i) = YCOEFFPCA{i}';
+                    Y{ym}{i} = YscorePCA{ym}{i};
+                end
+            %end
+            
+            clear explained explainedrand
             for i = 1:length(cdata)
                 [~,~,~,~,BETA{ym}{i},explained{ym}(:,:,i),MSE{ym}(:,:,i)] = plsregress(cdata{i},Y{ym}{i},NUM_FAC(1),'cv',5);
 
@@ -725,11 +826,13 @@ switch S.PCAmethod
         end
         
         % select model based on minimum MSE
-        MSEym = mean(MSE{ym}(2,grp_nfac{ym},:),3); 
+        for ym = 1:length(Y) % for each Y model
+            MSEym(ym) = mean(MSE{ym}(2,grp_nfac{ym},:),3)/size(Y{ym}{1},2); 
+        end
         [minMSE, minidx] = min(MSEym);
         figure; hold on
-                plot(1:length(MSEym),MSEym); xlabel('model'), ylabel('mean MSE'); %gcaExpandable;
-                plot([minidx,minidx],[0 minMSE],'k'); 
+                plot(1:length(MSEym),MSEym); xlabel('model'), ylabel('mean MSE per variable'); %gcaExpandable;
+                scatter(minidx,minMSE,'k'); 
         
         % take grp nfac
         NUM_FAC(1) = grp_nfac{minidx};
@@ -738,19 +841,201 @@ switch S.PCAmethod
             COEFF{i} = XCOEFF;
             W(:,:,i) = COEFF{i}';
             score{i} = Xscore;
-            PLS_Y.YCOEFF{i}=YCOEFF;
-            PLS_Y.Yscore{i}=Yscore;
-            PLS_Y.BETA{i}=BETA{i};
-            PLS_Y.MSE{i}=MSE{minidx}(:,:,i);
-            PLS_Y.W{i}=stats.W;
-            PLS_Y.Yfitted{i} = [ones(size(cdata{i},1),1) cdata{i}]*BETA{i};
+            out_Y.YCOEFF{i}=YCOEFF;
+            out_Y.Yscore{i}=Yscore;
+            out_Y.BETA{i}=BETA{i};
+            out_Y.MSE{i}=MSE{minidx}(:,:,i);
+            out_Y.W{i}=stats.W;
+            out_Y.Yfitted{i} = [ones(size(cdata{i},1),1) cdata{i}]*BETA{i};
         end
+        out_Y.Ymodel=minidx;
+        if exist('YCOEFFPCA','var')
+            out_Y.YCOEFF_PCA=YCOEFFPCA{minidx};
+            out_Y.Yscore_PCA=YscorePCA{minidx};
+        end
+        out_Y.grp_nfac = grp_nfac;
         figure('name',['PLS fitted responses: first ' num2str(NUM_FAC(1)) ' components'])
         for i = 1:length(cdata)
-            subplot(nr,nr,i); plot(Y{minidx}{i},PLS_Y.Yfitted{i},'bo');
+            subplot(nr,nr,i); plot(Y{minidx}{i},out_Y.Yfitted{i},'bo');
                 xlabel('Observed Response');
                 ylabel('Fitted Response');
         end
+    case 'CCA'
+        
+        ncomp=inf;
+        PCA=1;
+        if PCA
+            disp('CCA per subject: PCA on EEG')
+            % PCA of X
+            nfac=[];
+            for i = 1:length(cdata)
+                [COEFF{i}, score{i},~,~,explained] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
+                [COEFFrand{i}, scorerand{i},~,~,explainedrand] = pca(randn(size(cdata{i})),'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
+                nfac_temp = find(explained<explainedrand);
+                nfac(i) = min(NUM_FAC(1),nfac_temp(1)-1);
+            end
+            % take median nfac
+            NUM_FAC(1) = floor(median(nfac));
+            for i = 1:length(cdata)
+                [XCOEFF{i}, Xscore{i}] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
+                XCOEFF{i} = XCOEFF{i}(:,1:NUM_FAC(1));
+                XW(:,:,i) = XCOEFF{i}(:,1:NUM_FAC(1))';
+                Xscore{i} = Xscore{i}(:,1:NUM_FAC(1));
+            end
+        else
+            Yscore = Y;
+            Xscore = cdata;
+        end
+        
+        disp('CCA per subject: PCA on Y and CCA')
+        for ym = 1:length(Y) % for each Y model
+            clear COEFF score COEFFrand scorerand YCOEFF
+            
+            if PCA
+                % PCA of Y
+                nfac=[];
+                ncomp=size(Y{ym}{i},2);
+                for i = 1:length(Y{ym})
+                    [COEFF{i}, score{i},~,~,explained] = pca(Y{ym}{i},'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+                    [COEFFrand{i}, scorerand{i},~,~,explainedrand] = pca(randn(size(Y{ym}{i})),'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+                    nfac_temp = find(explained<explainedrand);
+                    nfac(i) = nfac_temp(1);
+                end
+                % take median nfac
+                ncomp = floor(median(nfac));
+                for i = 1:length(Y{ym})
+                    [YCOEFF{i}, Yscore{ym}{i}] = pca(Y{ym}{i},'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+                    YCOEFF{i} = YCOEFF{i};
+                    %YW(:,:,i) = YCOEFF{i}';
+                end
+            end
+            
+%             if 0
+%                 % CCA step: CV on ncomp using Matlab CCA function
+%                 for i = 1:length(cdata)
+% 
+%                     % cross-validate predictions of Yscore and Xscore
+%                     CV_fold=5;
+%                     CVsample = cvpartition(size(Y{ym}{i},1),'KFold',CV_fold);
+%                     for cv = 1:CV_fold
+%                         trainidx=training(CVsample,cv);
+%                         testidx=test(CVsample,cv);
+% 
+%                         % mean centre X and Y first?
+%                         [Atrain,Btrain,] = canoncorr(Xscore{i}(trainidx,:),Yscore{ym}{i}(trainidx,:));
+%                         [Atest,Btest,~,Utest,Vtest,~] = canoncorr(Xscore{i}(testidx,:),Yscore{ym}{i}(testidx,:));
+% 
+%                         ncomp = size(Atrain,2);
+%                         for nc = 1:ncomp
+%                             Xpred = Utest(:,1:nc)*pinv(Atrain(:,1:nc));
+%                             Ypred = Vtest(:,1:nc)*pinv(Btrain(:,1:nc));
+%                             RMSECV{ym}(1,cv,nc)=sqrt(mean(bsxfun(@minus,Xscore{i}(testidx,:),Xpred).^2,'all'));
+%                             RMSECV{ym}(2,cv,nc)=sqrt(mean(bsxfun(@minus,Yscore{ym}{i}(testidx,:),Ypred).^2,'all'));
+%                         end
+%                     end
+%                     [minX,minXi] = min(mean(RMSECV{ym}(1,:,:),2));
+%                     [minY,minYi] = min(mean(RMSECV{ym}(2,:,:),2));
+% 
+%                 end
+%                 grp_nfac{ym} = minYi;
+%                 
+%                 figure('name',['CCA MSE: Model ' num2str(ym)])
+%                 subplot(2,2,1); hold on
+%                     plot(1:ncomp,squeeze(mean(RMSECV{ym}(1,:,:),2))); xlabel('n comp'), ylabel('X CV MSE'); %gcaExpandable;
+%     %                 plot([minXi,minXi],[0 max(squeeze(mean(RMSECV{ym}(1,:,:),2)))],'k'); 
+%                 subplot(2,2,2); hold on
+%                     plot(1:ncomp,squeeze(mean(RMSECV{ym}(2,:,:),2))); xlabel('n comp'), ylabel('Y CV MSE'); %gcaExpandable;
+%     %                 plot([grp_nfac{ym},grp_nfac{ym}],[0 max(squeeze(mean(RMSECV{ym}(2,:,:),2)))],'k'); 
+%     
+%     
+%                 % select model based on minimum MSE
+%                 for ym = 1:length(Y) % for each Y model
+%                     MSEym(ym) = squeeze(mean(RMSECV{ym}(2,:,grp_nfac{minYi}),2))/size(Yscore{ym}{1},2); 
+%                 end
+%                 [minMSE, minidx] = min(MSEym);
+%                 figure; hold on
+%                         plot(1:length(MSEym),MSEym); xlabel('model'), ylabel('mean MSE per variable'); %gcaExpandable;
+%                         scatter(minidx,minMSE,'k'); 
+% 
+%                 % take grp nfac
+%                 NUM_FAC(1) = grp_nfac{minidx};
+%                 for i = 1:length(cdata)
+%                     [Atrain,Btrain,~,Ascore,Bscore] = canoncorr(Xscore{i},Yscore{minidx}{i});
+%                     COEFF{i} = Atrain(:,1:NUM_FAC(1));
+%                     W(:,:,i) = COEFF{i}';
+%                     score{i} = Ascore(:,1:NUM_FAC(1));
+%                     out_Y.YCOEFF{i}=Btrain(:,1:NUM_FAC(1));
+%                     out_Y.Yscore{i}=Bscore(:,1:NUM_FAC(1));
+%                     out_Y.MSE{i}=MSEym(minidx);
+%                 end
+%                 out_Y.grp_nfac = grp_nfac;
+%             end
+            
+            ncomp=min(NUM_FAC(1),ncomp);
+            % CCA step: CV on ncomp using Matlab CCA function
+            for i = 1:length(cdata)
+                
+                % cross-validate predictions of Yscore and Xscore
+                CV_fold=5;
+                CVsample = cvpartition(size(Y{ym}{i},1),'KFold',CV_fold);
+                
+                reg=1; r= [0:0.05:1];
+                for ri = 1:length(r) 
+                    for cv = 1:CV_fold
+                        trainidx=training(CVsample,cv);
+                        testidx=test(CVsample,cv);
+
+                        [~,~, CV_Xweights,CV_Yweights] = dccas(Xscore{i}(trainidx,:)',Yscore{ym}{i}(trainidx,:)',...
+                            ncomp,reg,r(ri),S);
+                        [CV_mdataX,CV_mdataY,~,~] = dccas(Xscore{i}(testidx,:)',Yscore{ym}{i}(testidx,:)',...
+                            ncomp,reg,r(ri),S);
+
+                        for nc = 1:size(CV_mdataX,1) % for each component
+                            Xpred = CV_mdataX(1:nc,:)'*pinv(CV_Xweights(:,1:nc));
+                            Ypred = CV_mdataY(1:nc,:)'*pinv(CV_Yweights(:,1:nc));
+                            RMSECV{ym}(ri,nc,cv,1,i)=sqrt(mean(bsxfun(@minus,Xscore{i}(testidx,:),Xpred).^2,'all'));
+                            RMSECV{ym}(ri,nc,cv,2,i)=sqrt(mean(bsxfun(@minus,Yscore{ym}{i}(testidx,:),Ypred).^2,'all'));
+                        end
+                    end
+                end
+            end
+            % which regularisation parameter?
+            [~,minRix{ym}] = min(mean(RMSECV{ym},[2 3 4 5]));
+            minRi{ym}=r(minRix{ym});
+            % which number of components?
+            [~,minYi{ym}] = min(squeeze(mean(RMSECV{ym}(minRix{ym},:,:,2,:),[3 5])));
+            grp_nfac{ym} = minYi{ym};
+
+        end
+        
+        % select model based on minimum MSE
+        for ym = 1:length(Y) % for each Y model
+            MSEym(ym) = squeeze(mean(RMSECV{ym}(minRix{ym},grp_nfac{ym},:,:,:),[3 4 5]))/size(Yscore{ym}{1},2); 
+            MSEym_var(ym) = squeeze(mean(RMSECV{ym}(minRix{ym},grp_nfac{ym},:,:,:),[3 4 5])); 
+        end
+        [minMSE, minidx] = min(MSEym);
+        figure; hold on
+                yyaxis left
+                plot(1:length(MSEym),MSEym); xlabel('model'), ylabel('mean MSE per variable'); %gcaExpandable;
+                scatter(minidx,minMSE,'k'); 
+                yyaxis right
+                plot(1:length(MSEym_var),MSEym_var); xlabel('model'), ylabel('mean MSE'); %gcaExpandable;
+        
+        % take grp nfac
+        ncomp = grp_nfac{minidx};
+        NUM_FAC(1) = ncomp;
+        for i = 1:length(cdata)
+            [mdataX,mdataY,Xweights,Yweights] = dccas(Xscore{i}',Yscore{minidx}{i}',...
+                            ncomp,reg,minRi{minidx},S);
+%             [Atrain,Btrain,~,Ascore,Bscore] = canoncorr(Xscore{i},Yscore{minidx}{i});
+            COEFF{i} = Xweights(:,1:NUM_FAC(1));
+            W(:,:,i) = COEFF{i}';
+            score{i} = mdataX';
+            out_Y.YCOEFF{i}=Yweights(:,1:NUM_FAC(1));
+            out_Y.Yscore{i}=mdataY';
+            out_Y.MSE{i}=MSEym(minidx);
+        end
+        out_Y.grp_nfac = ncomp;
 end
 % obtain subject-specific PCs
 PCdata = nan(NUM_FAC(1),nobs);
@@ -774,7 +1059,7 @@ function [W, mdata, mWeights] = mccas(data,K,reg,r,weights,Sx)
 %  Alignment of MEG Datasets at the Neural Representational Space. 
 
 %% INPUT
-% data - input training data to CCA (samples * sensors * subjects)
+% data - input training data to CCA (samples * sensors * subjects), or (samples * PCcomponents * datasets)
 % K - number of CCAs to retain
 % reg - add regularization (1) or not (0)
 % r - degree of regularization added
@@ -796,7 +1081,7 @@ if(K>dim)
 end
 temp=[];
 for i=1:sub
-    temp=[temp;data(:,:,i)];
+    temp=[temp;data(:,:,i)]; % concatenate components
 end
 R=cov(temp.','partialrows'); % cab: added partialrows to allow missing data (nan)
 S = zeros(size(R));
@@ -864,6 +1149,87 @@ if(reg==1)
         mWeights(:,:,i) = W(:,:,i)'*weights(:,:,i);
     end
 end
+
+
+function [mdataX, mdataY, Xweights,Yweights] = dccas(X,Y,K,reg,r,Sx)
+%% regularized-dual CCA
+
+%% INPUT
+% X,Y - input training data to CCA
+% K - number of CCAs to retain
+% reg - add regularization (1) or not (0)
+% r - degree of regularization added
+% weights - PCA weight maps for each subject
+
+%% OUTPUT
+% W - CCA weights that transform PCAs to CCAs for each subject (PCAs * CCAs * subjects)
+% mdata - transformed averaged data (CCAs * sapmles * subjects)
+% mWeights - projection weights from sensor to CCAs (CCAs * sensors * subjects)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+dimX = size(X,1);
+dimY = size(Y,1);
+if K>min(dimX,dimY)
+    K = min(dimX,dimY);
+end
+% temp=[];
+% for i=1:sub
+%     temp=[temp;data(:,:,i)];
+% end
+XY = [X;Y]; % concatenate components
+R=cov(XY','partialrows'); % cab: added partialrows to allow missing data (nan)
+S = zeros(size(R));
+% for i = 1:dim*sub % subjects*components
+%     tmp = ceil(i/dim); % 
+%     S((tmp-1)*dim+1:tmp*dim,i) = R((tmp-1)*dim+1:tmp*dim,i); % x: all samples for the subject; y: sample index
+% end
+S(1:dimX,1:dimX)=R(1:dimX,1:dimX);
+S(dimX+1:dimX+dimY,dimX+1:dimX+dimY)=R(dimX+1:dimX+dimY,dimX+1:dimX+dimY);
+
+% add regularization 
+if(reg==1)
+    R = R + r*eye(length(R));
+    S = S + r*eye(length(S));
+end
+
+% obtain CCA solutions 
+[tempW,values]=eigs((R-S),S,K);
+
+if Sx.normalise_cca_weights 
+    Xweights=tempW(1:dimX,:)./norm(tempW(1:dimX,:));
+    Yweights=tempW(dimX+1:dimX+dimY,:)./norm(tempW(dimX+1:dimX+dimY,:));
+else
+    Xweights=tempW(1:dimX,:);
+    Yweights=tempW(dimX+1:dimX+dimY,:);
+end
+
+% projected data
+nandatX=isnan(X);
+X_nonan = X;
+if any(nandatX,'all')
+    X_nonan(nandatX)=[];
+    X_nonan = reshape(X_nonan,size(X,1),[]);
+end
+mdataXtemp = Xweights'*X_nonan;
+
+nandatY=isnan(Y);
+Y_nonan = Y;
+if any(nandatY,'all')
+    Y_nonan(nandatY)=[];
+    Y_nonan = reshape(Y_nonan,size(Y,1),[]);
+end
+mdataYtemp = Yweights'*Y_nonan;
+    
+for j = 1:K
+    if Sx.normalise_cca_weights
+        mdataXtemp(j,:) = mdataXtemp(j,:)/norm(mdataXtemp(j,:));
+        mdataYtemp(j,:) = mdataYtemp(j,:)/norm(mdataYtemp(j,:));
+    end
+end
+mdataX=nan(K,size(X,2));
+mdataY=nan(K,size(Y,2));
+mdataX(:,~any(nandatX,1)) = mdataXtemp;
+mdataY(:,~any(nandatY,1)) = mdataYtemp;
+
 
 function gcaExpandable
 
