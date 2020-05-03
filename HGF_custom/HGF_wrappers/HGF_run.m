@@ -34,11 +34,11 @@ else
     yn = 1;
 end
 
-checkp = gcp('nocreate')
 if ~isfield(S,'parallel')
     S.parallel = 0;
 end
 if S.parallel
+    checkp = gcp('nocreate');
     if isempty(checkp)
         myPool = parpool;
     end

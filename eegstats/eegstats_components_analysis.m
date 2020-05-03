@@ -565,7 +565,8 @@ if ~isempty(Y)
     % currently assumes Y underwent PCA prior to PLS.
     % also assume 'both' option (temporal* spatial).
     if strcmp(S.PCAmethod,'PLS')
-        
+        % model
+        ym = D.prep.PCA(1).O(1).PLS.Ymodel;
         % PCA variables
         YCOEFF_PCA = D.prep.PCA(1).O(1).PLS.YCOEFF_PCA; % (PC x Y) 
         % PLS variables
@@ -577,12 +578,17 @@ if ~isempty(Y)
         for u=1:length(U)
             subCCA = grpdata(iU==u,:);
             Yrecon{u} = subCCA * CCA_COEFF(:,:,u) * YCOEFF{u}' * YCOEFF_PCA{u}';
+            
+            % rescale to original variables
+            [~,mu,sa] = zscore(Ydat{ym}{u});
+            Yrecon{u} = bsxfun(@times,bsxfun(@plus,zscore(Yrecon{u}),mu),sa);
+            
+            % store
             allYrecon(iU==u,:) = Yrecon{u};
         end
         
         % store outputs
         D.prep.PCA(1).O(1).PLS.Yrecon = Yrecon;
-        ym = D.prep.PCA(1).O(1).PLS.Ymodel;
         D.prep.PCA(1).O(1).PLS.Ynames = Ynames{ym};
         
         % cross-correlation heat map of recon Y vs. Y
@@ -674,7 +680,15 @@ for i = 1:length(dataAll)
     tmpscore = squeeze(dataAll{i});
     mu{i} = mean(tmpscore);
     cdata{i} = tmpscore - repmat(mu{i},size(tmpscore,1),1);
+    if ~isempty(Y)
+        for ym=1:length(Y)
+            Y{ym}{i} = zscore(Y{ym}{i});
+        end
+    end
 end
+
+% zscore Y
+
 
 out_Y=[];
 % apply MCCA
@@ -854,6 +868,7 @@ switch S.PCAmethod
             out_Y.Yscore_PCA=YscorePCA{minidx};
         end
         out_Y.grp_nfac = grp_nfac;
+        
         figure('name',['PLS fitted responses: first ' num2str(NUM_FAC(1)) ' components'])
         for i = 1:length(cdata)
             subplot(nr,nr,i); plot(Y{minidx}{i},out_Y.Yfitted{i},'bo');

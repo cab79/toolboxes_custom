@@ -316,7 +316,6 @@ if any(strcmp(r.c_obs.responses, 'HGFvar'))
                 sa2(r.irr) = [];
                 sigmoid_mu2 = 1./(1+exp(-mu2)); % transform down to 1st level
                 inferv = sigmoid_mu2.*(1 -sigmoid_mu2).*sa2; 
-                inferv(r.irr) = [];
                 logresp = be03 +be3.*inferv;
             case 'HGF_PL_pv_1'
                 mu2 = r.traj.(r.c_obs.model).mu(:,2);
@@ -325,7 +324,6 @@ if any(strcmp(r.c_obs.responses, 'HGFvar'))
                 mu3(r.irr) = [];
                 sigmoid_mu2 = 1./(1+exp(-mu2)); % transform down to 1st level
                 pv = sigmoid_mu2.*(1-sigmoid_mu2).*exp(mu3); 
-                pv(r.irr) = [];
                 logresp = be04 +be4.*pv;
         end
         logp_reg(reg) = logp_reg(reg) + -1/2.*log(8*atan(1).*ze) -(yr(:,y)-logresp).^2./(2.*ze);

@@ -549,7 +549,13 @@ for d = 1:length(D)
         % PLS
         Y={};
         if strcmp(Sf.PCAmethod,'PLS') || strcmp(Sf.PCAmethod,'CCA')
+            
+            if S.prep.calc.pred.zscore
+                error('turn off z-scoring to properly rescale Y variables')
+            end
+            
             for ym = 1:length(S.prep.calc.eeg.Y) % for each Y model
+                
                 % find columns with relevant predictors
                 col_idx=contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.eeg.Y{ym});
                 col_names{ym} = D(d).prep.dtab.Properties.VariableNames(col_idx);
