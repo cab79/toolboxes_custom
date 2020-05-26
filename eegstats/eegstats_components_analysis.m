@@ -1,4 +1,4 @@
-function [D,grpdata]=eegstats_components_analysis(D,grpdata,S,varargin)
+function [D]=eegstats_components_analysis(D,S,varargin)
 %- select temporal, spatial, both
 %- select PCA/CCA method
 
@@ -29,7 +29,8 @@ end
 
 %%
 [U,~,iU]=unique(D.prep.dtab.ID,'stable');
-origgrpdata=grpdata;
+origgrpdata=D.prep.grpdata{1};
+grpdata=origgrpdata;
 newdim = D.prep.dim;
 
 for pt = 1:length(S.type)
@@ -296,6 +297,7 @@ for pt = 1:length(S.type)
     if S.CCA
         D.prep.PCA(pt).CCA = CCAs;
     end
+    D.prep.grpdata=grpdata;
 
     % PLOT
     for o = 1:length(O)
@@ -579,17 +581,26 @@ if ~isempty(Y)
             subCCA = grpdata(iU==u,:);
             Yrecon{u} = subCCA * CCA_COEFF(:,:,u) * YCOEFF{u}' * YCOEFF_PCA{u}';
             
-            % rescale to original variables
-            [~,mu,sa] = zscore(Ydat{ym}{u});
-            Yrecon{u} = bsxfun(@times,bsxfun(@plus,zscore(Yrecon{u}),mu),sa);
-            
             % store
             allYrecon(iU==u,:) = Yrecon{u};
+            allY(iU==u,:) = Ydat{ym}{u};
+        end
+            
+        % rescale to original variables over all participants to conserve
+        % relative individual differences
+        [~,mu,sa] = zscore(allY);
+        allYrecon = bsxfun(@plus,bsxfun(@times,zscore(allYrecon),sa),mu);
+        
+        for u=1:length(U)
+            Yrecon{u} = allYrecon(iU==u,:);
         end
         
         % store outputs
         D.prep.PCA(1).O(1).PLS.Yrecon = Yrecon;
         D.prep.PCA(1).O(1).PLS.Ynames = Ynames{ym};
+        if S.prep.calc.eeg.Y_use4output
+            D.prep.grpdata=allYrecon;
+        end
         
         % cross-correlation heat map of recon Y vs. Y
         f=figure;

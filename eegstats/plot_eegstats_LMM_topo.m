@@ -44,6 +44,7 @@ if S.plot_erp || S.plot_input
         input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
         input_scaled_chanavg = mean(input_scaled_mat,3);
         erp = topotime_3D(input_scaled_chanavg,S);
+        save(fullfile(S.path.stats_load,'grand_avg_ERP_rescaled.mat'),'erp');
         clear input_scaled input_scaled_mat input_scaled_chanavg
     end
     clear samples Ddtab dtab

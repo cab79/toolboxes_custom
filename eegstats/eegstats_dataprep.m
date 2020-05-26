@@ -322,7 +322,7 @@ for d = 1:length(subjects)
         
     %% reshape data into samples and combine over subjects
     D(d).prep.dim = size(data);
-    grpdata{d}=reshape(data,[],n_trials)';
+    D(d).prep.data=reshape(data,[],n_trials)';
     clear data % to free memory
 
     %% separate EEG/predictor data into training and testing fractions, only for testing decoders
@@ -388,9 +388,11 @@ switch S.prep.output.format
         dim=D(1).prep.dim;
         prep.dtab=D(1).prep.dtab;
         prep.tnums{1} = D(1).prep.tnums;
+        prep.grpdata{1} = D(1).prep.data;
         for d = 2:length(D)
             prep.dtab = vertcat(prep.dtab,D(d).prep.dtab);
             prep.tnums{d} = D(d).prep.tnums;
+            prep.grpdata{d} = D(d).prep.data;
         end
         dim(3)=height(prep.dtab);
         D=struct;
@@ -400,9 +402,10 @@ switch S.prep.output.format
         
         
         % vertically concatenate EEG data over subjects
-        temp=grpdata;
-        grpdata={};
-        grpdata{1}= vertcat(temp{:}); 
+        temp=prep.grpdata;
+        D.prep = rmfield(D.prep,'grpdata');
+        D.prep.grpdata{1} = vertcat(temp{:}); 
+        clear grpdata temp
     case 'subject'
         % clean up D
         E=struct;
@@ -566,35 +569,38 @@ for d = 1:length(D)
             end
         end
         % RUN function
-        [D(d),grpdata{d}]=eegstats_components_analysis(D(d),grpdata{d},Sf,{Y,col_names});
-        % PLS outputs
-%         if strcmp(Sf.PCAmethod,'PLS')
-%             D(d).prep.PCA.O.PLS
-%             for k = 1:K
-%                 disp(['adding component M' num2str(K) 'PC' num2str(k)])
-%                 pcname=['M' num2str(K) 'PC' num2str(k)];
-%                 dtab_PCA.(pcname) = out(K).scores(:,k);
-%                 Btable.(pcname) = out(K).B(:,k);
-%             end
-%             D(d).prep.pca{K}=Btable;
-%         end
+        if S.prep.calc.eeg.Y_select % select a model and output than single model
+            [D(d)]=eegstats_components_analysis(D(d),Sf,{Y,col_names});
+        else % output all models
+            D_orig=D;
+            for ym = 1:length(S.prep.calc.eeg.Y)
+                [Dtemp]=eegstats_components_analysis(D_orig(d),Sf,{Y(ym),col_names(ym)});
+                D(d).prep(ym) = D(d).prep(1);
+                D(d).prep(ym).grpdata=Dtemp.prep.grpdata;
+                D(d).prep(ym).PCA=Dtemp.prep.PCA;
+                D(d).prep(ym).dim=Dtemp.prep.dim;
+                close all
+            end
+            clear Dtemp D_orig
+        end
         
     end
-    
     % FOR EVERY SAMPLE OVER ALL SUBJECTS:
-    for s = 1:size(grpdata{d},2)
-        % duplicate dtab over data samples
-%         D(d).prep.Y(s).dtab = D(d).prep.dtab;
-        D(d).prep.Y(s).dtab=table;
-        
-        % add EEG after z-scoring over trials (unit variance) so that statistical coefficients are normalised
-        if S.prep.calc.eeg.zscore
-            D(d).prep.Y(s).data_mean = nanmean(double(grpdata{d}(:,s)));
-            D(d).prep.Y(s).data_std = nanstd(double(grpdata{d}(:,s)));
-            D(d).prep.Y(s).dtab.data = (double(grpdata{d}(:,s)) - D(d).prep.Y(s).data_mean) / D(d).prep.Y(s).data_std;
-%             [D(d).prep.Y(s).dtab.data, D(d).prep.Y(s).data_mean, D(d).prep.Y(s).data_std] = zscore(double(grpdata{d}(:,s)));
-        else
-            D(d).prep.Y(s).dtab.data = double(grpdata{d}(:,s));
+    for ip = 1:length(D(d).prep)
+        for s = 1:size(D(d).prep(ip).grpdata,2)
+            % duplicate dtab over data samples
+    %         D(d).prep(ip).Y(s).dtab = D(d).prep(ip).dtab;
+            D(d).prep(ip).Y(s).dtab=table;
+
+            % add EEG after z-scoring over trials (unit variance) so that statistical coefficients are normalised
+            if S.prep.calc.eeg.zscore
+                D(d).prep(ip).Y(s).data_mean = nanmean(double(D(d).prep(ip).grpdata(:,s)));
+                D(d).prep(ip).Y(s).data_std = nanstd(double(D(d).prep(ip).grpdata(:,s)));
+                D(d).prep(ip).Y(s).dtab.data = (double(D(d).prep(ip).grpdata(:,s)) - D(d).prep(ip).Y(s).data_mean) / D(d).prep(ip).Y(s).data_std;
+    %             [D(d).prep(ip).Y(s).dtab.data, D(d).prep(ip).Y(s).data_mean, D(d).prep(ip).Y(s).data_std] = zscore(double(D.prep.grpdata(:,s)));
+            else
+                D(d).prep(ip).Y(s).dtab.data = double(D(d).prep(ip).grpdata(:,s));
+            end
         end
     end
     
@@ -603,6 +609,9 @@ end
 % save data to disk
 if S.prep.output.save
     disp('saving data to disk...')
+    if isfield(D.prep,'grpdata')
+        D.prep = rmfield(D.prep,'grpdata'); % save memory
+    end
     save(fullfile(S.prep.path.outputs,['eegstats_dtab' S.prep.sname '.mat']),'D','S','-v7.3')
     disp('...done')
 end

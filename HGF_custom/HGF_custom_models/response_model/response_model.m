@@ -309,6 +309,14 @@ if any(strcmp(r.c_obs.responses, 'HGFvar'))
                 sa1 = r.traj.(r.c_obs.model).sa(:,1);
                 sa1(r.irr) = [];
                 logresp = be02 +be2.*sa1;
+            case 'HGF_PL_sa_2'
+                sa2 = r.traj.(r.c_obs.model).sa(:,2);
+                sa2(r.irr) = [];
+                logresp = be02 +be2.*sa2;
+            case 'HGF_PL_sa_13'
+                sa3 = r.traj.(r.c_obs.model).sa(:,3);
+                sa3(r.irr) = [];
+                logresp = be02 +be2.*sa3;
             case 'HGF_PL_inferv_1'
                 mu2 = r.traj.(r.c_obs.model).mu(:,2);
                 mu2(r.irr) = [];
