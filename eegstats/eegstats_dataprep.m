@@ -535,23 +535,24 @@ for d = 1:length(D)
 %     end
 
     
-    if S.prep.calc.eeg.cca.on
+    if S.prep.calc.eeg.pca.on
         
         %% inputs for CCA
-        Sf.CCA = 1;
-        Sf.PCAmethod = S.prep.calc.eeg.cca.PCAmethod;
-        Sf.type = S.prep.calc.eeg.cca.type;
-        Sf.type_obs_sep = S.prep.calc.eeg.cca.type_sep; % analyse "observation" separately. E.g. if temporal PCA, apply separately to each spatial channel?
-        Sf.type_numfac = S.prep.calc.eeg.cca.numfac; % max number of factors
-        Sf.data_in = S.prep.calc.eeg.cca.data_in; % type of data to analyse: trials or averaged conditions
-        Sf.centre_output = S.prep.calc.eeg.cca.centre;
-        Sf.standardise_output = S.prep.calc.eeg.cca.standardise;
-        Sf.maxGig = S.prep.calc.eeg.cca.maxGig;
+        Sf.PCAmethod = S.prep.calc.eeg.pca.PCAmethod;
+        Sf.type = S.prep.calc.eeg.pca.type;
+        Sf.type_obs_sep = S.prep.calc.eeg.pca.type_sep; % analyse "observation" separately. E.g. if temporal PCA, apply separately to each spatial channel?
+        Sf.type_numfac = S.prep.calc.eeg.pca.numfac; % max number of factors
+        Sf.data_in = S.prep.calc.eeg.pca.data_in; % type of data to analyse: trials or averaged conditions
+        Sf.centre_output = S.prep.calc.eeg.pca.centre;
+        Sf.standardise_output = S.prep.calc.eeg.pca.standardise;
+        Sf.maxGig = S.prep.calc.eeg.pca.maxGig;
         Sf.normalise_cca_weights = S.prep.calc.eeg.cca.normalise_weights;
         Sf.img=S.img;
+        Sf.Y_use4output = S.prep.calc.eeg.Y_use4output;
+        Sf.select_ncomp = S.prep.calc.eeg.pca.select_ncomp;
         % PLS
         Y={};
-        if strcmp(Sf.PCAmethod,'PLS') || strcmp(Sf.PCAmethod,'CCA')
+        if any(strcmp(Sf.PCAmethod,'PLS')) || any(strcmp(Sf.PCAmethod,'CCA'))
             
             if S.prep.calc.pred.zscore
                 error('turn off z-scoring to properly rescale Y variables')
@@ -569,7 +570,7 @@ for d = 1:length(D)
             end
         end
         % RUN function
-        if S.prep.calc.eeg.Y_select % select a model and output than single model
+        if S.prep.calc.eeg.Y_select % select a model and output that single model
             [D(d)]=eegstats_components_analysis(D(d),Sf,{Y,col_names});
         else % output all models
             D_orig=D;
@@ -580,10 +581,26 @@ for d = 1:length(D)
                 D(d).prep(ym).PCA=Dtemp.prep.PCA;
                 D(d).prep(ym).dim=Dtemp.prep.dim;
                 close all
+                mse_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.MSE{:}),3); 
+                msecv_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.MSE_CV{:}),3); 
+                pvar_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.explained{:}),3); 
+                mse_plot(ym,:) = mse_temp(:,end);
+                msecv_plot(ym,:) = msecv_temp(:,end);
+                pvar_plot(ym,:) = sum(pvar_temp,2);
             end
+            figure
+            subplot(2,3,1); bar(mse_plot(:,1)); title('X MSE per model')
+            subplot(2,3,2); bar(msecv_plot(:,1)); title('X CV MSE per model')
+            subplot(2,3,3); bar(pvar_plot(:,1)); title('X % var explained per model')
+            subplot(2,3,4); bar(mse_plot(:,2)); title('Y MSE per model')
+            subplot(2,3,5); bar(msecv_plot(:,2)); title('Y CV MSE per model')
+            subplot(2,3,6); bar(pvar_plot(:,2)); title('Y % var explained per model')
             clear Dtemp D_orig
         end
-        
+    else
+        for ip = 1:length(D(d).prep)
+            D(d).prep(ip).grpdata = D(d).prep(ip).grpdata{1};
+        end
     end
     % FOR EVERY SAMPLE OVER ALL SUBJECTS:
     for ip = 1:length(D(d).prep)

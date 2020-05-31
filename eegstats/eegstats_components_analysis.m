@@ -153,20 +153,20 @@ for pt = 1:length(S.type)
         end
         
         % PCA
-        [O(o).COEFF,O(o).W,O(o).scores,O(o).mu,O(o).sigma,NUM_FAC,varargout{1}] = perform_PCA(subdata{o},NUM_FAC,S,rep,nreps*obsdim,Ydat);
+        [O(o).COEFF,O(o).W,O(o).scores,O(o).mu,O(o).sigma,NUM_FAC,varargout{1}] = perform_PCA(S.PCAmethod{1},subdata{o},NUM_FAC,S,rep,nreps*obsdim,Ydat);
         sz=size(O(o).scores);
         O(o).scores_avg = squeeze(mean(reshape(O(o).scores,sz(1),nreps,obsdim,sz(3)),2));
         if ~isempty(varargout)
-            if strcmp(S.PCAmethod,'PLS')
+            if any(strcmp(S.PCAmethod{1},'PLS'))
                 O(o).PLS = varargout{1};
-            elseif strcmp(S.PCAmethod,'CCA')
+            elseif any(strcmp(S.PCAmethod{1},'CCA'))
                 O(o).CCA = varargout{1};
             end
         end
         
-        if S.CCA
+        NUM_FAC(2) = min(NUM_FAC(2),NUM_FAC(1)); % previously this was inside the next if statement, but caused a crash doign PLS on its own later
+        if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
             disp(['CCA: ' S.type{pt}])
-            NUM_FAC(2) = min(NUM_FAC(2),NUM_FAC(1));
             % CCA % https://onlinelibrary.wiley.com/doi/full/10.1002/hbm.23689
             
             % cross-validated r
@@ -254,7 +254,7 @@ for pt = 1:length(S.type)
 
         end
         
-        if S.CCA
+        if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
             CCAs{u} = [];
             for o = 1:length(O)
                 CCAs{u} = [CCAs{u}, O(o).PCAs{u}*O(o).W(:,:,u)];
@@ -294,14 +294,14 @@ for pt = 1:length(S.type)
     D.prep.PCA(pt).currdim = currdim;
     D.prep.PCA(pt).options = S;
     D.prep.PCA(pt).PCA = PCAs;
-    if S.CCA
+    if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
         D.prep.PCA(pt).CCA = CCAs;
     end
     D.prep.grpdata=grpdata;
 
     % PLOT
     for o = 1:length(O)
-        if S.CCA
+        if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
             plot_mdata{o}=O(o).mdata;
             plot_mdata_avg{o}=O(o).mdata_avg;
         else
@@ -566,7 +566,7 @@ if ~isempty(Y)
     % reconstruct Y variables from CCA/PLS/PCA components.
     % currently assumes Y underwent PCA prior to PLS.
     % also assume 'both' option (temporal* spatial).
-    if strcmp(S.PCAmethod,'PLS')
+    if any(strcmp(S.PCAmethod,'PLS'))
         % model
         ym = D.prep.PCA(1).O(1).PLS.Ymodel;
         % PCA variables
@@ -574,12 +574,18 @@ if ~isempty(Y)
         % PLS variables
         YCOEFF = D.prep.PCA(1).O(1).PLS.YCOEFF; % (PC x PLS)
         % CCA variables
-        CCA_COEFF = D.prep.PCA(1).O(1).W; % CCA weights/coeffs
+        if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
+            CCA_COEFF = D.prep.PCA(1).O(1).W; % CCA weights/coeffs
+        end
         
         % reconstruct
         for u=1:length(U)
-            subCCA = grpdata(iU==u,:);
-            Yrecon{u} = subCCA * CCA_COEFF(:,:,u) * YCOEFF{u}' * YCOEFF_PCA{u}';
+            subdat = grpdata(iU==u,:);
+            if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
+                Yrecon{u} = subdat * CCA_COEFF(:,:,u) * YCOEFF{u}' * YCOEFF_PCA{u}';
+            else
+                Yrecon{u} = subdat * YCOEFF{u}' * YCOEFF_PCA{u}';
+            end
             
             % store
             allYrecon(iU==u,:) = Yrecon{u};
@@ -598,8 +604,9 @@ if ~isempty(Y)
         % store outputs
         D.prep.PCA(1).O(1).PLS.Yrecon = Yrecon;
         D.prep.PCA(1).O(1).PLS.Ynames = Ynames{ym};
-        if S.prep.calc.eeg.Y_use4output
+        if S.Y_use4output
             D.prep.grpdata=allYrecon;
+            D.prep.dim(2) = size(allYrecon,2);
         end
         
         % cross-correlation heat map of recon Y vs. Y
@@ -670,7 +677,7 @@ if ~isempty(Y)
     caxis([-max(abs(corrmat(:))),max(abs(corrmat(:)))])
 end
 
-function [COEFF,W,PCdata,mu,sigma,NUM_FAC,out_Y] = perform_PCA(dataAll,NUM_FAC,S,rep,nobs,Y)
+function [COEFF,W,PCdata,mu,sigma,NUM_FAC,out_Y] = perform_PCA(PCAmethod,dataAll,NUM_FAC,S,rep,nobs,Y)
 % feed in index of 2nd dimension (trials or time)
                
 TEMP_FAC=repmat(size(dataAll{1},2),1,2);
@@ -703,7 +710,7 @@ end
 
 out_Y=[];
 % apply MCCA
-switch S.PCAmethod
+switch PCAmethod
 
     case 'FA'
         % find nfac for each subject
@@ -807,71 +814,237 @@ switch S.PCAmethod
                 end
             %end
             
-            clear explained explainedrand
-            for i = 1:length(cdata)
-                [~,~,~,~,BETA{ym}{i},explained{ym}(:,:,i),MSE{ym}(:,:,i)] = plsregress(cdata{i},Y{ym}{i},NUM_FAC(1),'cv',5);
+            if S.select_ncomp.boot
+                % find number of PLS components using bootstrapping
+                
+                nboot=S.select_ncomp.boot;
+                for i = 1:length(cdata)
+                    
+                    % original sample
+                    [~,Los,~,~,Wos] = plsregress(cdata{i},Y{ym}{i},NUM_FAC(1));
+                    
+                    % bootstrap
+                    [n,p]=size(Y{ym}{i});
+                    Bsample=floor(unifrnd(0,n,n,nboot))+1;
+                    Wb=[];
+                    Lb=[];
+                    for b=1:nboot
+                        index=Bsample(:,b);
+                        if mod(b,nboot/10)==0
+                            disp(['Model ' num2str(ym) ', subject ' num2str(i) ', Bootstrap replications N. ' num2str(b)]);
+                        end
+                        [~,Lb(:,:,b),~,~,Wb(:,:,b)] = plsregress(cdata{i}(index,:),Y{ym}{i}(index,:),NUM_FAC(1));
+                    end
+                    
+                    % p values
+                    ptype = 'var'; % var: over variables. points: over points.
+                    if strcmp(ptype,'var')
+                        Wp = mean(Wb,2);
+                        Lp = mean(Lb,2);
+                        Wop = mean(Wos,2);
+                        Lop = mean(Los,2);
+                    end
+                    stdW=std(Wp,[],3);
+                    stdL=std(Lp,[],3);
+                    tW{ym}(:,i)=Wop./stdW;
+                    tL{ym}(:,i)=Lop./stdL;
+                    pW{ym}(:,i)=1-tcdf(abs(tW{ym}(:,i)),n-1);
+                    pL{ym}(:,i)=1-tcdf(abs(tL{ym}(:,i)),n-1);
+                    grp_nfac{ym}(i) = sum(pL{ym}(:,i)<0.05);
+                    
+                    if 0
+                        % CIs: settings
+                        ci_type='basic';
+                        conf_level=0.95;
+                        bias=false;
+                        tail_inf=(1-conf_level)/2*100;
+                        tail_sup=100-tail_inf;
 
-                % scale random data
-                si = std(cdata{i}(:));
-                randcdata=randn(size(cdata{i}))*si;
-                [~,~,~,~,BETArand{ym}{i},explainedrand{ym}(:,:,i),MSErand{ym}(:,:,i)] = plsregress(randcdata,Y{ym}{i},NUM_FAC(1),'cv',5);
+    %                     if strcmp(ptype,'var')
+    %                         Wb = reshape(Wb,[],1,size(Wb,3));
+    %                         Lb = reshape(Lb,[],1,size(Lb,3));
+    %                         Los = reshape(Los,[],1,size(Los,3));
+    %                         Wos = reshape(Wos,[],1,size(Wos,3));
+    %                         if bias==true
+    %                             biasW=repmat(mean(Wb,3)-Wos,1,1,2);
+    %                             biasL=repmat(mean(Lb,3)-Los,1,1,2);
+    %                         else
+    %                             biasW=zeros(size(Wb,1),size(Wb,2),1,2);
+    %                             biasL=zeros(size(Lb,1),size(Lb,2),1,2);
+    %                         end
+    %                     else
+                            if bias==true
+                                biasW=repmat(mean(Wb,3)-Wos,1,2);
+                                biasL=repmat(mean(Lb,3)-Los,1,2);
+                            else
+                                biasW=zeros(size(Wb,1),size(Wb,2),2);
+                                biasL=zeros(size(Lb,1),size(Lb,2),2);
+                            end
+    %                     end
 
+                        switch ci_type
+                            case 'basic'
+                                CI.W=cat(3,2*Wos-prctile(Wb,tail_sup,3), 2*Wos-prctile(Wb,tail_inf,3))-biasW;
+                                CI.L=cat(3,2*Los-prctile(Lb,tail_sup,3), 2*Los-prctile(Lb,tail_inf,3))-biasL;
+
+                            case 'percentile'
+                                CI.W=cat(3,prctile(Wb',tail_inf)', prctile(Wb',tail_sup)')-biasW;
+                                CI.L=cat(3,prctile(Lb',tail_inf)', prctile(Lb',tail_sup)')-biasL;
+                            case 'studentized'
+                                tW{ym}=(Wb-repmat(Wos,1,1,nboot))./repmat(stdW,1,1,nboot);
+                                tL{ym}=(Lb-repmat(Los,1,1,nboot))./repmat(stdL,1,1,nboot);
+
+                                CI.W=cat(3,Wos-stdW.*prctile(tW{ym}',tail_sup)', Wos-stdW.*prctile(tW{ym}',tail_inf)')-biasW;
+                                CI.L=cat(3,Los-stdL.*prctile(tL{ym}',tail_sup)', Los-stdL.*prctile(tL{ym}',tail_inf)')-biasL;
+
+                            otherwise
+                                % if ci_type doesn't match with predefined typologies - set 'basic'
+                                CI.W=cat(3,2*Wos-prctile(Wb',tail_sup)', 2*Wos-prctile(Wb',tail_inf)')-biasW;
+                                CI.L=cat(3,2*Los-prctile(Lb',tail_sup)', 2*Los-prctile(Lb',tail_inf)')-biasL;
+                        end
+
+                        %CI.W=cat(3,Wos, mean(Wb,3), Wos-mean(Wb,3), tW, pW, CI.W);
+                        %CI.L=cat(3,Los, mean(Lb,3), Los-mean(Lb,3), tL, pL, CI.L);
+                        CI.W(CI.W>100)=inf;
+                        CI.L(CI.L>100)=inf;
+                    end
+                    
+                end
+                % number of factors
+                grp_nfac{ym} = max(1,median(grp_nfac{ym}));
+                
+            elseif S.select_ncomp.MSE_CV || S.select_ncomp.frac_explained
+                % find number of PLS components using comparison of CV-MSE
+                % between actual and random data; or use fraction explained
+                clear explained explainedrand
+                for i = 1:length(cdata)
+                    [~,~,~,~,BETA{ym}{i},explained{ym}(:,:,i),MSEcv{ym}(:,:,i)] = plsregress(cdata{i},Y{ym}{i},NUM_FAC(1),'cv',5);
+                    [~,~,~,~,~,~,MSE{ym}(:,:,i)] = plsregress(cdata{i},Y{ym}{i},NUM_FAC(1));
+
+                    % scale random data
+                    si = std(cdata{i}(:));
+                    randcdata=randn(size(cdata{i}))*si;
+                    [~,~,~,~,BETArand{ym}{i},explainedrand{ym}(:,:,i),MSEcvrand{ym}(:,:,i)] = plsregress(randcdata,Y{ym}{i},NUM_FAC(1),'cv',5);
+                    [~,~,~,~,~,~,MSErand{ym}(:,:,i)] = plsregress(randcdata,Y{ym}{i},NUM_FAC(1));
+
+                end
+                nfac_msecv = find(mean(MSEcv{ym}(2,:,:),3)<mean(MSEcvrand{ym}(2,:,:),3));
+
+                figure('name',['PLS MSE and explained variance: Model ' num2str(ym)])
+                subplot(2,3,1); hold on
+                    plot(0:NUM_FAC(1),mean(MSE{ym}(1,:,:),3)'); xlabel('n comp'), ylabel('X CV MSE'); %gcaExpandable;
+                    plot(0:NUM_FAC(1),mean(MSErand{ym}(1,:,:),3)','r--'); 
+                subplot(2,3,2); hold on
+                    plot(0:NUM_FAC(1),mean(MSE{ym}(2,:,:),3)'); xlabel('n comp'), ylabel('Y MSE'); %gcaExpandable;
+                    plot(0:NUM_FAC(1),mean(MSErand{ym}(2,:,:),3)','r--'); 
+                subplot(2,3,3); hold on
+                    plot(0:NUM_FAC(1),mean(MSEcv{ym}(2,:,:),3)'); xlabel('n comp'), ylabel('Y CV MSE'); %gcaExpandable;
+                    plot(0:NUM_FAC(1),mean(MSEcvrand{ym}(2,:,:),3)','r--');
+                    plot([nfac_msecv(end),nfac_msecv(end)],[0 max(mean(MSEcv{ym}(2,:,:),3))],'k'); 
+                subplot(2,3,4); hold on
+                    plot(1:NUM_FAC(1),cumsum(mean(explained{ym}(1,:,:),3)')); xlabel('n comp'), ylabel('X explained variance'); %gcaExpandable;
+                    plot(1:NUM_FAC(1),cumsum(mean(explainedrand{ym}(1,:,:),3))','r--'); 
+                subplot(2,3,5); hold on
+                    plot(1:NUM_FAC(1),cumsum(mean(explained{ym}(2,:,:),3)')); xlabel('n comp'), ylabel('Y explained variance'); %gcaExpandable;
+                    plot(1:NUM_FAC(1),cumsum(mean(explainedrand{ym}(2,:,:),3))','r--'); 
+
+                nr=ceil(sqrt(length(cdata)));
+                figure('name',['PLS fitted responses: Model ' num2str(ym)])
+                for i = 1:length(cdata)
+                    subplot(nr,nr,i); plot(Y{ym}{i},[ones(size(cdata{i},1),1) cdata{i}]*BETA{ym}{i},'bo');
+                        xlabel('Observed Response');
+                        ylabel('Fitted Response');
+                end
+                figure('name',['PLS fitted responses: random: Model ' num2str(ym)])
+                for i = 1:length(cdata)
+                    subplot(nr,nr,i); plot(Y{ym}{i},[ones(size(cdata{i},1),1) cdata{i}]*BETArand{ym}{i},'bo');
+                        xlabel('Observed Response');
+                        ylabel('Fitted Response');
+                end
+                
+                if S.select_ncomp.MSE_CV
+                    grp_nfac{ym} = nfac_msecv(end);
+                elseif S.select_ncomp.frac_explained
+                    nfac_exp = find(cumsum(mean(explained{ym}(2,:,:),3)) > S.select_ncomp.frac_explained);
+                    if isempty(nfac_exp)
+                    	nfac_exp = NUM_FAC(1);
+                    end
+                    grp_nfac{ym} = nfac_exp(1);
+                end
+            else
+                grp_nfac{ym} = NUM_FAC(1);
             end
-            nfac_temp = find(mean(MSE{ym}(2,:,:),3)<mean(MSErand{ym}(2,:,:),3))-1;
-            grp_nfac{ym} = nfac_temp(end);
-
-            figure('name',['PLS MSE and explained variance: Model ' num2str(ym)])
-            subplot(2,2,1); hold on
-                plot(0:NUM_FAC(1),mean(MSE{ym}(1,:,:),3)'); xlabel('n comp'), ylabel('X CV MSE'); %gcaExpandable;
-                plot(0:NUM_FAC(1),mean(MSErand{ym}(1,:,:),3)','r'); 
-            subplot(2,2,2); hold on
-                plot(0:NUM_FAC(1),mean(MSE{ym}(2,:,:),3)'); xlabel('n comp'), ylabel('Y CV MSE'); %gcaExpandable;
-                plot(0:NUM_FAC(1),mean(MSErand{ym}(2,:,:),3)','r');
-                plot([grp_nfac{ym},grp_nfac{ym}],[0 max(mean(MSE{ym}(2,:,:),3))],'k'); 
-            subplot(2,2,3); hold on
-                plot(1:NUM_FAC(1),mean(explained{ym}(1,:,:),3)'); xlabel('n comp'), ylabel('X explained variance'); %gcaExpandable;
-                plot(1:NUM_FAC(1),mean(explainedrand{ym}(1,:,:),3)','r'); 
-            subplot(2,2,4); hold on
-                plot(1:NUM_FAC(1),mean(explained{ym}(2,:,:),3)'); xlabel('n comp'), ylabel('Y explained variance'); %gcaExpandable;
-                plot(1:NUM_FAC(1),mean(explainedrand{ym}(2,:,:),3)','r'); 
-
-            nr=ceil(sqrt(length(cdata)));
-            figure('name',['PLS fitted responses: Model ' num2str(ym)])
-            for i = 1:length(cdata)
-                subplot(nr,nr,i); plot(Y{ym}{i},[ones(size(cdata{i},1),1) cdata{i}]*BETA{ym}{i},'bo');
-                    xlabel('Observed Response');
-                    ylabel('Fitted Response');
-            end
-            figure('name',['PLS fitted responses: random: Model ' num2str(ym)])
-            for i = 1:length(cdata)
-                subplot(nr,nr,i); plot(Y{ym}{i},[ones(size(cdata{i},1),1) cdata{i}]*BETArand{ym}{i},'bo');
-                    xlabel('Observed Response');
-                    ylabel('Fitted Response');
-            end
+            
         end
         
-        % select model based on minimum MSE
-        for ym = 1:length(Y) % for each Y model
-            MSEym(ym) = mean(MSE{ym}(2,grp_nfac{ym},:),3)/size(Y{ym}{1},2); 
+        if 0
+            % select model based on best t value
+            for ym = 1:length(Y) % for each Y model
+                meantL(ym) = mean(abs(tL{ym}(:)));
+            end
+            [~,minidx] = find(max(meantL));
+            
+        elseif 1
+            % select model based on minimum MSE
+            for ym = 1:length(Y) % for each Y model
+                MSEcvym(ym) = mean(MSEcv{ym}(2,grp_nfac{ym},:),3)/size(Y{ym}{1},2); 
+            end
+            [minMSE, minidx] = min(MSEcvym);
+            figure; hold on
+                    plot(1:length(MSEcvym),MSEcvym); xlabel('model'), ylabel('mean MSE per variable'); %gcaExpandable;
+                    scatter(minidx,minMSE,'k'); 
+        else
+            minidx = 1;
         end
-        [minMSE, minidx] = min(MSEym);
-        figure; hold on
-                plot(1:length(MSEym),MSEym); xlabel('model'), ylabel('mean MSE per variable'); %gcaExpandable;
-                scatter(minidx,minMSE,'k'); 
         
         % take grp nfac
         NUM_FAC(1) = grp_nfac{minidx};
+        clear explained MSE MSE_CV W
         for i = 1:length(cdata)
-            [XCOEFF,YCOEFF,Xscore,Yscore,BETA{i},~,~,stats] = plsregress(cdata{i},Y{minidx}{i},NUM_FAC(1));
+            [XCOEFF,YCOEFF,Xscore,Yscore,BETA{i},explained(:,:,i),MSE(:,:,i),stats] = plsregress(cdata{i},Y{minidx}{i},NUM_FAC(1));
+            [~,~,~,~,~,~,MSE_CV(:,:,i),~] = plsregress(cdata{i},Y{minidx}{i},NUM_FAC(1),'cv',5);
+            
+            
             COEFF{i} = XCOEFF;
             W(:,:,i) = COEFF{i}';
             score{i} = Xscore;
             out_Y.YCOEFF{i}=YCOEFF;
             out_Y.Yscore{i}=Yscore;
             out_Y.BETA{i}=BETA{i};
-            out_Y.MSE{i}=MSE{minidx}(:,:,i);
+            out_Y.MSE{i}=MSE(:,:,i);
+            out_Y.MSE_CV{i}=MSE_CV(:,:,i);
+            out_Y.explained{i}=explained(:,:,i);
             out_Y.W{i}=stats.W;
             out_Y.Yfitted{i} = [ones(size(cdata{i},1),1) cdata{i}]*BETA{i};
+            
+            
+            
+            if 0
+                % manual cross-validation: training R2 and testing Q2
+                CV_fold=5;
+                CVsample = cvpartition(size(cdata{i},1),'KFold',CV_fold);
+
+                for cv = 1:CV_fold
+                    [~,~,~,~,Be] = plsregress(cdata{i}(training(CVsample,cv),:),Y{minidx}{i}(training(CVsample,cv),:),NUM_FAC(1));
+                    % training
+                    Yp = [ones(size(cdata{i}(training(CVsample,cv),:),1),1) cdata{i}(training(CVsample,cv),:)] * Be; % predicted Y
+                    Yt = Y{minidx}{i}(training(CVsample,cv),:); % training Y
+                    TSS = sum((Yt-mean(Yt)).^2);
+                    RSS = sum((Yp-Yt).^2);
+                    R2_train = 1 - RSS/TSS;
+                    % testing
+                    Yp = [ones(size(cdata{i}(test(CVsample,cv),:),1),1) cdata{i}(test(CVsample,cv),:)] * Be; % predicted Y
+                    Yt = Y{minidx}{i}(test(CVsample,cv),:); % test Y
+                    TSS = sum((Yt-mean(Yt)).^2);
+                    RSS = sum((Yp-Yt).^2);
+                    MSE_CV_temp(cv)=RSS/length(Yt);
+                    Q2_test = 1 - RSS/TSS;
+                end
+                MSE_CV2 = mean(MSE_CV_temp);
+                out_Y.MSE_CV2{i}=MSE_CV2;
+                out_Y.R2_CV_train{i}=R2_train;
+                out_Y.Q2_CV_test{i}=Q2_test;
+            end
         end
         out_Y.Ymodel=minidx;
         if exist('YCOEFFPCA','var')
@@ -880,7 +1053,20 @@ switch S.PCAmethod
         end
         out_Y.grp_nfac = grp_nfac;
         
+        figure('name',['PLS MSE and explained variance: Model ' num2str(minidx)])
+            subplot(2,3,1);
+                boxplot(squeeze(MSE(1,:,:))'); xlabel('n comp'), ylabel('X CV MSE'); 
+            subplot(2,3,2); 
+                boxplot(squeeze(MSE(2,:,:))'); xlabel('n comp'), ylabel('Y MSE'); %gcaExpandable;
+            subplot(2,3,3); 
+                boxplot(squeeze(MSE_CV(2,:,:))'); xlabel('n comp'), ylabel('Y CV MSE'); %gcaExpandable;
+            subplot(2,3,4); 
+                boxplot(squeeze(explained(1,:,:))');  xlabel('n comp'), ylabel('X explained variance'); %gcaExpandable;
+            subplot(2,3,5); 
+                boxplot(squeeze(explained(2,:,:))'); xlabel('n comp'), ylabel('Y explained variance'); %gcaExpandable;
+        
         figure('name',['PLS fitted responses: first ' num2str(NUM_FAC(1)) ' components'])
+        nr=ceil(sqrt(length(cdata)));
         for i = 1:length(cdata)
             subplot(nr,nr,i); plot(Y{minidx}{i},out_Y.Yfitted{i},'bo');
                 xlabel('Observed Response');
@@ -1067,8 +1253,8 @@ end
 PCdata = nan(NUM_FAC(1),nobs);
 sigma = {};
 for i = 1:length(cdata)
-    if S.CCA % standardise scores if they will be used for CCA
-       sigma{i} = sqrt(var(score{i})); 
+    sigma{i} = sqrt(var(score{i})); 
+    if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA')) % standardise scores if they will be used for CCA
        score{i} = score{i}./repmat(sqrt(var(score{i})),size(score{i},1),1); % standardise so that each PC from each subject contributes equally to CCA solution
     end
     PCdata(:,rep{i},i) = score{i}';
