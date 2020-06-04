@@ -1,6 +1,6 @@
 function varargout=HGF_group_model_comparison(S,varargin)
 % OUTPUT: varargout is {posterior,out,gposterior,gout}
-addpath('Q:\MATLAB\toolboxes_external\cbrewer'); % (https://uk.mathworks.com/matlabcentral/fileexchange/34087-cbrewer---colorbrewer-schemes-for-matlab)
+addpath('G:\Q_backup\MATLAB\toolboxes_external\cbrewer'); % (https://uk.mathworks.com/matlabcentral/fileexchange/34087-cbrewer---colorbrewer-schemes-for-matlab)
 
 if nargin>1 && ~isempty(varargin{1})
     LME = varargin{1};
@@ -174,7 +174,8 @@ if S.family_on
     % compare perc model families
     options.families = pm_family;
     if length(LMEgrp)==1
-        [~,~,pm_out] = VBA_groupBMC_cab(LME,options,S.pep_flag);
+        [~,pm_out] = VBA_groupBMC_cab(LME,options,S.pep_flag);
+        pm_out = {pm_out};
     elseif length(LMEgrp)>1
         [~,~,pm_out] = VBA_groupBMC_btwGroups_CAB(LMEgrp,options,S.pep_flag);
     end
@@ -182,7 +183,8 @@ if S.family_on
     % compare resp model families
     options.families = rm_family;
     if length(LMEgrp)==1
-        [~,~,rm_out] = VBA_groupBMC_cab(LME,options,S.pep_flag);
+        [~,rm_out] = VBA_groupBMC_cab(LME,options,S.pep_flag);
+        rm_out = {rm_out};
     elseif length(LMEgrp)>1
         [~,~,rm_out] = VBA_groupBMC_btwGroups_CAB(LMEgrp,options,S.pep_flag);
     end

@@ -188,4 +188,71 @@ if any(strcmp(r.c_obs.responses, 'RT'))
 end
 
 
+%% Regression
+if any(strcmp(r.c_obs.responses, 'HGFvar'))
+
+    % Create param struct
+    type='reg'; % regression
+    for pn=1:length(nme)
+        if strcmp(nme{pn,1}(1:length(type)),type)
+            eval([nme_gen{pn} ' = pvec(idx{pn})'';']);
+        end
+    end
+
+%     u = r.u(:,1);
+    
+    ynames = r.c_obs.ynames;
+    for yi=1:length(ynames)
+        switch ynames{yi}
+            case 'HGF_PL_epsi_1'
+                ep1 = r.traj.(r.c_obs.model).epsi(:,1);
+                logresp = be06 +be6.*ep1;
+            case 'HGF_PL_epsi_2'
+                ep2 = r.traj.(r.c_obs.model).epsi(:,2);
+                logresp = be08 +be8.*ep2;
+            case 'HGF_PL_epsi_3'
+                ep3 = r.traj.(r.c_obs.model).epsi(:,3);
+                logresp = be010 +be10.*ep3;
+            case 'HGF_PL_epsi-abs_1'
+                ep1 = abs(r.traj.(r.c_obs.model).epsi(:,1));
+                logresp = be06 +be6.*ep1;
+            case 'HGF_PL_epsi-abs_2'
+                ep2 = abs(r.traj.(r.c_obs.model).epsi(:,2));
+                logresp = be08 +be8.*ep2;
+            case 'HGF_PL_epsi-abs_3'
+                ep3 = abs(r.traj.(r.c_obs.model).epsi(:,3));
+                logresp = be010 +be10.*ep3;
+            case 'HGF_PL_mu_1'
+                mu1 = r.traj.(r.c_obs.model).mu(:,1);
+                logresp = be012 +be12.*mu1;
+            case 'HGF_PL_mu_2'
+                mu2 = r.traj.(r.c_obs.model).mu(:,2);
+                logresp = be013 +be13.*mu2;
+            case 'HGF_PL_mu_3'
+                mu3 = r.traj.(r.c_obs.model).mu(:,3);
+                logresp = be014 +be14.*mu3;
+            case 'HGF_PL_sa_1'
+                sa1 = r.traj.(r.c_obs.model).sa(:,1);
+                logresp = be02 +be2.*sa1;
+            case 'HGF_PL_inferv_1'
+                mu2 = r.traj.(r.c_obs.model).mu(:,2);
+                sa2 = r.traj.(r.c_obs.model).sa(:,2);
+                sigmoid_mu2 = 1./(1+exp(-mu2)); % transform down to 1st level
+                inferv = sigmoid_mu2.*(1 -sigmoid_mu2).*sa2; 
+                logresp = be03 +be3.*inferv;
+            case 'HGF_PL_pv_1'
+                mu2 = r.traj.(r.c_obs.model).mu(:,2);
+                mu3 = r.traj.(r.c_obs.model).mu(:,3);
+                sigmoid_mu2 = 1./(1+exp(-mu2)); % transform down to 1st level
+                pv = sigmoid_mu2.*(1-sigmoid_mu2).*exp(mu3); 
+                logresp = be04 +be4.*pv;
+        end
+        y(:,2+yi) = logresp; % response time without Gaussian noise
+    end
+
+
+end
+
+
+
 return;

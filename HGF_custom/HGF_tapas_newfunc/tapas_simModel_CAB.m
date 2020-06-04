@@ -142,10 +142,10 @@ end
 disp(['Ignored trials: ', num2str(ignout)])
     
 % Remember perceptual model
-r.c_sim.prc_model = prc_model;
+r.c_sim.prc_model = 'GBM';
 
 %% Perceptual model
-prc_config_fun = [prc_model, '_config'];
+prc_config_fun = [prc_model];%, '_config']; % CAB
 
 % Read configuration of perceptual model
 %try
@@ -157,7 +157,7 @@ prc_config_fun = [prc_model, '_config'];
 %end
 
 % Store perceptual parameters
-prc_namep_fun = str2func([prc_model, '_namep']);
+prc_namep_fun = str2func('GBM_namep');
 [r.p_prc r.p_prc.p]  = prc_namep_fun(prc_struct,r.c_prc);
 
 % Get function handle to perceptual model

@@ -6,7 +6,7 @@ fname = 'eegstats_dtab20200424T155316_bothPLS_fullHGF_bayesopt.mat';
 cd(pth);
 
 load(fullfile(pth,fname))
-cca_comp_select = [1];
+cca_comp_select = [4];
 d=1;
 [U,~,iU]=unique(D(d).prep.dtab.ID,'stable');
 dat={};

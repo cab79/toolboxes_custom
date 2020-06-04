@@ -1,5 +1,11 @@
-function [out,S,X] = bayesreg_crossval(X,Y,S,groups,catvars)
+function [out,S,X] = bayesreg_crossval(X,Y,S,groups,varargin)
 % Y can be a matrix with multiple columns, each is analysed separately.
+
+if ~isempty(varargin)
+    catvars = varargin{1};
+else
+    catvars=[];
+end
 
 for s = 1:size(Y,2)
     y = Y(:,s);
@@ -42,10 +48,19 @@ for s = 1:size(Y,2)
 %                     for g = grps
 %                         groups{g} = find(groupvec==g);
 %                     end
+            if ~isempty(groups)
+                if ~isempty(catvars)
                     [beta, beta0, stt(i)] = bayesreg(X(es_in,:),y(es_in),S.brr.model,S.brr.prior,'nsamples',S.brr.nsamples,'burnin',S.brr.burnin,'thin',S.brr.thin,'display',false,'waic', true, 'catvars',catvars, 'groups',groups);
-%                 else
-%                     [beta, beta0, stt(i)] = bayesreg(X(es_in,:),y(es_in),S.brr.model,S.brr.prior,'nsamples',S.brr.nsamples,'burnin',S.brr.burnin,'thin',S.brr.thin,'display',false,'waic', S.brr.waic,'catvars',catvars);
-%                 end
+                else
+                    [beta, beta0, stt(i)] = bayesreg(X(es_in,:),y(es_in),S.brr.model,S.brr.prior,'nsamples',S.brr.nsamples,'burnin',S.brr.burnin,'thin',S.brr.thin,'display',false,'waic', true, 'groups',groups);
+                end
+            else
+                if ~isempty(catvars)
+                    [beta, beta0, stt(i)] = bayesreg(X(es_in,:),y(es_in),S.brr.model,S.brr.prior,'nsamples',S.brr.nsamples,'burnin',S.brr.burnin,'thin',S.brr.thin,'display',false,'waic', true, 'catvars',catvars);
+                else
+                    [beta, beta0, stt(i)] = bayesreg(X(es_in,:),y(es_in),S.brr.model,S.brr.prior,'nsamples',S.brr.nsamples,'burnin',S.brr.burnin,'thin',S.brr.thin,'display',false,'waic', true);
+                end
+            end
 %             else
 %                 [beta, beta0, stt(i)] = bayesreg(X(es_in,:),y(es_in),S.brr.model,S.brr.prior,'nsamples',S.brr.nsamples,'burnin',S.brr.burnin,'thin',S.brr.thin,'display',false,'waic', S.brr.waic,'catvars',catvars);
 %             end

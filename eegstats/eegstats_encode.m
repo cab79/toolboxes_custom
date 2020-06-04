@@ -21,8 +21,13 @@ end
 % minutes, per processor, so 2500 sample is
 % ideal.
 C=struct;
+if isfield(S.encode,'nprep')
+    np = S.encode.nprep;
+else
+    np=1;
+end
 for d = 1:length(D)
-    Yin = D(d).prep.Y;
+    Yin = D(d).prep(np).Y;
     n_chunks_d = max(1,ceil(length(Yin)/S.encode.parallel.chunksize));
     chunksize = ceil(length(Yin)/n_chunks_d);
 
@@ -35,7 +40,7 @@ for d = 1:length(D)
         chunk_info.n_chunks_d = n_chunks_d;
         chunk_info.sample_index=si;
         chunk_info.d=d;
-        chunk_info.dim=reshape(D(d).prep.dim,[],1);
+        chunk_info.dim=reshape(D(d).prep(np).dim,[],1);
 
         % chunk index
         c = (d-1)*n_chunks_d +nc;
@@ -46,7 +51,7 @@ for d = 1:length(D)
         Yy = Yin(si);
         Y=struct;
         for s = 1:length(Yy)
-            Y(s).dtab = horzcat(D(d).prep.dtab,Yy(s).dtab);
+            Y(s).dtab = horzcat(D(d).prep(np).dtab,Yy(s).dtab);
             Y(s).data_mean = Yy(s).data_mean;
             Y(s).data_std = Yy(s).data_std;
         end
@@ -72,19 +77,19 @@ for d = 1:length(D)
         for i=1:LM
             if S.encode.save_residuals
                 disp(['creating resid file, model ' num2str(i)])
-                resid=nan(reshape(D(d).prep.dim,1,[]));
+                resid=nan(reshape(D(d).prep(np).dim,1,[]));
                 save(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_resid_mi' num2str(i) '_' S.encode.sname '.mat']),'resid','-v7.3');
             end
             % fitted
             if S.encode.save_fitted
                 disp(['creating fitted file, model ' num2str(i)])
-                fitted=nan(reshape(D(d).prep.dim,1,[]));
+                fitted=nan(reshape(D(d).prep(np).dim,1,[]));
                 save(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_fitted_mi' num2str(i) '_' S.encode.sname '.mat']),'fitted','-v7.3');
             end
             % input
             if S.encode.save_input
                 disp(['creating input file, model ' num2str(i)])
-                input=nan(reshape(D(d).prep.dim,1,[]));
+                input=nan(reshape(D(d).prep(np).dim,1,[]));
                 save(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_input_mi' num2str(i) '_' S.encode.sname '.mat']),'input','-v7.3');
             end
         end

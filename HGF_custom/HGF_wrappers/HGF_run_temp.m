@@ -1,4 +1,4 @@
-function D=HGF_run(D,S,sim_on)
+function D=HGF_run_temp(D,S,sim_on)
 
 % sim_on = 0: fit model to responses
 % sim_on = 1: simulate responses
@@ -19,7 +19,7 @@ sdate = datestr(now,30);
 %% HGF
 % prc: perceptual; obs:observation; opt:optimisation
 prc_model = S.prc_config;
-pmodel = prc_model; %strrep(prc_model,'_config',''); % CAB updated - was causing problems for CORE sim_predict_EEG
+pmodel = strrep(prc_model,'_config',''); 
 obs_model = S.obs_config;
 opt_algo = 'tapas_quasinewton_optim_config';
 
@@ -34,25 +34,25 @@ else
     yn = 1;
 end
 
-if ~isfield(S,'parallel')
-    S.parallel = 0;
-end
-if S.parallel
-    checkp = gcp('nocreate');
-    if isempty(checkp)
-        myPool = parpool;
-    end
-    parforArg = Inf;
-else
-    parforArg = 0;
-end
+% if ~isfield(S,'parallel')
+%     S.parallel = 0;
+% end
+% if S.parallel
+%     checkp = gcp('nocreate');
+%     if isempty(checkp)
+%         myPool = parpool;
+%     end
+%     parforArg = Inf;
+% else
+%     parforArg = 1;
+% end
 
 % get parameter struct by running bayesopt, otherwise parallel fails
 % fit = tapas_fitModel_CAB([], D(1).HGF(1).u, prc_model, S.bayesopt_config, opt_algo,S, 0);
 % sim=fit;
 fit=cell(length(D),1);sim=cell(length(D),1);
-parfor (d = 1:length(D),parforArg)
-% for d = 1:length(D)
+% parfor (d = 1:length(D),parforArg)
+for d = 1:length(D)
     
     disp(['testing perc model ' num2str(S.perc_model) ', resp model ' num2str(S.resp_model) ', subject ' num2str(d) '/' num2str(length(D))])
 

@@ -68,5 +68,33 @@ switch S.resp_modelspec.responses{:}
         end
         varargout = {cc_mean,brr};
         
+    case 'HGFvar' % decoded HGF trajectories
+        for d = 1:length(D_act)
+            actual_var(d,:,:) = D_act(d).HGF.y(:,3:end);
+            for rep = 1:S.numsimrep
+                sim_var = D_sim(d).HGF(rep).sim.y(:,3:end);
+                
+                nvar = size(sim_var,2);
+                
+                for nv=1:nvar
+
+                    %only consider trials in which both fitted and actual
+                    %responses both occur
+                    ii = find(~isnan(squeeze(actual_var(d,:,nv))') .* ~isnan(sim_var(:,nv)));
+
+                    %correlate
+                    cc(nv,rep) = corr(sim_var(ii,nv),squeeze(actual_var(d,ii,nv))','type','Spearman');
+
+                    % bayes reg
+                    brr(d,nv,rep) = bayesreg_crossval(sim_var(ii,nv),squeeze(actual_var(d,ii,nv))',S,{});
+                    waic(d,rep,nv) = brr(d,nv,rep).waic;
+                end
+            end
+            cc_mean(d,:)=mean(cc,2);
+        end
+        cc_varmean=mean(cc_mean,2);
+        waic = mean(waic,3);
+        varargout = {actual_var,cc_varmean,brr,waic};
+        
         
 end

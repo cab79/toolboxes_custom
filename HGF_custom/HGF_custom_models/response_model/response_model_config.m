@@ -19,7 +19,7 @@ c.responses = S.resp_modelspec.responses;
 if iscell(r.c_prc.response.priormodel)
     if strcmp(c.responses,'Ch')
         c.model = r.c_prc.response.priormodel{1};
-    elseif strcmp(c.responses,'RT')
+    elseif strcmp(c.responses,'RT') || any(strcmp(c.responses, 'HGFvar'))
         c.model = r.c_prc.response.priormodel{2};
     end
 else
@@ -33,16 +33,13 @@ catch
     l=1;
 end
 
-% Decision based on which representation?
-c.rep = r.c_prc.response.rep; 
-
 c.nparams =[];
 c.priormus=[];
 c.priorsas=[];
 c.st = [];
 c.pn=0;
 
-% for prediction error, use abs?
+% for prediction error, use absolute values?
 try
     c.abs = S.resp_modelspec.PE_abs;
 catch
@@ -51,6 +48,9 @@ end
 
 if any(strcmp(c.responses , 'Ch'))
     % USE SOFTMAX MODEL
+    
+    % Decision based on which representation?
+    c.rep = r.c_prc.response.rep; 
     
     % Beta
     c.soft.logbemu = log(48);
@@ -61,22 +61,37 @@ if any(strcmp(c.responses , 'Ch'))
     c = paramvec(c,type);
 end
 
-if any(strcmp(c.responses, 'RT')) || any(strcmp(c.responses, 'EEG'))
+c.params = S.resp_modelspec.params;
+
+if any(strcmp(c.responses, 'RT')) || any(strcmp(c.responses, 'EEG')) || any(strcmp(c.responses, 'HGFvar'))
     % USE REGRESSION MODEL
-    
-    c.params = S.resp_modelspec.params;
     
     % Sufficient statistics of Gaussian parameter priors
     
-    % set the constant parameter
     if any(strcmp(c.responses, 'RT'))
+        
+        % Beta_0
+        c.reg.be0mu = log(0.5); 
+        c.reg.be0sa = 4;
+    elseif any(strcmp(c.responses, 'EEG')) 
+        
+        % Beta_0
+        c.reg.be0mu = 0; 
+        c.reg.be0sa = 4;
+    elseif any(strcmp(c.responses, 'HGFvar'))
+
+        % variable names
+        c.ynames = S.resp_modelspec.ynames;
+        c.ynum = S.resp_modelspec.responsenum;
+        if ~isempty(c.ynum)
+            c.ynames=c.ynames(c.ynum);
+        end
+
+        for yn = 1:length(c.ynames)
             % Beta_0
-            c.reg.be0mu = log(0.5); 
-            c.reg.be0sa = 4;
-    elseif any(strcmp(c.responses, 'EEG'))
-            % Beta_0
-            c.reg.be0mu = 0; 
-            c.reg.be0sa = 4;
+            c.reg.(['be0' num2str(c.params(yn)) 'mu']) = 0; 
+            c.reg.(['be0' num2str(c.params(yn)) 'sa']) = 4;
+        end
     end
 
     % Beta_1
