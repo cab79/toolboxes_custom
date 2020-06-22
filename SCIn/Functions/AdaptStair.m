@@ -215,7 +215,7 @@ elseif strcmp(opt,'responded')
             else
                 correctsignal = h.Settings.adaptive(atype).signalval(1);
             end
-        elseif strcmp(h.Settings.adaptive(atype).response_type,'2AFC') && length(correctsignal)>1
+        elseif ismember(h.Settings.adaptive(atype).response_type,{'2AFC','3AFC'}) && length(correctsignal)>1
             correctsignal = find(signaltarget==h.Settings.adaptive(atype).signalcorrect);
         end
     end
