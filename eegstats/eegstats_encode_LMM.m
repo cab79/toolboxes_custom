@@ -12,8 +12,11 @@ end
 
 LM=length(S.encode.model);
 MC=length(S.encode.model_compare);
+disp(['number of models:' num2str(LM)]);
+disp(['number of model comparisons:' num2str(MC)]);
 
 M = struct;
+failed_s = cell(1,LM);
 for s = 1:length(Y)
     
     % for each model
@@ -21,8 +24,15 @@ for s = 1:length(Y)
     for i = 1:LM
 
         % fit model
-        train_data = Y(s).dtab(find(double(Y(s).dtab.train)),:);
-        lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
+        try
+            train_data = Y(s).dtab(find(double(Y(s).dtab.train)),:);
+            lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
+            last_s_worked=s;
+        catch
+            failed_s{i} = [failed_s{i} s];
+            train_data = Y(last_s_worked).dtab(find(double(Y(last_s_worked).dtab.train)),:);
+            lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
+        end
         model(i).lmm = lmm; % temporary var for model comparisons
         [R,Rn]=randomEffects(lmm);
         
@@ -33,6 +43,7 @@ for s = 1:length(Y)
         M.model(i).samples(1).randomdesign = designMatrix(lmm,'Random');
         M.model(i).samples(1).CoefficientNames = lmm.CoefficientNames;
         M.model(i).samples(1).RandomNames = Rn;
+        M.model(i).samples(1).failed_s = failed_s{i};
         
         % outputs for each sample
         M.model(i).samples(s).b = double(lmm.Coefficients(:,2));

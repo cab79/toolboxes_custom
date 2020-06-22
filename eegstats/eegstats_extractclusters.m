@@ -18,7 +18,7 @@ end
 
 % set paths
 S.path.code = {
-   1, 'Q:\MATLAB\toolboxes_external\cbrewer'
+   1, 'G:\Q_backup\MATLAB\toolboxes_external\cbrewer'
     };
 set_paths(S)
 
@@ -500,7 +500,7 @@ for d=1:length(D)
 %                         (sum(diag(lme.CoefficientCovariance),'all')+sum(diag(r{1}),'all'))/(sum(diag(lme.CoefficientCovariance),'all')+lme.MSE+sum(diag(r{1}),'all'));
                     end
                 end
-                clear input_vol
+                %clear input_vol
             end
         end
     end

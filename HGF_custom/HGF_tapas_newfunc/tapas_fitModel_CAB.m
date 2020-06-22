@@ -130,6 +130,7 @@ try
 catch
     failed = 0;
 end
+c_prc = varargin{6}; % alternative method for feeding this in - to allow parallel processing in HGF_run
 r = dataPrep(responses, inputs, S);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -155,7 +156,9 @@ r = dataPrep(responses, inputs, S);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Override default settings with arguments from the command line
-if nargin > 2 && ~isempty(varargin{1}) && ~isfield(S,'c_prc')
+if exist('c_prc','var') && ~isempty(c_prc)
+    r.c_prc = c_prc;
+elseif nargin > 2 && ~isempty(varargin{1}) && ~isfield(S,'c_prc')
     r.c_prc = eval([varargin{1} '(S,failed)']); % runs the config function
 elseif isfield(S,'c_prc') % e.g. when using MFX model with empirical priors
     r.c_prc = S.c_prc;
@@ -203,23 +206,24 @@ r = rmfield(r, 'plh');
 % Estimate mode of posterior parameter distribution (MAP estimate)
 r = optim(r, r.c_prc.prc_fun, r.c_obs.obs_fun, r.c_opt.opt_algo);
 
-% Separate perceptual and observation parameters
-n_prcpars = length(r.c_prc.priormus);
-ptrans_prc = r.optim.final(1:n_prcpars);
-ptrans_obs = r.optim.final(n_prcpars+1:end);
-
-% Transform MAP parameters back to their native space
-[dummy, r.p_prc]   = r.c_prc.transp_prc_fun(r, ptrans_prc);
-[dummy, r.p_obs]   = r.c_obs.transp_obs_fun(r, ptrans_obs);
-r.p_prc.p      = r.c_prc.transp_prc_fun(r, ptrans_prc);
-r.p_obs.p      = r.c_obs.transp_obs_fun(r, ptrans_obs);
-
-% Store transformed MAP parameters
-r.p_prc.ptrans = ptrans_prc;
-r.p_obs.ptrans = ptrans_obs;
-
-% Store representations at MAP estimate, response predictions, and residuals
 try
+    % Separate perceptual and observation parameters
+    n_prcpars = length(r.c_prc.priormus);
+    ptrans_prc = r.optim.final(1:n_prcpars);
+    ptrans_obs = r.optim.final(n_prcpars+1:end);
+
+    % Transform MAP parameters back to their native space
+    [dummy, r.p_prc]   = r.c_prc.transp_prc_fun(r, ptrans_prc);
+    [dummy, r.p_obs]   = r.c_obs.transp_obs_fun(r, ptrans_obs);
+    r.p_prc.p      = r.c_prc.transp_prc_fun(r, ptrans_prc);
+    r.p_obs.p      = r.c_obs.transp_obs_fun(r, ptrans_obs);
+
+    % Store transformed MAP parameters
+    r.p_prc.ptrans = ptrans_prc;
+    r.p_obs.ptrans = ptrans_obs;
+
+    % Store representations at MAP estimate, response predictions, and residuals
+
    [r.traj, infStates] = r.c_prc.prc_fun(r, r.p_prc.ptrans, 'trans');
 catch
    return % return with no traj field
@@ -370,7 +374,8 @@ nlj = @(p) [negLogJoint(r, prc_fun, obs_fun, p(1:n_prcpars), p(n_prcpars+1:n_prc
 % Check whether priors are in a region where the objective function can be evaluated
 [dummy1, dummy2, rval, err] = nlj(init);
 if rval ~= 0
-    rethrow(err);
+    return
+    %rethrow(err);
 end
 
 % The objective function is now the negative log joint restricted
@@ -473,6 +478,7 @@ function [negLogJoint, negLogLl, rval, err] = negLogJoint(r, prc_fun, obs_fun, p
 % predictions on.
 try
     [r.traj, infStates] = prc_fun(r, ptrans_prc, 'trans');
+    r.traj.like; % causes error if doesn't exist
 catch err
     negLogJoint = realmax;
     negLogLl = realmax;

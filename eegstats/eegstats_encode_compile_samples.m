@@ -81,6 +81,7 @@ for d = 1:nD % subject
             D(d).model(i).r2_adj = reshape(vertcat([M.model(i).samples(:).r2_adj]'),ddim(1),ddim(2));
             D(d).model(i).randomdesign = M.model(i).samples(1).randomdesign;
             D(d).model(i).randomnames = M.model(i).samples(1).RandomNames;
+            if isfield(M.model(i).samples(1),'failed_s'); D(d).model(i).failed_s = M.model(i).samples(1).failed_s; end
     %         D(d).model(i).skew=reshape(vertcat([M.model(i).samples(:).skew]'),ddim(1),ddim(2));
     %         D(d).model(i).kurt=reshape(vertcat([M.model(i).samples(:).kurt]'),ddim(1),ddim(2));
     %         D(d).model(i).hnorm=reshape(vertcat([M.model(i).samples(:).hnorm]'),ddim(1),ddim(2));

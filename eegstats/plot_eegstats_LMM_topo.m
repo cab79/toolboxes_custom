@@ -3,9 +3,9 @@ dbstop if error
 % close all
 % set paths and file names 
 S.path.code = {
-   1, 'Q:\MATLAB\toolboxes_external\cbrewer'
-   0, 'Q:\MATLAB\toolboxes_custom\eegstats'
-   1, 'Q:\MATLAB\toolboxes_external\spm12'
+   1, 'G:\Q_backup\MATLAB\toolboxes_external\cbrewer'
+   0, 'G:\Q_backup\MATLAB\toolboxes_custom\eegstats'
+   1, 'G:\Q_backup\MATLAB\toolboxes_external\spm12'
 %    0, 'Q:\MATLAB\toolboxes_external' % for suplabel.m
     };
 

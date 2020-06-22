@@ -47,12 +47,28 @@ else
     parforArg = 0;
 end
 
+% If S contains D_perc, this is used to update the perceptual model
+% parameters and fixed them (variance zero) per subject. Used for
+% estimating response model parameters only for certain applications.
+% Can easily be updated so that the priors are not fixed.
+if isfield(S,'D_perc')
+    r=struct;
+    for d = 1:length(D)
+        r(d).c_prc = eval([S.prc_config '(S,0)']); % runs the prc config function
+        % prc: re-define within-subject priors
+        r(d).c_prc.priormus = S.D_perc(d).HGF.fit.p_prc.p;
+        r(d).c_prc.priorsas = S.D_perc(d).HGF.fit.c_prc.priorsas;
+        % fixed variances to 0 for alpha and omega/theta
+        r(d).c_prc.priorsas(S.fix_param_indices) = 0;
+    end
+end
+
 % get parameter struct by running bayesopt, otherwise parallel fails
 % fit = tapas_fitModel_CAB([], D(1).HGF(1).u, prc_model, S.bayesopt_config, opt_algo,S, 0);
 % sim=fit;
 fit=cell(length(D),1);sim=cell(length(D),1);
-parfor (d = 1:length(D),parforArg)
-% for d = 1:length(D)
+%parfor (d = 1:length(D),parforArg)
+for d = 1:length(D)
     
     disp(['testing perc model ' num2str(S.perc_model) ', resp model ' num2str(S.resp_model) ', subject ' num2str(d) '/' num2str(length(D))])
 
@@ -66,12 +82,20 @@ parfor (d = 1:length(D),parforArg)
         end
     end
     
-    
-    
     %cycle through until VarApprox is valid
     fin=0;
     failed=0;
     while fin==0
+        
+        if isfield(S,'D_perc')
+            c_prc = r(d).c_prc;
+            if failed 
+                c_prc.priormus(S.fix_param_indices(end-1)) = c_prc.priormus(S.fix_param_indices(end-1))-failed;
+            end
+        else
+            c_prc = [];
+        end
+        
         if sim_on==1
             if isfield(S,'sim') && ~isempty(S.sim)
                 sim_param = S.sim;
@@ -92,7 +116,7 @@ parfor (d = 1:length(D),parforArg)
             elseif isfield(D(d).HGF(yn),'y')
                 y = D(d).HGF(yn).y;
             end
-            out = tapas_fitModel_CAB(y(1:nst,:), D(d).HGF(1).u(1:nst,:), prc_model, obs_model, opt_algo, S, failed);
+            out = tapas_fitModel_CAB(y(1:nst,:), D(d).HGF(1).u(1:nst,:), prc_model, obs_model, opt_algo, S, failed, c_prc);
             if isfield(out,'traj')
                 fit{d} = out;
             else

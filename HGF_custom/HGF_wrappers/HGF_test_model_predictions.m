@@ -61,7 +61,7 @@ switch S.resp_modelspec.responses{:}
                 cc(rep) = corr(fitted_rt(ii),actual_rt(ii),'type','Spearman');
                 
                 % bayes reg
-                brr(d,rep) = bayesreg_crossval(fitted_rt(ii),actual_rt(ii),S,0);
+                brr(d,rep) = bayesreg_crossval(fitted_rt(ii),actual_rt(ii),S,{});
                 
             end
             cc_mean(d,1)=mean(cc);

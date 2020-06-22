@@ -216,15 +216,19 @@ for d=1:length(D)
                             end
 
                         case 'FDR'
-                            [fdr_p] = FDR(p_img(:),S.MCC.thresh);
+                            if strcmp(S.MCC.FDR_type,'para')
+                                [fdr_p] = FDR(p_img(:),S.MCC.thresh);
+                            elseif strcmp(S.MCC.FDR_type,'nonpara')
+                                [~,fdr_p] = FDR(p_img(:),S.MCC.thresh);
+                            end
                             psize=size(p_img);
                             switch length(psize)
                                 case 1
-                                    MCCmask_img = p_img<=fdr_p;
+                                    MCCmask_img = p_img<fdr_p;
                                 case 2
-                                    MCCmask_img = reshape(p_img<=fdr_p,psize(1),psize(2));
+                                    MCCmask_img = reshape(p_img<fdr_p,psize(1),psize(2));
                                 case 3
-                                    MCCmask_img = reshape(p_img<=fdr_p,psize(1),psize(2),psize(3));
+                                    MCCmask_img = reshape(p_img<fdr_p,psize(1),psize(2),psize(3));
                             end  
                     end
 
@@ -232,8 +236,10 @@ for d=1:length(D)
                         temp = spm_read_vols(spm_vol(S.MCC.mask_img_post))>0;
                         MCCmask_img=MCCmask_img.*temp;
                     end
-                    mask_p_img = p_img.*MCCmask_img;
                     mask_Z_img = Z_img.*MCCmask_img;
+                    pMCCmask_img=double(MCCmask_img);
+                    pMCCmask_img(MCCmask_img==0)=NaN;
+                    mask_p_img = p_img.*pMCCmask_img;
 
                     % save images
                     V.fname = D(d).model(i).con(c).MCC.mask_img_file;
@@ -320,7 +326,7 @@ for d=1:length(D)
                 LR_img = spm_read_vols(spm_vol(D(d).model_comp(i).LR_img_file));
                 
                 % use LR threshold
-                LR_img_thresh = LR_img>=S.MCC.LR_thresh | LR_img<=(1/S.MCC.LR_thresh);
+                LR_img_thresh = LR_img>S.MCC.LR_thresh | LR_img<(1/S.MCC.LR_thresh);
                 psize=size(p_img);
                 switch length(psize)
                     case 2
@@ -333,9 +339,12 @@ for d=1:length(D)
                     temp = spm_read_vols(spm_vol(S.MCC.mask_img_post))>0;
                     MCCmask_img=MCCmask_img.*temp;
                 end
-                mask_Z_img = Z_img.*MCCmask_img;
-                mask_p_img = p_img.*MCCmask_img;
                 mask_LR_img = LR_img.*MCCmask_img;
+                %mask_Z_img = Z_img.*MCCmask_img;
+                
+                pMCCmask_img=double(MCCmask_img);
+                pMCCmask_img(MCCmask_img==0)=NaN;
+                mask_p_img = p_img.*pMCCmask_img;
 
                 % save images
                 V.fname = D(d).model_comp(i).MCC.mask_img_file;

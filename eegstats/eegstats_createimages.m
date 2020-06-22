@@ -98,7 +98,6 @@ for d=1:length(D)
     end
 
     %% convert to images
-    V = makeV;
     if S.img.model.index
         for i = S.img.model.index
             disp(['converting to images for ' save_pref num2str(d) ', model ' num2str(i)])
@@ -120,6 +119,7 @@ for d=1:length(D)
                     mask_img=ones(size(b_img));
                 end
                 % save images
+                V = makeV(size(mask_img,3));
                 D(d).model(i).coeff(b).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_coeff_' num2str(b) '_b.nii']);
                 V.fname = D(d).model(i).coeff(b).b_img_file;
                 V.dim(1:length(size(mask_img))) = size(mask_img);
@@ -152,6 +152,10 @@ for d=1:length(D)
                     if ~isempty(S.img.file.coord)
                         [F_img] = topotime_3D(D(d).model(i).con(c).F,S);
                         [p_img] = topotime_3D(D(d).model(i).con(c).p,S);
+                        
+                        % correct interpolation problem: creates negative p
+                        % values
+                        p_img(p_img<0)=0;
                     else
                         F_img=D(d).model(i).con(c).F;
                         p_img=D(d).model(i).con(c).p;
@@ -180,6 +184,11 @@ for d=1:length(D)
             % create
             if ~isempty(S.img.file.coord)
                 [p_img] = topotime_3D(D(d).model_comp(i).pval,S);
+                
+                % correct interpolation problem: creates negative p
+                % values
+                p_img(p_img<0)=0;
+                
                 if ~isempty(S.img.mask_img)
                     [LR_img] = topotime_3D(D(d).model_comp(i).LR,S);
                 else
@@ -224,11 +233,11 @@ for p = 1:size(S.path.code,1)
     end
 end
 
-function V = makeV
+function V = makeV(zsize)
 V.fname = '';
 V.dim = [1 1 1];
 V.dt = [16,0];
-V.pinfo = [1;0;352];
+%V.pinfo = [0;0;0];
 V.mat = [-4.25000000000000,0,0,68;0,5.37500000000000,0,-100;0,0,1,-201;0,0,0,1];
 V.n = [1,1];
 V.descrip = '';

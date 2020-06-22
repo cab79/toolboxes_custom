@@ -52,8 +52,10 @@ for d = 1:length(D)
         Y=struct;
         for s = 1:length(Yy)
             Y(s).dtab = horzcat(D(d).prep(np).dtab,Yy(s).dtab);
-            Y(s).data_mean = Yy(s).data_mean;
-            Y(s).data_std = Yy(s).data_std;
+            if isfield(Yy,'data_mean')
+                Y(s).data_mean = Yy(s).data_mean;
+                Y(s).data_std = Yy(s).data_std;
+            end
         end
 
         % save

@@ -574,9 +574,9 @@ for m=1:nModels
 
         jumpTol = 16;
         if any(abs(dmu(:)) > jumpTol*rmdmu(:)) || any(abs(dpi(:)) > jumpTol*rmdpi(:))
-            disp('hgf:VarApproxInvalid', 'GBM Variational approximation invalid. Parameters are in a region where model assumptions are violated.');
+            disp('hgf:VarApproxInvalid: GBM Variational approximation invalid. Parameters are in a region where model assumptions are violated.');
             disp('Use plot for diagnosis: see within function'); % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
-            clear traj
+            infStates = [];
             return
         end
     end
