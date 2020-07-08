@@ -92,6 +92,20 @@ if any(strcmp(c.responses, 'RT')) || any(strcmp(c.responses, 'EEG')) || any(strc
             c.reg.(['be0' num2str(c.params(yn)) 'mu']) = 0; 
             c.reg.(['be0' num2str(c.params(yn)) 'sa']) = 4;
         end
+    elseif any(strcmp(c.responses, 'CCAcomp'))
+
+        if ~iscell(c.params)
+            error("parameter numbers should be in a cell array for CCAcomp")
+        end
+        
+        for yn = 1:length(c.params)
+            % Beta_0
+            c.reg.(['be0' num2str(yn) 'mu']) = 0; 
+            c.reg.(['be0' num2str(yn) 'sa']) = 4;
+        end
+        
+        c.params_cell = c.params;
+        c.params = unique(c.params{:});
     end
 
     % Beta_1

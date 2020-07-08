@@ -211,7 +211,7 @@ for pt = 1:length(S.type)
                 
                 % how many CCA to test?
                 if S.cca_test_nPCAcomp
-                    nCCAtest = 1:min(ncomp(nc),NUM_FAC(2));
+                    nCCAtest = 1:ncomp(nc);
                 else
                     nCCAtest = NUM_FAC(2);
                 end
@@ -253,11 +253,8 @@ for pt = 1:length(S.type)
             end
             
             % which number of components?
-            if isfield(Sf,'cca_select_nPCA_per_group')
-                select_per_group = Sf.cca_select_nPCA_per_group;
-            else
-                select_per_group = 1;
-            end
+            if isfield(Sf.cca_select_nPCA_per_group)
+            select_per_group = 1;
             figure; hold on
             if select_per_group
                 for g=1:length(G)
@@ -1549,3 +1546,11 @@ mdataX=nan(K,size(X,2));
 mdataY=nan(K,size(Y,2));
 mdataX(:,~any(nandatX,1)) = mdataXtemp;
 mdataY(:,~any(nandatY,1)) = mdataYtemp;
+
+
+function gcaExpandable
+
+    set(gca, 'ButtonDownFcn', [...
+        'set(copyobj(gca, uipanel(''Position'', [0 0 1 1])), ' ...
+        '    ''Units'', ''normal'', ''OuterPosition'', [0 0 1 1], ' ...
+        '    ''ButtonDownFcn'', ''delete(get(gca, ''''Parent''''))''); ']);

@@ -341,6 +341,170 @@ if any(strcmp(r.c_obs.responses, 'HGFvar'))
 
 end
 
+
+%% Regression with CCA components
+if any(strcmp(r.c_obs.responses, 'CCAcomp'))
+
+    % Create param struct
+    type='reg'; % regression
+    for pn=1:length(nme)
+        if strcmp(nme{pn,1}(1:length(type)),type)
+            eval([nme_gen{pn} ' = pvec(idx{pn})'';']);
+        end
+    end
+    
+    % switch the data input column
+    ycol = 3:size(r.y,2);
+    if ~isempty(r.c_obs.ynum)
+        ycol = ycol(r.c_obs.ynum);
+    end
+
+    % Weed irregular trials out from responses and inputs
+    yr = r.y(:,ycol); % RTs are in column 2, EEG in column 3 or greater
+    yr(r.irr,:) = [];
+    u = r.u(:,1);
+    u(r.irr) = [];
+    
+    
+    % Extract trajectories of interest from infStates
+    mu1 = r.traj.(r.c_obs.model).mu(:,1);
+    mu1hat = r.traj.(r.c_obs.model).muhat(:,1);
+    sa1hat = r.traj.(r.c_obs.model).sahat(:,1);
+    sa1 = r.traj.(r.c_obs.model).sa(:,1);
+    dau = r.traj.(r.c_obs.model).dau;
+    ep1 = r.traj.(r.c_obs.model).epsi(:,1);
+    da1 = r.traj.(r.c_obs.model).da(:,1);
+    ep2 = r.traj.(r.c_obs.model).epsi(:,2);
+    if l>1
+        mu2    = r.traj.(r.c_obs.model).mu(:,2);
+        sa2    = r.traj.(r.c_obs.model).sa(:,2);
+        mu2hat = r.traj.(r.c_obs.model).muhat(:,2);
+        sa2hat = r.traj.(r.c_obs.model).sahat(:,2);
+    end
+    if l>2
+        mu3 = r.traj.(r.c_obs.model).mu(:,3);
+        da2 = r.traj.(r.c_obs.model).da(:,2);
+        ep3 = r.traj.(r.c_obs.model).epsi(:,3);
+        da3 = r.traj.(r.c_obs.model).da(:,3);
+    end
+    
+    
+    % prediction error
+    % ~~~~~~~~
+    if abs_switch
+        daureg = abs(dau);
+        daureg(r.irr) = [];
+        ep1reg = abs(ep1);
+        ep1reg(r.irr) = [];
+        da1reg = abs(da1);
+        da1reg(r.irr) = [];
+        ep2reg = abs(ep2);
+        ep2reg(r.irr) = [];
+        if l>2
+            da2reg = abs(da2);
+            da2reg(r.irr) = [];
+            ep3reg = abs(ep3);
+            ep3reg(r.irr) = [];
+            da3reg = abs(da3);
+            da3reg(r.irr) = [];
+        end
+    else
+        daureg = dau;
+        daureg(r.irr) = [];
+        ep1reg = ep1;
+        ep1reg(r.irr) = [];
+        da1reg = da1;
+        da1reg(r.irr) = [];
+        ep2reg = ep2;
+        ep2reg(r.irr) = [];
+        if l>2
+            da2reg = da2;
+            da2reg(r.irr) = [];
+            ep3reg = ep3;
+            ep3reg(r.irr) = [];
+            da3reg = da3;
+            da3reg(r.irr) = [];
+        end
+    end
+    
+    % Posterior expectation
+    % ~~~~~~~~
+    m1reg = mu1;
+    m1reg(r.irr) = [];
+    if l>1
+        m2reg = mu2;
+        m2reg(r.irr) = [];
+    end
+    if l>2
+        m3reg = mu3;
+        m3reg(r.irr) = [];
+    end
+
+    % Surprise: informational
+    % ~~~~~~~~
+    %m1hreg = mu1hat;
+    %m1hreg(r.irr) = [];
+    poo = m1reg.^u.*(1-m1reg).^(1-u); % probability of observed outcome
+    surp = -log2(poo);
+
+    % Bernoulli variance (aka irreducible uncertainty, risk) 
+    % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    bernv = sa1;
+    bernv(r.irr) = [];
+    
+    bernvhat = sa1hat;
+    bernvhat(r.irr) = [];
+    
+    mu1hreg = mu1hat;
+    mu1hreg(r.irr) = [];
+
+    if l>1 % CAB
+        % Inferential variance (aka informational or estimation uncertainty, ambiguity)
+        % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        %inferv = tapas_sgm(mu2, 1).*(1 -tapas_sgm(mu2, 1)).*sa2; % transform down to 1st level
+        sigmoid_mu2 = 1./(1+exp(-mu2)); % transform down to 1st level
+        inferv = sigmoid_mu2.*(1 -sigmoid_mu2).*sa2; 
+        %inferv = sa2; 
+        inferv(r.irr) = [];
+        
+        mu2hreg = mu2hat;
+        mu2hreg(r.irr) = [];
+        sa2hreg = sa2hat;
+        sa2hreg(r.irr) = [];
+    end
+
+    if l>2 % CAB
+        % Phasic volatility (aka environmental or unexpected uncertainty)
+        % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        pv = sigmoid_mu2.*(1-sigmoid_mu2).*exp(mu3); % transform down to 1st level
+        %pv = exp(mu3); 
+        pv(r.irr) = [];
+        
+    end
+    
+    logp_reg(reg,1) = 0;
+    for y=1:size(yr,2)
+        param_nums = r.c_obs.params_cell{y};
+
+        % assign intercept
+        eval(['be0 = be0' num2str(y) ';']);
+        
+        % assign other params to zero if not needed
+        for pn = 1:16
+            if ~any(param_nums==pn)
+                eval(['be' num2str(pn) ' = 0;']);
+            end
+        end
+        
+        logresp = be0 +be1.*surp +be2.*bernv +be3.*inferv +be4.*pv +be5.*daureg +be6.*ep1reg +be7.*da1reg +be8.*ep2reg +be9.*da2reg +be10.*ep3reg +be11.*da3reg +be12.*m1reg +be13.*m2reg +be14.*m3reg +be15.*sa2hreg +be16.*mu2hreg;
+
+        logp_reg(reg) = logp_reg(reg) + -1/2.*log(8*atan(1).*ze) -(yr(:,y)-logresp).^2./(2.*ze);
+        
+    end
+
+
+end
+
 if ~exist('logp_so','var')
     logp_so=0;
 end

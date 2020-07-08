@@ -137,64 +137,68 @@ end;
 L=L(IX,IX);
 V=V(:,IX);
 
-V = V(:,1:NUM_FAC);  %truncated eigenvector matrix
-scree = diag(L);
-L = L(1:NUM_FAC,1:NUM_FAC);  %truncated eigenvalue matrix
+failed =1;
+while failed==1
+    V = V(:,1:NUM_FAC);  %truncated eigenvector matrix
+    scree = diag(L);
+    L = L(1:NUM_FAC,1:NUM_FAC);  %truncated eigenvalue matrix
 
-%factor scores
-FacScr = (data) * V;    %factor scores, not mean corrected.
+    %factor scores
+    FacScr = (data) * V;    %factor scores, not mean corrected.
 
-ScrDiag = diag(std(FacScr));
-A = inv(Sd) * (V * ScrDiag);  %unrotated factor loading matrix
-%Note, this equation is commonly cited in statistics books but is misleading in this form.  The full
-%form is A = inv(Sd) * (inv(V') * sqrt (L))
-%this means that A is not in fact a scaled form of V as is commonly implied.
-%This makes sense since A is a factor loading matrix (converts scores to raw data)
-%while V is a scoring coefficient matrix (converts raw data to scores).
-%inv(V') does reduce down to V, though, since X'=inv(X)
-%for an orthogonal matrix, X.
+    ScrDiag = diag(std(FacScr));
+    A = inv(Sd) * (V * ScrDiag);  %unrotated factor loading matrix
+    %Note, this equation is commonly cited in statistics books but is misleading in this form.  The full
+    %form is A = inv(Sd) * (inv(V') * sqrt (L))
+    %this means that A is not in fact a scaled form of V as is commonly implied.
+    %This makes sense since A is a factor loading matrix (converts scores to raw data)
+    %while V is a scoring coefficient matrix (converts raw data to scores).
+    %inv(V') does reduce down to V, though, since X'=inv(X)
+    %for an orthogonal matrix, X.
 
-C = sum((A.^2),2)';
-% Kaiser normalisaiton
-A = (diag(sqrt(C).^-1)) * A;  %factor loadings Kaiser-normalized by communalities
-        
-% ROTATION
-[FacPat]= ep_doVarimax(A);
-FacCor = diag(ones(NUM_FAC,1));
-FacStr = FacPat;
+    C = sum((A.^2),2)';
+    % Kaiser normalisaiton
+    A = (diag(sqrt(C).^-1)) * A;  %factor loadings Kaiser-normalized by communalities
 
-%renormalize factor loadings by original communalities    
-FacPat = diag(sqrt(C)) * FacPat;  
-FacStr = diag(sqrt(C)) * FacStr;
-    
-%Only apply loading weighting to the Varimax step
-[FacPat, FacCor] = ep_doPromax(FacPat, ROTOPT); 
-%to match SAS output and to avoid rounding errors.
-FacStr = FacPat * FacCor;	%factor structure matrix (Harman, eq. 12.19, p. 268)
-    
-if NUM_FAC == 1 %ensure that matrices have the right orientation when there is only one factor.
-    if size(FacPat,1) < size(FacPat,2)
-        FacPat=FacPat';
+    % ROTATION
+    [FacPat]= ep_doVarimax(A);
+    FacCor = diag(ones(NUM_FAC,1));
+    FacStr = FacPat;
+
+    %renormalize factor loadings by original communalities    
+    FacPat = diag(sqrt(C)) * FacPat;  
+    FacStr = diag(sqrt(C)) * FacStr;
+
+    %Only apply loading weighting to the Varimax step
+    [FacPat, FacCor] = ep_doPromax(FacPat, ROTOPT); 
+    %to match SAS output and to avoid rounding errors.
+    FacStr = FacPat * FacCor;	%factor structure matrix (Harman, eq. 12.19, p. 268)
+
+    if NUM_FAC == 1 %ensure that matrices have the right orientation when there is only one factor.
+        if size(FacPat,1) < size(FacPat,2)
+            FacPat=FacPat';
+        end
+        if size(FacStr,1) < size(FacStr,2)
+            FacStr=FacStr';
+        end
     end
-    if size(FacStr,1) < size(FacStr,2)
-        FacStr=FacStr';
+
+    %Deal with loadings that are too large
+    LargestLoading=max(max(abs(FacStr))); %factor pattern loadings can go over 1 for oblique rotations
+    if round(LargestLoading*100) > 100 %allow very small violation of factor loading limit due to rounding errors
+        disp('Loadings are over the permitted maximum of 1.  It appears this rotation has crashed.');
+        NUM_FAC = NUM_FAC-1;
+    else failed = 0;
     end
+
 end
-    
-%Deal with loadings that are too large
-LargestLoading=max(max(abs(FacStr))); %factor pattern loadings can go over 1 for oblique rotations
-if round(LargestLoading*100) > 100 %allow very small violation of factor loading limit due to rounding errors
-    msg{1}=['Loadings are over the permitted maximum of 1.  It appears this rotation has crashed.'];
-    [msg]=ep_errorMsg(msg);
-    return
-end;
 
 LargestCom=max(max(abs(sum(FacPat.*FacStr,2))));
 if round(LargestCom*100) > 100 %allow very small violation of communality limit due to rounding errors
     msg{1}=['Communalities are over the permitted maximum of 1.  It appears this rotation has crashed.'];
     [msg]=ep_errorMsg(msg);
     return
-end;
+end
     
 invR=pinv(R);
 FacCof=invR*FacStr;

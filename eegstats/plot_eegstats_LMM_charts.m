@@ -25,16 +25,23 @@ dbstop if error
 % close all
 % set paths and file names 
 S.path.code = {
-   1, 'Q:\MATLAB\toolboxes_external\cbrewer'
-   1, 'Q:\MATLAB\toolboxes_external\spm12'
+   1, 'G:\Q_backup\MATLAB\toolboxes_external\cbrewer'
+   1, 'G:\Q_backup\MATLAB\toolboxes_external\spm12'
     };
 
 % set paths
 set_paths(S)
 
-% load cluster data
-load(fullfile(S.path.stats_load,'D.mat'),'D');
-cd(S.path.stats_load)
+if ~isempty(S.model.clus)
+    % load cluster data
+    load(fullfile(S.path.stats_load,'D.mat'),'D');
+    pth=S.path.stats_load;
+elseif ~isempty(S.model.component)
+    % load component data
+    load(S.path.stats_load,'D');
+    [pth] = fileparts(S.path.stats_load);
+end
+cd(pth)
 
 if ~isempty(S.model.def)
     D.model(S.model.index).def = S.model.def{:};
@@ -54,7 +61,8 @@ if ~any(strcmp({D.model(S.model.index).con(:).term},S.model.contrast_term))
     error([S.model.contrast_term ' is not a constrast term in this model'])
 end
 c = find(strcmp({D.model(S.model.index).con(:).term},S.model.contrast_term));
-S.model.clus(S.model.clus>length(D.model(i).con(c).clus))=[];
+
+
 
 % ensure variables are in the right order - useful for extracting
 % coefficients 
@@ -71,20 +79,36 @@ new_vnames = vnames;
 new_vnames(ivi) = vnames(sort(ivi));
 dtab = dtab(:,new_vnames);
 
+% clusters from topo or components from CCA?
+if ~isempty(S.model.clus)
+    S.model.clus(S.model.clus>length(D.model(i).con(c).clus))=[];
+    splot = S.model.clus;
+elseif ~isempty(S.model.component)
+    S.model.component(S.model.component>size(Ddtab.D.prep.PCA.CCA{1},2))=[];
+    splot = S.model.component;
+end
+
 % subplots per cluster
-for cl = S.model.clus
+for cl = splot
         
 %     load_exist=questdlg('load existing models?');
-    switch S.data_type
-        case 'median'
-            input=D.model(i).con(c).clus(cl).input_median'; % better to use mean?
-        case 'mean'
-            input=D.model(i).con(c).clus(cl).input_mean'; % better to use mean?
-        case 'eig'
-            input=D.model(i).con(c).clus(cl).eig(1,:)'; % better to use mean?
+    if ~isempty(S.model.clus)
+        switch S.data_type
+            case 'median'
+                input=D.model(i).con(c).clus(cl).input_median'; % better to use mean?
+            case 'mean'
+                input=D.model(i).con(c).clus(cl).input_mean'; % better to use mean?
+            case 'eig'
+                input=D.model(i).con(c).clus(cl).eig(1,:)'; % better to use mean?
+        end
+        dtab.data=input;
+    elseif ~isempty(S.model.component)
+        dtab.data=Ddtab.D.prep.Y(cl).dtab.data;
     end
-    dtab.data=input;
-    lme_fname = fullfile(S.path.stats_load,['LME_model' num2str(S.model.index) '_cluster' num2str(cl) '.mat']);
+    
+    
+    
+    lme_fname = fullfile(pth,['LME_model' num2str(S.model.index) '_cluster' num2str(cl) '.mat']);
     fit_models=1;
 %     if exist(lme_fname,'file') && strcmp(load_exist,'Yes')
 %         load(lme_fname);
@@ -206,14 +230,15 @@ for cl = S.model.clus
     end
     
     % coefficients for the effect of interest
-    [coeff,~,Rcoeff] = FReffects(lme,S.effect,rdm_levels,S.IV_plot);
+    IV_plot = S.IV_plot; %intersect(S.IV_plot,lme.CoefficientNames);
+    [coeff,~,Rcoeff] = FReffects(lme,S.effect,rdm_levels,IV_plot);
     %coeff_table = table(rdm_levels,group,coeff,Rcoeff);
-    coeff_fname = fullfile(S.path.stats_load,['Coeff_model' num2str(S.model.index) '_cluster' num2str(cl) '_' S.effect '.mat']);
+    coeff_fname = fullfile(pth,['Coeff_model' num2str(S.model.index) '_cluster' num2str(cl) '_' S.effect '.mat']);
     save(coeff_fname,'coeff','Rcoeff')
    
 
     plotdata(1).title = {'observed EEG data','all effects','all effects'};
-    plotdata(1).Y = input;
+    plotdata(1).Y = dtab.data;
     plotdata(1).X_name = 'cov';
     plotdata(1).X = cov;
     plotdata(1).fit_marginal = fit_marginal;
@@ -278,9 +303,11 @@ for cl = S.model.clus
 
             % fit based on LME coefficients for population
             if pd>1 
-                [coeff_plot,Fcoeff_plot] = FReffects(lme_nocovY,S.cov_plot,rdm_levels,S.IV_plot);
+                IV_plot = S.IV_plot; %intersect(S.IV_plot,lme_nocovY.CoefficientNames);
+                [coeff_plot,Fcoeff_plot] = FReffects(lme_nocovY,S.cov_plot,rdm_levels,IV_plot);
             else
-                [coeff_plot,Fcoeff_plot] = FReffects(lme,S.cov_plot,rdm_levels,S.IV_plot);
+                IV_plot = S.IV_plot; %intersect(S.IV_plot,lme.CoefficientNames);
+                [coeff_plot,Fcoeff_plot] = FReffects(lme,S.cov_plot,rdm_levels,IV_plot);
             end
             if ~isempty(Fcoeff_plot)
                 cf=0;

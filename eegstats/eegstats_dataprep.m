@@ -421,112 +421,95 @@ end
 %% final transformations: must take place on grouped data (over subjects) if it is grouped
 for d = 1:length(D)
     disp(['data transformations: ' num2str(d) '/' num2str(length(D))])
-    K=1;
-    if ~isempty(S.prep.calc.pred.PCA_cov)
-            
-        % find columns with relevant predictors
-        col_idx=contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov);
-        col_names = D(d).prep.dtab.Properties.VariableNames(col_idx);
-        dtab_PCA=D(d).prep.dtab;
-%         dtab_PCA(:,col_idx)=[];
-
-        % extract predictors
-        X=[];
-        for nc = 1:length(col_names)
-            X(:,nc)=D(d).prep.dtab.(col_names{nc});
+    
+    % z-scoring on continuous predictors, but not if doing PLS on EEG data
+    if S.prep.calc.pred.zscore
+        if S.prep.calc.eeg.pca.on == 1 && any(strcmp(S.prep.calc.eeg.pca.PCAmethod,'PLS'))
+            disp('no z-scoring to properly rescale Y variables for PLS')
+        else
+            vt = vartype('numeric');
+            numericvar_names=dtab(:,vt).Properties.VariableNames;
+            for pr = 1:length(numericvar_names)
+                [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(table2array(D(d).prep.dtab(:,numericvar_names{pr})));
+                D(d).prep.dtab(:,numericvar_names{pr}) = array2table(zdata);
+            end
         end
-        X=center(X);
-        X=normalize(X);
-
-        % PCA parameters
-        delta = inf;
-        maxiter = 3000;
-        convergenceCriterion = 1e-9;
-        verbose = false;
-
-        % identify range of L1 norm thresholds to test
-        [~,~,A] = svd(X, 'econ');
-        AXX=abs((A'*X')*X);
-        AXX=sort(AXX(:));
-        range = [max(AXX)*2 fliplr(prctile(AXX,[1:100]))];
-
-        % test all and find optimal solution for sparse PCA
-        out=struct; 
-        nC = intersect(S.prep.calc.pred.PCA_models,1:length(col_names));
-        for K = nC
-            for rn = 1:length(range)
-                stop=range(rn);
-                [B,SV,Bsvd,SVsvd] = spca(X, [], K, delta, stop, maxiter, convergenceCriterion, verbose);
-                scores = X * B;
-                % test collinearity
-                rs=corr(scores,'type','Pearson');
-                rs=abs(triu(rs,1));
-                coli=find(rs>0.8);
-                % ensure correct number of PCs is obtained with min variance
-                % criterion met
-                if any(B,'all') && isempty(coli) && ~any(isnan(rs),'all') && sum(SV)/sum(SVsvd)>=S.prep.calc.pred.PCA_minvar
-                    out(K).rn=rn;
-                    out(K).B=B;
-                    out(K).SV = SV;
-                    out(K).scores = scores;
-                    break
-                end
-            end
-
-            % if criterion is not met, use standard PCA
-            try out(K).B
-            catch
-                out(K).rn=0;
-                out(K).B=Bsvd;
-                out(K).SV = SVsvd;
-                out(K).scores = X * Bsvd;
-            end
-
-            % add PCA components to data table
-            Btable = table;
-            Btable.cov = dtab_PCA(:,col_idx).Properties.VariableNames';
-            for k = 1:K
-                disp(['adding component M' num2str(K) 'PC' num2str(k)])
-                pcname=['M' num2str(K) 'PC' num2str(k)];
-                dtab_PCA.(pcname) = out(K).scores(:,k);
-                Btable.(pcname) = out(K).B(:,k);
-            end
-            D(d).prep.pca{K}=Btable;
-        end
-        D(d).prep.dtab=dtab_PCA;
+    elseif S.prep.calc.eeg.pca.on == 1
+        error('must z-score data prior to PCA')
     end
     
-    vt = vartype('numeric');
-    numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
-    if S.prep.calc.pred.test_collinearity && K==1
+    if S.prep.calc.pred.PCA_on
+            
+        D(d).prep.pred_PCA = predictor_PCA(D(d).prep.dtab,S);
+
+        % add PCA components to data table
+        if S.prep.calc.pred.PCA_model_add2dtab
+            ym=S.prep.calc.pred.PCA_model_add2dtab;
+            for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                pcname=['PC' num2str(k)];
+                D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore{ym}(:,k);
+            end
+        end
+    end
+    
+    if S.prep.calc.pred.test_collinearity
         
-        % for pr = 1:length(numericvar_names)
-%             if strcmp(S.prep.calc.pred.transform,'arcsinh') % need to modify this to apply to only selected predictors
-%                 x=table2array(dtab(:,numericvar_names));
-%                 dtab(:,numericvar_names)=array2table(log(x+sqrt(x.^2+1)));
+        % variables
+        var_names = D(d).prep.dtab.Properties.VariableNames;
+        var_names = setdiff(var_names,{'ID','group','test','train','eventTypes'},'stable');
+        vt = vartype('numeric');
+        numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
+        numericvar_ind = find(ismember(var_names,numericvar_names));
+        nonnumericvar_ind = find(~ismember(var_names,numericvar_names));
+        all_ind = [numericvar_ind,nonnumericvar_ind]; % must be in this order
         
-        rs=corr(table2array(D(d).prep.dtab(:,numericvar_names)),'type','Pearson');
-        rs=abs(triu(rs,1));
-        save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'rs','col_names');
-        coli=find(rs>S.prep.calc.pred.test_collinearity);
-        [row,col] = ind2sub(size(rs),coli);
+        % combinations
+        comb = nchoosek(all_ind,2);   
+        comb = comb(ismember(comb(:,1),numericvar_ind),:); 
+        corrmat = diag(zeros(1,length(var_names)));
+        for ci = 1:length(comb)
+            formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
+            lme = fitlme(D(d).prep.dtab,formula);
+            corrmat(comb(ci,1),comb(ci,2)) = sqrt(abs(lme.Rsquared.Ordinary));
+        end
+        corrmat = triu(corrmat + corrmat',1);
+        figure;imagesc(corrmat);colorbar;
+        xticks(1:length(var_names)); xticklabels(var_names); xtickangle(90);
+        yticks(1:length(var_names)); yticklabels(var_names);
+        title('collinearity of predictors')
+        
+        save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
+        coli=find(corrmat>S.prep.calc.pred.test_collinearity);
+        [row,col] = ind2sub(size(corrmat),coli);
         for ci = 1:length(coli)
-            var1=numericvar_names{row(ci)};
-            var2=numericvar_names{col(ci)};
+            var1=var_names{row(ci)};
+            var2=var_names{col(ci)};
             disp(['collinear predictors: ' var1 ', ' var2])
         end
-        if ~isempty(coli)
+        if S.prep.calc.pred.allow_collinearity==false && ~isempty(coli)
             error('collinear predictors - see above')
+        end
+        
+        if 0 % old version: continuous predictors only
+            vt = vartype('numeric');
+            numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
+
+            rs=corr(table2array(D(d).prep.dtab(:,numericvar_names)),'type','Pearson');
+            rs=abs(triu(rs,1));
+            save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'rs','col_names');
+            coli=find(rs>S.prep.calc.pred.test_collinearity);
+            [row,col] = ind2sub(size(rs),coli);
+            for ci = 1:length(coli)
+                var1=numericvar_names{row(ci)};
+                var2=numericvar_names{col(ci)};
+                disp(['collinear predictors: ' var1 ', ' var2])
+            end
+            if ~isempty(coli)
+                error('collinear predictors - see above')
+            end
         end
     end
     
-    % z-scoring on continuous predictors
-    if S.prep.calc.pred.zscore
-        for pr = 1:length(numericvar_names)
-            [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(table2array(D(d).prep.dtab(:,numericvar_names{pr})));
-            D(d).prep.dtab(:,numericvar_names{pr}) = array2table(zdata);
-        end
-    end
     
     % check design matrix is full rank
 %     rk = rank(D(d).prep.dtab);
@@ -538,7 +521,7 @@ for d = 1:length(D)
     
     if S.prep.calc.eeg.pca.on
         
-        %% inputs for CCA
+        %% inputs for PLS/CCA
         Sf.PCAmethod = S.prep.calc.eeg.pca.PCAmethod;
         Sf.type = S.prep.calc.eeg.pca.type;
         Sf.type_obs_sep = S.prep.calc.eeg.pca.type_sep; % analyse "observation" separately. E.g. if temporal PCA, apply separately to each spatial channel?
@@ -549,31 +532,27 @@ for d = 1:length(D)
         Sf.maxGig = S.prep.calc.eeg.pca.maxGig;
         Sf.normalise_cca_weights = S.prep.calc.eeg.cca.normalise_weights;
         Sf.img=S.img;
-        Sf.Y_use4output = S.prep.calc.eeg.Y_use4output;
+        Sf.Y_use4output = S.prep.calc.eeg.pls.Y_use4output;
         Sf.select_ncomp = S.prep.calc.eeg.pca.select_ncomp;
+        Sf.cca_reg_weights = S.prep.calc.eeg.cca.reg_weights;
+        Sf.cca_test_nPCAcomp = S.prep.calc.eeg.cca.test_nPCAcomp;
+        Sf.cca_select_nPCA_per_group = S.prep.calc.eeg.cca.select_nPCA_per_group;
+        
         % PLS
         Y={};
-        if any(strcmp(Sf.PCAmethod,'PLS')) || any(strcmp(Sf.PCAmethod,'CCA'))
-            
-            if S.prep.calc.pred.zscore
-                error('turn off z-scoring to properly rescale Y variables')
-            end
-            
-            for ym = 1:length(S.prep.calc.eeg.Y) % for each Y model
-                
-                % find columns with relevant predictors
-                col_idx=contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.eeg.Y{ym});
-                col_names{ym} = D(d).prep.dtab.Properties.VariableNames(col_idx);
-                
-                for nc = 1:length(col_names{ym})
-                    Y{ym}(:,nc)=D(d).prep.dtab.(col_names{ym}{nc});
-                end
+        if any(strcmp(Sf.PCAmethod,'PLS'))
+            if S.prep.calc.eeg.pca.on
+                Y = D(d).prep.pred_PCA.Yscore;
+                col_names = D(d).prep.pred_PCA.col_names;
+            else
+                error('run PCA on predictors prior to PLS')
             end
         end
+        
         % RUN function
-        if S.prep.calc.eeg.Y_select % select a model and output that single model
+        if any(strcmp(Sf.PCAmethod,'PLS')) && S.prep.calc.eeg.pls.Y_select % select a model and output that single model
             [D(d)]=eegstats_components_analysis(D(d),Sf,{Y,col_names});
-        else % output all models
+        elseif any(strcmp(Sf.PCAmethod,'PLS')) % output all models
             D_orig=D;
             for ym = 1:length(S.prep.calc.eeg.Y)
                 [Dtemp]=eegstats_components_analysis(D_orig(d),Sf,{Y(ym),col_names(ym)});
@@ -597,6 +576,8 @@ for d = 1:length(D)
             subplot(2,3,5); bar(msecv_plot(:,2)); title('Y CV MSE per model')
             subplot(2,3,6); bar(pvar_plot(:,2)); title('Y % var explained per model')
             clear Dtemp D_orig
+        else
+            [D(d)]=eegstats_components_analysis(D(d),Sf);
         end
     else
         for ip = 1:length(D(d).prep)
@@ -645,22 +626,26 @@ dtfile = load(cv.input);
 subind = ismember({dtfile.D_fit(:).subname},subname);
 conds = dtfile.D_fit(subind).dt.design(2,:);
 predtemp=[];
-for ci = 1:length(cv.def)
-    condidx = find(ismember(conds,cv.def{ci}));
-    % get consecutive trials
-    difftrial = [0 diff(condidx)==1];
-    consec=1;
-    for df=2:length(difftrial)
-        if difftrial(df)==1
-            consec(df) = consec(df-1)+1;
-        else
-            consec(df) = 1;
+if ~isempty(cv.def)
+    for ci = 1:length(cv.def)
+        condidx = find(ismember(conds,cv.def{ci}));
+        % get consecutive trials
+        difftrial = [0 diff(condidx)==1];
+        consec=1;
+        for df=2:length(difftrial)
+            if difftrial(df)==1
+                consec(df) = consec(df-1)+1;
+            else
+                consec(df) = 1;
+            end
         end
+        predtemp(condidx,1)=consec;
     end
-    predtemp(condidx,1)=consec;
+    % remove trials not in EEG and put in order of EEG data trials
+    pred.trial=predtemp(tnums);
+else
+    pred.trial=tnums';
 end
-% remove trials not in EEG and put in order of EEG data trials
-pred.trial=predtemp(tnums);
 
 function pred = HGF_covariates(cv,subname,tnums,datfile)
 % remove trials not in EEG and later use tnums to put in EEG trial order
@@ -762,3 +747,180 @@ switch type
             end
         end
 end
+
+
+
+function out = predictor_PCA(dtab,S)
+% dtab: all predictors in table format
+% out: PCA coefficients etc.
+% S: which predictors to include, which PCA method, etc.
+
+% select predictors Y
+for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
+
+    % find columns with relevant predictors
+    col_idx=contains(dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{ym});
+    out.col_names{ym} = dtab.Properties.VariableNames(col_idx);
+
+    for nc = 1:length(out.col_names{ym})
+        Y{ym}(:,nc)=dtab.(out.col_names{ym}{nc});
+    end
+end
+out.Y = Y;
+
+% select PCA method
+switch S.prep.calc.pred.PCA_type
+
+    case 'PCA'
+       for ym = 1:length(Y) % for each Y model
+           
+            % inital num components
+            ncomp=size(Y{ym},2); 
+            
+            % PCA
+            [Ycoeff{ym}, Yscore{ym},~,~,explained] = pca(Y{ym},'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+            
+            % select num components
+            if S.prep.calc.pred.PCA_minvar
+                nfac_temp = find(cumsum(explained) > S.prep.calc.pred.PCA_minvar*100);
+                if isempty(nfac_temp)
+                    nfac_temp = ncomp;
+                end
+                nfac = nfac_exp(1);
+            else
+                [~,~,~,~,explainedrand] = pca(randn(size(Y{ym})),'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+                nfac_temp = find(explained<explainedrand);
+                nfac = nfac_temp(1)-1;
+            end
+            out.Ycoeff{ym} = Ycoeff{ym}(:,1:nfac);
+            out.Yscore{ym} = Yscore{ym}(:,1:nfac);
+       end
+    
+    case 'sPCA'
+        for ym = 1:length(Y) % for each Y model
+           
+            % inital num components
+            ncomp=size(Y{ym},2); 
+            
+            % sPCA settings
+            delta = inf;
+            maxiter = 1000;
+            convergenceCriterion = 1e-9;
+            verbose = false;
+
+            % sPCA
+            [Ycoeff{ym}, values] = spca(Y{ym}, [], ncomp, delta, -ncomp, maxiter, convergenceCriterion, verbose);
+            explained = diag(values)/sum(diag(values));
+            
+            % select num components
+            if S.prep.calc.pred.PCA_minvar
+                nfac_temp = find(cumsum(explained) > S.prep.calc.pred.PCA_minvar*100);
+                if isempty(nfac_temp)
+                    nfac_temp = ncomp;
+                end
+                nfac = nfac_exp(1);
+            else
+                [~, values] = spca(randn(size(Y{ym})), [], ncomp, delta, -ncomp, maxiter, convergenceCriterion, verbose);
+                explainedrand = diag(values)/sum(diag(values));
+                nfac_temp = find(explained<explainedrand);
+                nfac = nfac_temp(1)-1;
+            end
+            out.Ycoeff{ym} = spca(Y{ym}, [], nfac, delta, -nfac, maxiter, convergenceCriterion, verbose);
+            out.Yscore{ym} = Y{ym}*out.Ycoeff{ym};
+            
+        end
+        
+
+    case 'FA'
+        
+        for ym = 1:length(Y) % for each Y model
+           
+            % inital num components
+            ncomp=size(Y{ym},2); 
+            
+            % sPCA
+            FactorResults = erp_pca(Y{ym}, ncomp);
+            explained = FactorResults.scree;
+            
+            % select num components
+            if S.prep.calc.pred.PCA_minvar
+                nfac_temp = find(explained > S.prep.calc.pred.PCA_minvar*100);
+                if isempty(nfac_temp)
+                    nfac_temp = ncomp;
+                end
+                nfac = nfac_exp(1);
+            else
+                randResults = erp_pca(randn(size(Y{ym})), ncomp);
+                explainedrand = randResults.scree;
+                explainedrand = explainedrand*(sum(explained)/sum(explainedrand)); %scale to same size as real data
+                nfac_temp = find(explained<explainedrand);
+                nfac = nfac_temp(1)-1;
+            end
+            FactorResults = erp_pca(Y{ym},nfac);
+            out.Ycoeff{ym} = FactorResults.FacCof;
+            out.Yscore{ym} = FactorResults.FacScr;
+            
+        end
+        
+
+%         %% OLD sPCA code
+%         dtab_PCA=D(d).prep.dtab;
+% 
+%         % PCA parameters
+%         delta = inf;
+%         maxiter = 3000;
+%         convergenceCriterion = 1e-9;
+%         verbose = false;
+% 
+%         % identify range of L1 norm thresholds to test
+%         [~,~,A] = svd(X, 'econ');
+%         AXX=abs((A'*X')*X);
+%         AXX=sort(AXX(:));
+%         range = [max(AXX)*2 fliplr(prctile(AXX,[1:100]))];
+% 
+%         % test all and find optimal solution for sparse PCA
+%         out=struct; 
+%         nC = intersect(S.prep.calc.pred.PCA_models,1:length(col_names));
+%         for K = nC
+%             for rn = 1:length(range)
+%                 stop=range(rn);
+%                 [B,SV,Bsvd,SVsvd] = spca(X, [], K, delta, stop, maxiter, convergenceCriterion, verbose);
+%                 scores = X * B;
+%                 % test collinearity
+%                 rs=corr(scores,'type','Pearson');
+%                 rs=abs(triu(rs,1));
+%                 coli=find(rs>0.8);
+%                 % ensure correct number of PCs is obtained with min variance
+%                 % criterion met
+%                 if any(B,'all') && isempty(coli) && ~any(isnan(rs),'all') && sum(SV)/sum(SVsvd)>=S.prep.calc.pred.PCA_minvar
+%                     out(K).rn=rn;
+%                     out(K).B=B;
+%                     out(K).SV = SV;
+%                     out(K).scores = scores;
+%                     break
+%                 end
+%             end
+% 
+%             % if criterion is not met, use standard PCA
+%             try out(K).B
+%             catch
+%                 out(K).rn=0;
+%                 out(K).B=Bsvd;
+%                 out(K).SV = SVsvd;
+%                 out(K).scores = X * Bsvd;
+%             end
+% 
+%             % add PCA components to data table
+%             Btable = table;
+%             Btable.cov = dtab_PCA(:,col_idx).Properties.VariableNames';
+%             for k = 1:K
+%                 disp(['adding component M' num2str(K) 'PC' num2str(k)])
+%                 pcname=['M' num2str(K) 'PC' num2str(k)];
+%                 dtab_PCA.(pcname) = out(K).scores(:,k);
+%                 Btable.(pcname) = out(K).B(:,k);
+%             end
+%             D(d).prep.pca{K}=Btable;
+%         end
+%         D(d).prep.dtab=dtab_PCA;
+end
+
