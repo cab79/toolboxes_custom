@@ -1,4 +1,8 @@
-function [FactorResults] = erp_pca(data, NUM_FAC)
+function [FactorResults] = erp_pca(data, NUM_FAC, varargin)
+
+% CAB NEW: varargin inputs: erp_pca(data, NUM_FAC, S, Sb)
+% S = covariance matrix
+% Sb = for generalised eigenvector problem
 
 % Full description: https://www.tandfonline.com/doi/full/10.1080/87565641.2012.697503
 % This version implement promax with Kaiser rotation on covariance matrix
@@ -112,25 +116,44 @@ if ~isreal(data) %if the data has an imaginary component, as in spectral data
     isComplex=1;
 else
     isComplex=0;
-end;
+end
 D = diag(varSD);  %diagonal matrix of standard deviations of variables
-R=corrcoef(data);
+
+R=cov(data,'partialrows');
+R=cov2corr(R);
+%R=corrcoef(data);  % OLD VERSION - does not allow for NaNs
+
 goodVars=find(std(data) ~= 0);
 
 %covariance matrix
-S = cov(data); 
+if nargin>2
+    S = varargin{1};
+else
+    S = cov(data,'partialrows'); 
+end
 Sd = diag(sqrt(diag(S)));  %diagonal matrix of standard deviations of variables as used to generate relationship matrix
 
-disp('eigenvariate decomposition...')
-[V,L] = eig(S);
+%disp('eigenvariate decomposition...')
+if nargin>3
+    % generalized eigenproblem - this is primary setup for CCA analysis
+    Sb = varargin{2};
+    Sd = diag(sqrt(diag(Sb)));  %diagonal matrix of standard deviations of variables as used to generate relationship matrix
+    [V,L] = eigs(S,Sb,NUM_FAC);
+else 
+    [V,L] = eig(S);
+end
 
 if ~all(isreal(V))
     %Rounding errors resulted in relationship matrix being non-symmetric, which in turn resulted in complex numbers.
     %To fix, lower half of relationship matrix will be flipped to upper half to form symmetric relationship matrix.
     disp('Making relationship matrix symmetric to address effects of rounding errors.');
     Sfix=tril(S)+tril(S)'-diag(diag(S));
-    [V,L] = eig(S);
-end;
+    if nargin>3
+        [V,L] = eigs(Sfix,Sb,NUM_FAC);
+    else
+        [V,L] = eig(Sfix);
+    end
+end
 
 %since the output of eig is not always sorted in order of ascending size, first sort them
 [B,IX] = sort(diag(L),'descend');
@@ -146,7 +169,7 @@ while failed==1
     %factor scores
     FacScr = (data) * V;    %factor scores, not mean corrected.
 
-    ScrDiag = diag(std(FacScr));
+    ScrDiag = diag(nanstd(FacScr));
     A = inv(Sd) * (V * ScrDiag);  %unrotated factor loading matrix
     %Note, this equation is commonly cited in statistics books but is misleading in this form.  The full
     %form is A = inv(Sd) * (inv(V') * sqrt (L))
@@ -183,22 +206,28 @@ while failed==1
         end
     end
 
-    %Deal with loadings that are too large
     LargestLoading=max(max(abs(FacStr))); %factor pattern loadings can go over 1 for oblique rotations
-    if round(LargestLoading*100) > 100 %allow very small violation of factor loading limit due to rounding errors
-        disp('Loadings are over the permitted maximum of 1.  It appears this rotation has crashed.');
-        NUM_FAC = NUM_FAC-1;
-    else failed = 0;
+    LargestCom=max(max(abs(sum(FacPat.*FacStr,2))));
+    if NUM_FAC > 1
+        %Deal with loadings that are too large
+        if round(LargestLoading*100) > 100 %allow very small violation of factor loading limit due to rounding errors
+            %disp('Loadings are over the permitted maximum of 1.  It appears this rotation has crashed.');
+            NUM_FAC = NUM_FAC-1;
+        else failed = 0;
+        end
+
+        if round(LargestCom*100) > 100 %allow very small violation of communality limit due to rounding errors
+            %disp('Communalities are over the permitted maximum of 1.  It appears this rotation has crashed.');
+            NUM_FAC = NUM_FAC-1;
+        else failed = 0;
+        end
+    else
+        failed = 0;
     end
 
 end
 
-LargestCom=max(max(abs(sum(FacPat.*FacStr,2))));
-if round(LargestCom*100) > 100 %allow very small violation of communality limit due to rounding errors
-    msg{1}=['Communalities are over the permitted maximum of 1.  It appears this rotation has crashed.'];
-    [msg]=ep_errorMsg(msg);
-    return
-end
+
     
 invR=pinv(R);
 FacCof=invR*FacStr;
@@ -210,8 +239,10 @@ Comm=[];
     
 if LargestCom ~=0 && LargestLoading~=0
 
-    FacScr=(FacScr)*inv(diag(std(FacScr))); %Standardize factor scores, not mean corrected.
-
+    if nargin==2 % this is just to suppress a warning that comes up for CCA analysis
+        FacScr=(FacScr)*inv(diag(std(FacScr))); %Standardize factor scores, not mean corrected.
+    end
+    
     Var=Sd.^2;
 
     %calculate communalities (equivalent to calculating R-Squared in multiple regression).
@@ -387,7 +418,7 @@ fReps=zeros(NumReps,1);
 rotTot=zeros(NumReps,1);
 didRot=zeros(NumReps,1);
 for repetition =1:NumReps
-    disp(['erp_pca: repetition ' num2str(repetition) '...'])
+    %disp(['erp_pca: repetition ' num2str(repetition) '...'])
 
     MaxRotations = 1000;	%Maximum number of rotations to do before calling it a day
     C = sum((A.^2)')';      %vector of communalities
@@ -465,9 +496,9 @@ end;
 
 if (sum(didRot) == 0)
     if NumFacs == 1
-        disp('Since there was only one factor, no rotation occurred.');
+        %disp('Since there was only one factor, no rotation occurred.');
     else
-        disp(['Warning - no rotation occurred.']);
+        %disp(['Warning - no rotation occurred.']);
     end;
 end;
 

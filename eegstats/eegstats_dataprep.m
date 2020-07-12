@@ -536,6 +536,8 @@ for d = 1:length(D)
         Sf.select_ncomp = S.prep.calc.eeg.pca.select_ncomp;
         Sf.cca_reg_weights = S.prep.calc.eeg.cca.reg_weights;
         Sf.cca_test_nPCAcomp = S.prep.calc.eeg.cca.test_nPCAcomp;
+        Sf.cca_method = S.prep.calc.eeg.cca.method;
+        Sf.cca_reduce_by_scree = S.prep.calc.eeg.cca.reduce_by_scree;
         Sf.cca_select_nPCA_per_group = S.prep.calc.eeg.cca.select_nPCA_per_group;
         
         % PLS

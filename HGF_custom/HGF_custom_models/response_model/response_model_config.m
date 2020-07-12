@@ -63,7 +63,7 @@ end
 
 c.params = S.resp_modelspec.params;
 
-if any(strcmp(c.responses, 'RT')) || any(strcmp(c.responses, 'EEG')) || any(strcmp(c.responses, 'HGFvar'))
+if any(strcmp(c.responses, 'RT')) || any(strcmp(c.responses, 'EEG')) || any(strcmp(c.responses, 'HGFvar')) || any(strcmp(c.responses, 'CCAcomp'))
     % USE REGRESSION MODEL
     
     % Sufficient statistics of Gaussian parameter priors
@@ -272,13 +272,8 @@ if any(strcmp(c.responses, 'RT')) || any(strcmp(c.responses, 'EEG')) || any(strc
     
     % Beta_15
     if any(c.params==15)
-        if l>1
-            c.reg.be15mu = 0;
-            c.reg.be15sa = 4;
-        else
-            c.reg.be15mu = 0;
-            c.reg.be15sa = 0;
-        end
+        c.reg.be15mu = 0;
+        c.reg.be15sa = 4;
     else
         c.reg.be15mu = 0;
         c.reg.be15sa = 0;
@@ -300,6 +295,20 @@ if any(strcmp(c.responses, 'RT')) || any(strcmp(c.responses, 'EEG')) || any(strc
     end
     
 
+    % Beta_17
+    if any(c.params==17)
+        if l>2
+            c.reg.be17mu = 0;
+            c.reg.be17sa = 4;
+        else
+            c.reg.be17mu = 0;
+            c.reg.be17sa = 0;
+        end
+    else
+        c.reg.be17mu = 0;
+        c.reg.be17sa = 0;
+    end
+    
     % Zeta
     c.reg.logzemu = log(log(20));
     c.reg.logzesa = log(2);

@@ -194,29 +194,42 @@ for pt = 1:length(S.type)
             nci=0;
             ncii=[];
             RMSECV=[];
+            cca_reduce_by_scree = S.cca_reduce_by_scree;
             for nc = 1:length(ncomp) 
                 
                 % run CV CCAs in parallel for speed
-                CV_W = {};
-                CV_mdata_test = {};
+                CV_W = cell(CV_fold,nr);
+                CV_mdata_test = cell(CV_fold,nr);
+                nCCA = min([ncomp(nc),NUM_FAC(2)]);
+                nCCA_train = nan(CV_fold,nr);
                 disp(['Estimating CCAs: comp ' num2str(nc) '/' num2str(length(ncomp))])
                 parfor ri = 1:nr
                     for cv = 1:CV_fold
+                        %disp(['ri ' num2str(ri) ', cv ' num2str(cv)])
                         CVdata_train = O(o).scores(1:ncomp(nc),training(CVsample,cv),:);
                         CVdata_test = O(o).scores(1:ncomp(nc),test(CVsample,cv),:);
-                        [CV_W{cv,ri},~] = mccas(CVdata_train,ncomp(nc),reg,r(ri),O(o).W(1:ncomp(nc),:,:),S);
-                        [~,CV_mdata_test{cv,ri}] = mccas(CVdata_test,ncomp(nc),reg,r(ri),O(o).W(1:ncomp(nc),:,:),S);
+                        
+                        % train sample
+                        [CV_W{cv,ri},~] = mccas(CVdata_train,nCCA,reg,r(ri),O(o).W(1:ncomp(nc),:,:),S,cca_reduce_by_scree);
+                        nCCA_train(cv,ri) = size(CV_W{cv,ri},2);
+                        
+                        % test sample: fix the number of eigenvectors
+                        [~,CV_mdata_test{cv,ri}] = mccas(CVdata_test,nCCA_train(cv,ri),reg,r(ri),O(o).W(1:ncomp(nc),:,:),S,0);
+                        nCCA_train(cv,ri) = size(CV_mdata_test{cv,ri},1);
                     end
                 end
                 
                 % how many CCA to test?
+                nCCA_train = nCCA_train(:);
+                %nCCA_train(nCCA_train==0) = []; % remove zeros
                 if S.cca_test_nPCAcomp
-                    nCCAtest = 1:min(ncomp(nc),NUM_FAC(2));
+                    nCCAtest = 1:min([ncomp(nc),NUM_FAC(2),min(nCCA_train)]);
                 else
-                    nCCAtest = NUM_FAC(2);
+                    nCCAtest = min([NUM_FAC(2),min(nCCA_train)]);
                 end
                 
                 for ncCCA = nCCAtest % for each CCA component
+                    
                     disp(['Reconstructing EEG from PCA comp ' num2str(nc) '/' num2str(length(ncomp)) ', CCA comp ' num2str(ncCCA) '/' num2str(nCCAtest(end))])
 
                     nci=nci+1;
@@ -253,8 +266,8 @@ for pt = 1:length(S.type)
             end
             
             % which number of components?
-            if isfield(Sf,'cca_select_nPCA_per_group')
-                select_per_group = Sf.cca_select_nPCA_per_group;
+            if isfield(S,'cca_select_nPCA_per_group')
+                select_per_group = S.cca_select_nPCA_per_group;
             else
                 select_per_group = 1;
             end
@@ -292,7 +305,7 @@ for pt = 1:length(S.type)
             end
             
             % final CCA solution
-            [O(o).W,O(o).mdata] = mccas(O(o).scores,nPCA,reg,minR(minYi),O(o).W,S);
+            [O(o).W,O(o).mdata] = mccas(O(o).scores,nPCA,reg,minR(minYi),O(o).W,S,0);
             O(o).W = O(o).W(:,1:nCCA,:);
             O(o).mdata = O(o).mdata(1:nCCA,:,:);
             NUM_FAC(2) = nCCA;
@@ -1369,7 +1382,7 @@ for i = 1:length(cdata)
 end
 
 
-function [W, mdata, mWeights] = mccas(data,K,reg,r,weights,Sx)
+function [W, mdata, mWeights] = mccas(data,K,reg,r,weights,Sx,cca_reduce_by_scree)
 %% regularized-multiset CCA
 %   Date           Programmers               Description of change
 %   ====        =================            =====================
@@ -1390,6 +1403,7 @@ function [W, mdata, mWeights] = mccas(data,K,reg,r,weights,Sx)
 % mdata - transformed averaged data (CCAs * sapmles * subjects)
 % mWeights - projection weights from sensor to CCAs (CCAs * sensors * subjects)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 dim = size(data,1);
 num = size(data,2);
 sub = size(data,3);
@@ -1399,11 +1413,11 @@ sub2 = size(weights,3);
 if(K>dim)
     K = dim;
 end
-temp=[];
+allsub=[];
 for i=1:sub
-    temp=[temp;data(:,:,i)]; % concatenate components
+    allsub=[allsub;data(:,:,i)]; % concatenate components
 end
-R=cov(temp.','partialrows'); % cab: added partialrows to allow missing data (nan)
+R=cov(allsub.','partialrows'); % cab: added partialrows to allow missing data (nan)
 S = zeros(size(R));
 for i = 1:dim*sub
     tmp = ceil(i/dim);
@@ -1429,9 +1443,58 @@ if(reg==1)
     S = S + r*S2;
 end
 
-% obtain CCA solutions 
-[tempW,values]=eigs((R-S),S,K);
+if ~isfield(Sx,'cca_method')
+    Sx.cca_method = 'eigs';
+end
 
+% obtain CCA solutions 
+switch Sx.cca_method
+    case 'eigs'
+        [tempW,values]=eigs((R-S),S,K);
+        if cca_reduce_by_scree
+            
+            allsubrand = randn(size(allsub'));
+            Rrand = cov(allsubrand);
+            Srand = zeros(size(Rrand));
+            for i = 1:dim*sub
+                tmp = ceil(i/dim);
+                Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
+            end
+            
+            explained = diag(values)/sum(diag(values));
+            [~,valuesrand]=eigs((Rrand-Srand),Srand,K);
+            explainedrand = diag(valuesrand)/sum(diag(valuesrand));
+            nfac_temp = find(explained<explainedrand);
+            if ~isempty(nfac_temp)
+                nfac = min(nfac_temp(1)-1, K);
+                tempW = tempW(:,1:nfac);
+            end
+        end
+    case 'FA'
+        FactorResults = erp_pca(allsub',K,(R-S),S);
+        tempW = FactorResults.FacCof;
+        if cca_reduce_by_scree
+            
+            allsubrand = randn(size(allsub'));
+            Rrand = cov(allsubrand);
+            Srand = zeros(size(Rrand));
+            for i = 1:dim*sub
+                tmp = ceil(i/dim);
+                Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
+            end
+            
+            FactorResultsRand = erp_pca(allsubrand,K,(Rrand-Srand),Srand);
+            FactorResultsRand.scree = FactorResultsRand.scree*(sum(FactorResults.scree)/sum(FactorResultsRand.scree)); %scale to same size as real data
+            nfac_temp = find(FactorResults.scree<FactorResultsRand.scree);
+            if ~isempty(nfac_temp)
+                nfac = min(nfac_temp(1)-1, K);
+                tempW = tempW(:,1:nfac);
+                
+            end
+        end
+end
+
+K = size(tempW,2);
 W = zeros(dim,K,sub);
 for i=1:sub
     if Sx.normalise_cca_weights 
