@@ -1,6 +1,6 @@
-function [FactorResults] = erp_pca(data, NUM_FAC, varargin)
+function [FactorResults] = erp_pca(data, NUM_FAC, type, varargin)
 
-% CAB NEW: varargin inputs: erp_pca(data, NUM_FAC, S, Sb)
+% CAB NEW: varargin inputs: erp_pca(data, NUM_FAC, degree, S, Sb)
 % S = covariance matrix
 % Sb = for generalised eigenvector problem
 
@@ -109,7 +109,6 @@ function [FactorResults] = erp_pca(data, NUM_FAC, varargin)
 %  See accompanying readme file for information about appropriate references for the rotations.
 
 FactorResults=[];
-ROTOPT=3;
 varSD = std(data);
 if ~isreal(data) %if the data has an imaginary component, as in spectral data
     data=[real(data);imag(data)];
@@ -126,7 +125,7 @@ R=cov2corr(R);
 goodVars=find(std(data) ~= 0);
 
 %covariance matrix
-if nargin>2
+if nargin>3
     S = varargin{1};
 else
     S = cov(data,'partialrows'); 
@@ -134,11 +133,13 @@ end
 Sd = diag(sqrt(diag(S)));  %diagonal matrix of standard deviations of variables as used to generate relationship matrix
 
 %disp('eigenvariate decomposition...')
-if nargin>3
+if nargin>4
     % generalized eigenproblem - this is primary setup for CCA analysis
     Sb = varargin{2};
     Sd = diag(sqrt(diag(Sb)));  %diagonal matrix of standard deviations of variables as used to generate relationship matrix
     [V,L] = eigs(S,Sb,NUM_FAC);
+%elseif size(data,2)>size(data,1)
+%    [V,L] = eigs(S,NUM_FAC);
 else 
     [V,L] = eig(S);
 end
@@ -150,6 +151,8 @@ if ~all(isreal(V))
     Sfix=tril(S)+tril(S)'-diag(diag(S));
     if nargin>3
         [V,L] = eigs(Sfix,Sb,NUM_FAC);
+    %elseif size(data,2)>size(data,1)
+    %    [V,L] = eigs(Sfix,NUM_FAC);
     else
         [V,L] = eig(Sfix);
     end
@@ -160,75 +163,99 @@ end
 L=L(IX,IX);
 V=V(:,IX);
 
-failed =1;
-while failed==1
-    V = V(:,1:NUM_FAC);  %truncated eigenvector matrix
-    scree = diag(L);
-    L = L(1:NUM_FAC,1:NUM_FAC);  %truncated eigenvalue matrix
 
-    %factor scores
-    FacScr = (data) * V;    %factor scores, not mean corrected.
+V = V(:,1:NUM_FAC);  %truncated eigenvector matrix
+scree = diag(L);
+L = L(1:NUM_FAC,1:NUM_FAC);  %truncated eigenvalue matrix
 
-    ScrDiag = diag(nanstd(FacScr));
-    A = inv(Sd) * (V * ScrDiag);  %unrotated factor loading matrix
-    %Note, this equation is commonly cited in statistics books but is misleading in this form.  The full
-    %form is A = inv(Sd) * (inv(V') * sqrt (L))
-    %this means that A is not in fact a scaled form of V as is commonly implied.
-    %This makes sense since A is a factor loading matrix (converts scores to raw data)
-    %while V is a scoring coefficient matrix (converts raw data to scores).
-    %inv(V') does reduce down to V, though, since X'=inv(X)
-    %for an orthogonal matrix, X.
+%factor scores
+FacScr = (data) * V;    %factor scores, not mean corrected.
 
-    C = sum((A.^2),2)';
-    % Kaiser normalisaiton
-    A = (diag(sqrt(C).^-1)) * A;  %factor loadings Kaiser-normalized by communalities
+ScrDiag = diag(nanstd(FacScr));
+A = inv(Sd) * (V * ScrDiag);  %unrotated factor loading matrix
+%Note, this equation is commonly cited in statistics books but is misleading in this form.  The full
+%form is A = inv(Sd) * (inv(V') * sqrt (L))
+%this means that A is not in fact a scaled form of V as is commonly implied.
+%This makes sense since A is a factor loading matrix (converts scores to raw data)
+%while V is a scoring coefficient matrix (converts raw data to scores).
+%inv(V') does reduce down to V, though, since X'=inv(X)
+%for an orthogonal matrix, X.
 
-    % ROTATION
-    [FacPat]= ep_doVarimax(A);
-    FacCor = diag(ones(NUM_FAC,1));
-    FacStr = FacPat;
+switch type.method
 
-    %renormalize factor loadings by original communalities    
-    FacPat = diag(sqrt(C)) * FacPat;  
-    FacStr = diag(sqrt(C)) * FacStr;
+    case 'dien'
+        failed =1;
+        while failed==1
+            C = sum((A.^2),2)';
+            % Kaiser normalisaiton
+            Ak = (diag(sqrt(C).^-1)) * A;  %factor loadings Kaiser-normalized by communalities
 
-    %Only apply loading weighting to the Varimax step
-    [FacPat, FacCor] = ep_doPromax(FacPat, ROTOPT); 
-    %to match SAS output and to avoid rounding errors.
-    FacStr = FacPat * FacCor;	%factor structure matrix (Harman, eq. 12.19, p. 268)
+            % ROTATION
+            [FacPat]= ep_doVarimax(Ak);
+            FacCor = diag(ones(NUM_FAC,1));
+            FacStr = FacPat;
 
-    if NUM_FAC == 1 %ensure that matrices have the right orientation when there is only one factor.
-        if size(FacPat,1) < size(FacPat,2)
-            FacPat=FacPat';
+            %renormalize factor loadings by original communalities    
+            FacPat = diag(sqrt(C)) * FacPat;  
+            FacStr = diag(sqrt(C)) * FacStr;
+
+            if strcmp(type.rotation_option,'promax') && type.degree>1
+                %Only apply loading weighting to the Varimax step
+                [FacPat, FacCor] = ep_doPromax(FacPat, type.degree); 
+                %to match SAS output and to avoid rounding errors.
+                FacStr = FacPat * FacCor;	%factor structure matrix (Harman, eq. 12.19, p. 268)
+            end
+
+            if NUM_FAC == 1 %ensure that matrices have the right orientation when there is only one factor.
+                if size(FacPat,1) < size(FacPat,2)
+                    FacPat=FacPat';
+                end
+                if size(FacStr,1) < size(FacStr,2)
+                    FacStr=FacStr';
+                end
+            end
+
+            LargestLoading=max(max(abs(FacStr))); %factor pattern loadings can go over 1 for oblique rotations
+            LargestCom=max(max(abs(sum(FacPat.*FacStr,2))));
+            if NUM_FAC > 1
+                %Deal with loadings that are too large
+                if round(LargestLoading*100) > 100 %allow very small violation of factor loading limit due to rounding errors
+                    %disp('Loadings are over the permitted maximum of 1.  It appears this rotation has crashed.');
+                    NUM_FAC = NUM_FAC-1;
+                else failed = 0;
+                end
+
+                if round(LargestCom*100) > 100 %allow very small violation of communality limit due to rounding errors
+                    %disp('Communalities are over the permitted maximum of 1.  It appears this rotation has crashed.');
+                    NUM_FAC = NUM_FAC-1;
+                else failed = 0;
+                end
+            else
+                failed = 0;
+            end
+
         end
-        if size(FacStr,1) < size(FacStr,2)
-            FacStr=FacStr';
+    case 'matlab'
+        if strcmp(type.rotation_option,'promax')
+            [FacPat, FacCor] = rotatefactors(A,...
+                'Method',type.rotation_option,... 
+                'Power',type.degree,... % Promax only
+                'Normalize','on',...
+                'Reltol',.00001,...
+                'Maxit',1000);
+            FacStr = FacPat * FacCor;	%factor structure matrix (Harman, eq. 12.19, p. 268)
+        else
+            [FacPat, FacCor] = rotatefactors(A,...
+                'Method',type.rotation_option,... % 'Method' is 'orthomax', 'varimax', 'quartimax', 'equamax', or 'parsimax'
+                'Normalize','on',...
+                'Reltol',.00001,...
+                'Maxit',1000);
+            FacStr = FacPat;
         end
-    end
-
-    LargestLoading=max(max(abs(FacStr))); %factor pattern loadings can go over 1 for oblique rotations
-    LargestCom=max(max(abs(sum(FacPat.*FacStr,2))));
-    if NUM_FAC > 1
-        %Deal with loadings that are too large
-        if round(LargestLoading*100) > 100 %allow very small violation of factor loading limit due to rounding errors
-            %disp('Loadings are over the permitted maximum of 1.  It appears this rotation has crashed.');
-            NUM_FAC = NUM_FAC-1;
-        else failed = 0;
-        end
-
-        if round(LargestCom*100) > 100 %allow very small violation of communality limit due to rounding errors
-            %disp('Communalities are over the permitted maximum of 1.  It appears this rotation has crashed.');
-            NUM_FAC = NUM_FAC-1;
-        else failed = 0;
-        end
-    else
-        failed = 0;
-    end
-
+        LargestLoading=max(max(abs(FacStr))); %factor pattern loadings can go over 1 for oblique rotations
+        LargestCom=max(max(abs(sum(FacPat.*FacStr,2))));
 end
 
-
-    
 invR=pinv(R);
 FacCof=invR*FacStr;
 FacScr=(data)*FacCof;

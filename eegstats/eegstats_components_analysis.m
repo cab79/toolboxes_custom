@@ -33,6 +33,7 @@ end
 [G,~,iG]=unique(D.prep.dtab.group,'stable');
 origgrpdata=D.prep.grpdata{1};
 grpdata=origgrpdata;
+%D.prep.origgrpdata=origgrpdata;
 newdim = D.prep.dim; 
 
 for pt = 1:length(S.type)
@@ -519,6 +520,7 @@ end
 
 
 % final chan-time data
+gavg = mean(origgrpdata,1); % grand average of original EEG data
 for o = 1:length(O)
     for cc = 1:NUM_FAC(2)
         temp = [];
@@ -527,8 +529,16 @@ for o = 1:length(O)
         end
         chantimecorrsub(cc,:,:,:,o) = reshape(temp,D.prep.dim(1),D.prep.dim(2),[]); % each subject
         chantimecorr(cc,:,:,o) = squeeze(nanmean(chantimecorrsub(cc,:,:,:,o),4)); % mean over subjects
+        chantimecorravg(cc,:,o) = squeeze(mean(temp,3)); 
     end
+    
+    % correct the sign so that topomaps are consistent with original data
+    signcorr = sign(regress(gavg',chantimecorravg'));
+    chantimecorrsub = bsxfun(@times,chantimecorrsub,signcorr);
+    chantimecorr = bsxfun(@times,chantimecorr,signcorr);
+    D.prep.grpdata = bsxfun(@times,grpdata,signcorr');
 end
+
 D.prep.PCA(pt).chantimecorrsub = chantimecorrsub;
 D.prep.PCA(pt).chantimecorr = chantimecorr;
 
@@ -695,9 +705,9 @@ if ~isempty(Y) && any(strcmp(S.PCAmethod,'PLS'))
     for u=1:length(U)
         subdat = grpdata(iU==u,:);
         if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
-            Yrecon{u} = subdat * CCA_COEFF(:,:,u)' * YCOEFF{u}(:,1:size(CCA_COEFF,1))' * YCOEFF_PCA{u}';
+            Yrecon{u} = subdat * CCA_COEFF(:,:,u)' * YCOEFF{u}(:,1:size(CCA_COEFF,1))' * YCOEFF_PCA';
         else
-            Yrecon{u} = subdat * YCOEFF{u}' * YCOEFF_PCA{u}';
+            Yrecon{u} = subdat * YCOEFF{u}' * YCOEFF_PCA';
         end
 
         % store
@@ -826,10 +836,12 @@ out_Y=[];
 switch PCAmethod
 
     case 'FA'
+        type=S.pca_FA_type;
         % find nfac for each subject
         parfor i = 1:length(cdata)
-            FactorResults = erp_pca(cdata{i},NUM_FAC(1));
-            randResults = erp_pca(randn(size(cdata{i})),NUM_FAC(1));
+            disp(['factor analysis on EEG: finding number of factors for subject ' num2str(i)])
+            FactorResults = erp_pca(cdata{i},NUM_FAC(1),type);
+            randResults = erp_pca(randn(size(cdata{i})),NUM_FAC(1),type);
             randResults.scree = randResults.scree*(sum(FactorResults.scree)/sum(randResults.scree)); %scale to same size as real data
             nfac_temp = find(FactorResults.scree<randResults.scree);
             nfac(i) = min(NUM_FAC(1),nfac_temp(1)-1);
@@ -837,13 +849,15 @@ switch PCAmethod
         % take median nfac
         NUM_FAC(1) = floor(median(nfac));
         parfor i = 1:length(cdata)
-            FactorResults = erp_pca(cdata{i},NUM_FAC(1));
+            disp(['factor analysis on EEG: final solution for subject ' num2str(i)])
+            FactorResults = erp_pca(cdata{i},NUM_FAC(1),type);
             COEFF{i} = FactorResults.FacCof;
             W(:,:,i) = COEFF{i}';
             score{i} = FactorResults.FacScr;
         end
     case 'PCA'
        parfor i = 1:length(cdata)
+            disp(['PCA on EEG: finding number of factors for subject ' num2str(i)])
             [COEFF{i}, score{i},~,~,explained] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
             if S.select_ncomp.frac_explained
                 nfac_exp = find(cumsum(explained) > S.select_ncomp.frac_explained*100);
@@ -860,6 +874,7 @@ switch PCAmethod
         % take median nfac
         NUM_FAC(1) = floor(median(nfac));
         parfor i = 1:length(cdata)
+            disp(['PCA on EEG: final solution for subject ' num2str(i)])
             [COEFF{i}, score{i}] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
             COEFF{i} = COEFF{i}(:,1:NUM_FAC(1));
             W(:,:,i) = COEFF{i}(:,1:NUM_FAC(1))';
@@ -914,26 +929,6 @@ switch PCAmethod
         end
     case 'PLS'
         for ym = 1:length(Y) % for each Y model
-            
-%             %if rank(Y{ym}{1})~= size(Y{ym}{1},2)
-%                 % PCA of Y
-%                 nfac=[];
-%                 ncomp=size(Y{ym}{i},2);
-%                 for i = 1:length(Y{ym})
-%                     [~,~,~,~,explained] = pca(Y{ym}{i},'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
-%                     [~,~,~,~,explainedrand] = pca(randn(size(Y{ym}{i})),'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
-%                     nfac_temp = find(explained<explainedrand);
-%                     nfac(i) = nfac_temp(1)-1;
-%                 end
-%                 % take median nfac
-%                 ncomp = floor(median(nfac));
-%                 for i = 1:length(Y{ym})
-%                     [YCOEFFPCA{ym}{i}, YscorePCA{ym}{i}] = pca(Y{ym}{i},'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
-% %                     YCOEFFPCA{ym}{i} = YCOEFFPCA{ym}{i};
-% %                     YW(:,:,i) = YCOEFFPCA{i}';
-%                     Y{ym}{i} = YscorePCA{ym}{i};
-%                 end
-%             %end
             
             if S.select_ncomp.boot
                 % find number of PLS components using bootstrapping
@@ -1471,7 +1466,8 @@ switch Sx.cca_method
             end
         end
     case 'FA'
-        FactorResults = erp_pca(allsub',K,(R-S),S);
+        type = Sx.cca_FA_type;
+        FactorResults = erp_pca(allsub',K,type,(R-S),S);
         tempW = FactorResults.FacCof;
         if cca_reduce_by_scree
             
@@ -1483,7 +1479,7 @@ switch Sx.cca_method
                 Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
             end
             
-            FactorResultsRand = erp_pca(allsubrand,K,(Rrand-Srand),Srand);
+            FactorResultsRand = erp_pca(allsubrand,K,type,(Rrand-Srand),Srand);
             FactorResultsRand.scree = FactorResultsRand.scree*(sum(FactorResults.scree)/sum(FactorResultsRand.scree)); %scale to same size as real data
             nfac_temp = find(FactorResults.scree<FactorResultsRand.scree);
             if ~isempty(nfac_temp)
@@ -1505,7 +1501,7 @@ for i=1:sub
 end
 
 % projected data
-mdata = zeros(K,num,sub);
+mdata = nan(K,num,sub);
 for i = 1:sub
     nandat=isnan(data(:,:,i));
     data_nonan = data(:,:,i);
@@ -1523,6 +1519,8 @@ for i = 1:sub
     end
     mdata(:,~any(nandat,1),i) = mdatatemp;
 end
+
+% sign of the data - does it need changing?
 
 % projection weights
 mWeights = 0;

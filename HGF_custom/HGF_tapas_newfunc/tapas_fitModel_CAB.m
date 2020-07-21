@@ -130,7 +130,9 @@ try
 catch
     failed = 0;
 end
-c_prc = varargin{6}; % alternative method for feeding this in - to allow parallel processing in HGF_run
+if numel(varargin)>5
+    c_prc = varargin{6}; % alternative method for feeding this in - to allow parallel processing in HGF_run
+end
 r = dataPrep(responses, inputs, S);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -1,12 +1,13 @@
-function eegstats_cca_reconstruct
+function eegstats_cca_reconstruct(comp)
 dbstop if error
 close all
 pth='C:\Data\CORE\eeg\ana\prep\cleaned\part2\eegstats_dataprep';
-fname = 'eegstats_dtab20200424T155316_bothPLS_fullHGF_bayesopt.mat';
+fname = 'eegstats_dtab20200717T165007.mat';
 cd(pth);
 
 load(fullfile(pth,fname))
-cca_comp_select = [1];
+cca_comp_select = [comp];
+centre_output = 0;
 d=1;
 [U,~,iU]=unique(D(d).prep.dtab.ID,'stable');
 dat={};
@@ -85,8 +86,12 @@ for pt = length(D(d).prep.PCA):-1:1
             end
             
             % add mean back
-            tmu = repmat(O(o).mu{u},size(CCA,1),1);
-            temp{u}(:,:,o) = PCA*pinv(O(o).COEFF{u}) + tmu;
+            if options.centre_output && centre_output
+                tmu = repmat(O(o).mu{u},size(CCA,1),1);
+                temp{u}(:,:,o) = PCA*pinv(O(o).COEFF{u}) + tmu;
+            else
+                temp{u}(:,:,o) = PCA*pinv(O(o).COEFF{u});
+            end
 
         end
         
@@ -120,11 +125,11 @@ for y=1:size(grpdat,2)
 end
 D.prep.Y=Y;
 sname = [strrep(num2str(cca_comp_select),'  ','')];
-save(fullfile(pth,strrep(fname,'.mat',['_CCAcomp' sname '.mat'])),'D','-v7.3')
+save(fullfile(pth,strrep(fname,'.mat',['_CCAcomp' sname '.mat'])),'D','S','-v7.3')
 
 % check recontructions against original data
 if 0
-    E=load(fullfile(pth,'eegstats_dtab20200325T161941_noCCA.mat'));
+    E=load(fullfile(pth,'eegstats_dtab20200713T191743_orig.mat'));
     figure; scatter([D.prep.Y(:).data_mean],[E.D.prep.Y(:).data_mean])
     figure; scatter(D.prep.Y(1).dtab.data,E.D.prep.Y(1).dtab.data)
     figure; plot(D.prep.Y(1).dtab.data)

@@ -424,16 +424,16 @@ for d = 1:length(D)
     
     % z-scoring on continuous predictors, but not if doing PLS on EEG data
     if S.prep.calc.pred.zscore
-        if S.prep.calc.eeg.pca.on == 1 && any(strcmp(S.prep.calc.eeg.pca.PCAmethod,'PLS'))
-            disp('no z-scoring to properly rescale Y variables for PLS')
-        else
+        %if S.prep.calc.eeg.pca.on == 1 && any(strcmp(S.prep.calc.eeg.pca.PCAmethod,'PLS'))
+        %    disp('no z-scoring to properly rescale Y variables for PLS')
+        %else
             vt = vartype('numeric');
             numericvar_names=dtab(:,vt).Properties.VariableNames;
             for pr = 1:length(numericvar_names)
                 [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(table2array(D(d).prep.dtab(:,numericvar_names{pr})));
                 D(d).prep.dtab(:,numericvar_names{pr}) = array2table(zdata);
             end
-        end
+        %end
     elseif S.prep.calc.eeg.pca.on == 1
         error('must z-score data prior to PCA')
     end
@@ -470,10 +470,10 @@ for d = 1:length(D)
         for ci = 1:length(comb)
             formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
             lme = fitlme(D(d).prep.dtab,formula);
-            corrmat(comb(ci,1),comb(ci,2)) = sqrt(abs(lme.Rsquared.Ordinary));
+            corrmat(comb(ci,1),comb(ci,2)) = sign(double(lme.Coefficients(2,2)))*lme.Rsquared.Ordinary;
         end
         corrmat = triu(corrmat + corrmat',1);
-        figure;imagesc(corrmat);colorbar;
+        figure;imagesc(corrmat);colorbar;colormap('jet'); caxis([-1 1])
         xticks(1:length(var_names)); xticklabels(var_names); xtickangle(90);
         yticks(1:length(var_names)); yticklabels(var_names);
         title('collinearity of predictors')
@@ -529,6 +529,7 @@ for d = 1:length(D)
         Sf.data_in = S.prep.calc.eeg.pca.data_in; % type of data to analyse: trials or averaged conditions
         Sf.centre_output = S.prep.calc.eeg.pca.centre;
         Sf.standardise_output = S.prep.calc.eeg.pca.standardise;
+        Sf.pca_FA_type = S.prep.calc.eeg.pca.FA_type;
         Sf.maxGig = S.prep.calc.eeg.pca.maxGig;
         Sf.normalise_cca_weights = S.prep.calc.eeg.cca.normalise_weights;
         Sf.img=S.img;
@@ -539,6 +540,7 @@ for d = 1:length(D)
         Sf.cca_method = S.prep.calc.eeg.cca.method;
         Sf.cca_reduce_by_scree = S.prep.calc.eeg.cca.reduce_by_scree;
         Sf.cca_select_nPCA_per_group = S.prep.calc.eeg.cca.select_nPCA_per_group;
+        Sf.cca_FA_type = S.prep.calc.eeg.cca.FA_type;
         
         % PLS
         Y={};
@@ -556,7 +558,7 @@ for d = 1:length(D)
             [D(d)]=eegstats_components_analysis(D(d),Sf,{Y,col_names});
         elseif any(strcmp(Sf.PCAmethod,'PLS')) % output all models
             D_orig=D;
-            for ym = 1:length(S.prep.calc.eeg.Y)
+            for ym = 1:length(Y)
                 [Dtemp]=eegstats_components_analysis(D_orig(d),Sf,{Y(ym),col_names(ym)});
                 D(d).prep(ym) = D(d).prep(1);
                 D(d).prep(ym).grpdata=Dtemp.prep.grpdata;
@@ -834,6 +836,7 @@ switch S.prep.calc.pred.PCA_type
         
 
     case 'FA'
+        type = S.prep.calc.pred.FA_type;
         
         for ym = 1:length(Y) % for each Y model
            
@@ -841,7 +844,7 @@ switch S.prep.calc.pred.PCA_type
             ncomp=size(Y{ym},2); 
             
             % sPCA
-            FactorResults = erp_pca(Y{ym}, ncomp);
+            FactorResults = erp_pca(Y{ym}, ncomp, type);
             explained = FactorResults.scree;
             
             % select num components
@@ -852,13 +855,13 @@ switch S.prep.calc.pred.PCA_type
                 end
                 nfac = nfac_exp(1);
             else
-                randResults = erp_pca(randn(size(Y{ym})), ncomp);
+                randResults = erp_pca(randn(size(Y{ym})), ncomp, type);
                 explainedrand = randResults.scree;
                 explainedrand = explainedrand*(sum(explained)/sum(explainedrand)); %scale to same size as real data
                 nfac_temp = find(explained<explainedrand);
                 nfac = nfac_temp(1)-1;
             end
-            FactorResults = erp_pca(Y{ym},nfac);
+            FactorResults = erp_pca(Y{ym},nfac,type);
             out.Ycoeff{ym} = FactorResults.FacCof;
             out.Yscore{ym} = FactorResults.FacScr;
             
