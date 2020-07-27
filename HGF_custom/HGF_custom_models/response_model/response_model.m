@@ -550,6 +550,7 @@ if any(strcmp(r.c_obs.responses, 'CCA_FApred'))
     mu1hat = r.traj.(r.c_obs.model).muhat(:,1);
     sa1hat = r.traj.(r.c_obs.model).sahat(:,1);
     sa1 = r.traj.(r.c_obs.model).sa(:,1);
+    psi1 = r.traj.(r.c_obs.model).psi(:,1);
     dau = r.traj.(r.c_obs.model).dau;
     ep1 = r.traj.(r.c_obs.model).epsi(:,1);
     da1 = r.traj.(r.c_obs.model).da(:,1);
@@ -557,12 +558,14 @@ if any(strcmp(r.c_obs.responses, 'CCA_FApred'))
     if l>1
         mu2    = r.traj.(r.c_obs.model).mu(:,2);
         sa2    = r.traj.(r.c_obs.model).sa(:,2);
+        psi2 = r.traj.(r.c_obs.model).psi(:,2);
         mu2hat = r.traj.(r.c_obs.model).muhat(:,2);
         sa2hat = r.traj.(r.c_obs.model).sahat(:,2);
     end
     if l>2
         mu3 = r.traj.(r.c_obs.model).mu(:,3);
         sa3 = r.traj.(r.c_obs.model).sa(:,3);
+        psi3 = r.traj.(r.c_obs.model).psi(:,3);
         da2 = r.traj.(r.c_obs.model).da(:,2);
         ep3 = r.traj.(r.c_obs.model).epsi(:,3);
         da3 = r.traj.(r.c_obs.model).da(:,3);
@@ -613,17 +616,23 @@ if any(strcmp(r.c_obs.responses, 'CCA_FApred'))
     m1reg(r.irr) = [];
     sa1reg = sa1;
     sa1reg(r.irr) = [];
+    psi1reg = psi1;
+    psi1reg(r.irr) = [];
     if l>1
         m2reg = mu2;
         m2reg(r.irr) = [];
         sa2reg = sa2;
         sa2reg(r.irr) = [];
+        psi2reg = psi2;
+        psi2reg(r.irr) = [];
     end
     if l>2
         m3reg = mu3;
         m3reg(r.irr) = [];
         sa3reg = sa3;
         sa3reg(r.irr) = [];
+        psi3reg = psi3;
+        psi3reg(r.irr) = [];
     end
 
     % Surprise: informational
@@ -677,30 +686,43 @@ if any(strcmp(r.c_obs.responses, 'CCA_FApred'))
        yval=0;
        for y = 1:length(yvar)
            wn = ismember(ynames,yvar{y});
-           switch yvar{y}
-                case 'HGF_PL_dau_1'
-                    var = daureg;
-                case 'HGF_PL_da_1'
-                    var = da1reg;
-                case 'HGF_PL_da_2'
-                    var = da2reg;
-                    if l<2; weights(wn,f)=0; end
-                case 'HGF_PL_mu_1'
-                    var = m1reg;
-                case 'HGF_PL_mu_2'
-                    var = m2reg;
-                    if l<2; weights(wn,f)=0; end
-                case 'HGF_PL_mu_3'
-                    var = m3reg;
-                    if l<3; weights(wn,f)=0; end
-                case 'HGF_PL_sa_1'
-                    var = sa1reg;
-                case 'HGF_PL_sa_2'
-                    var = sa2reg;
-                    if l<2; weights(wn,f)=0; end
-                case 'HGF_PL_sa_3'
-                    var = sa3reg;
-                    if l<3; weights(wn,f)=0; end
+           try
+               switch yvar{y}
+                    case 'HGF_PL_mu_1'
+                        var = m1reg;
+                    case 'HGF_PL_mu_2'
+                        var = m2reg;
+                        if l<2; weights(wn,f)=0; end
+                    case 'HGF_PL_mu_3'
+                        var = m3reg;
+                        if l<3; weights(wn,f)=0; end
+                    case 'HGF_PL_sa_1'
+                        var = sa1reg;
+                    case 'HGF_PL_sa_2'
+                        var = sa2reg;
+                        if l<2; weights(wn,f)=0; end
+                    case 'HGF_PL_sa_3'
+                        var = sa3reg;
+                        if l<3; weights(wn,f)=0; end
+                    case 'HGF_PL_dau_1'
+                        var = daureg;
+                    case 'HGF_PL_da_1'
+                        var = da1reg;
+                    case 'HGF_PL_da_2'
+                        var = da2reg;
+                        if l<2; weights(wn,f)=0; end
+                    case 'HGF_PL_psi_1'
+                        var = psi1reg;
+                    case 'HGF_PL_psi_2'
+                        var = psi2reg;
+                        if l<2; weights(wn,f)=0; end
+                    case 'HGF_PL_psi_3'
+                        var = psi3reg;
+                        if l<3; weights(wn,f)=0; end
+               end
+           catch
+               %disp(['no variable: ' yvar{y}])
+               continue
            end
            yval = yval + var*weights(wn,f);
         end
@@ -717,24 +739,31 @@ if any(strcmp(r.c_obs.responses, 'CCA_FApred'))
         
         % assign slopes, one per factor (x4)
         param_nums = r.c_obs.params_cell{y};
-        eval(['be1 = be' num2str(param_nums(1)) ';']);
-        eval(['be2 = be' num2str(param_nums(2)) ';']);
-        eval(['be3 = be' num2str(param_nums(3)) ';']);
-        eval(['be4 = be' num2str(param_nums(4)) ';']);
+        for pm = 1:length(param_nums)
+            eval(['be' num2str(pm) ' = be' num2str(param_nums(pm)) ';']);
+        end
         
         % assign zeta
         eval(['ze = ze' num2str(y) ';']);
         
         % Calculate predicted log-response
         % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        if l>2
-            logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3 +be4.*f4;
-        elseif l>1
-            logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3 +be4.*f4;
-        else
+        if length(param_nums)==1
+            logresp = be0 +be1.*f1;
+        elseif length(param_nums)==2
+            logresp = be0 +be1.*f1 +be2.*f2;
+        elseif length(param_nums)==3
             logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3;
+        elseif length(param_nums)==4
+            logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3 +be4.*f4;
+        elseif length(param_nums)==5
+            logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3 +be4.*f4 +be5.*f5;
+        elseif length(param_nums)==6
+            logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3 +be4.*f4 +be5.*f5 +be6.*f6;
+        else
+            error('increase the number of terms')
         end
-        
+            
         logp_reg(reg) = logp_reg(reg) + -1/2.*log(8*atan(1).*ze) -(yr(:,y)-logresp).^2./(2.*ze);
         
     end

@@ -97,8 +97,8 @@ for m=1:r.c_prc.nModels
     % Create param struct
     for pn=1:length(nme)
         if strcmp(nme{pn,1}(1:length(type)),type)
-            thispvec=nan(3,1);
             lenpvec=length(pvec(idx{pn}));
+            thispvec=nan(lenpvec,1);
             thispvec(1:lenpvec)=pvec(idx{pn})';
             eval([nme_gen{pn} '(:,1,m) = thispvec;']);
         end
@@ -323,8 +323,14 @@ for k=2:1:n
 
                 elseif dynamic(m)
                     % Precision of prediction
-                    pihat(k,2,m) = 1/(1/pi(k-1,2,m) +exp(ka(2,1,m) *mu(k-1,3,m) +om(2,1,m)));
-
+                    if l(m)>2 
+                        % if there is a third level
+                        pihat(k,2,m) = 1/(1/pi(k-1,2,m) +exp(ka(2,1,m) *mu(k-1,3,m) +om(2,1,m)));
+                    else
+                        % otherwise, use theta since this is the highest
+                        % level
+                        pihat(k,2,m) = 1/(1/pi(k-1,2,m)  +t(k) *th(1,1,m));
+                    end
                     % Updates
                     pi(k,2,m) = pihat(k,2,m) +1/pihat(k,1,m);
                     mu(k,2,m) = muhat(k,2,m) +1/pi(k,2,m) *da(k,1,m);
@@ -332,10 +338,6 @@ for k=2:1:n
                     % Volatility prediction error
                     da(k,2,m) = (1/pi(k,2,m) +(mu(k,2,m) -muhat(k,2,m))^2) *pihat(k,2,m) -1;
                 end
-
-                % Implied posterior precision at first level
-                sgmmu2 = 1./(1+exp(-mu(k,2,m)));
-                pi(k,1,m) = pi(k,2,m)/(sgmmu2*(1-sgmmu2));
 
                 if l(m) > 3
                     % Pass through higher levels
@@ -364,6 +366,7 @@ for k=2:1:n
                         da(k,j,m) = (1/pi(k,j,m) +(mu(k,j,m) -muhat(k,j,m))^2) *pihat(k,j,m) -1;
                     end
                 end
+                
                 if l(m)>2
                     % Last level
                     % ~~~~~~~~~~
@@ -390,6 +393,11 @@ for k=2:1:n
                     % Volatility prediction error
                     da(k,l(m),m) = (1/pi(k,l(m),m) +(mu(k,l(m),m) -muhat(k,l(m),m))^2) *pihat(k,l(m),m) -1;
                 end
+                
+                % Implied posterior precision at first level
+                sgmmu2 = 1./(1+exp(-mu(k,2,m)));
+                pi(k,1,m) = pi(k,2,m)/(sgmmu2*(1-sgmmu2));
+
 
             elseif state(m) % Kalman
                 % Gain update - optimal gain is calculated from ratio of input

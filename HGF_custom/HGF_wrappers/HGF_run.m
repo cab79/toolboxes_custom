@@ -24,7 +24,7 @@ obs_model = S.obs_config;
 opt_algo = 'tapas_quasinewton_optim_config';
 
 if ~S.bayes_opt
-    S.use_y_col = find([any(strcmp(S.resp_modelspec.responses,'Ch')), any(strcmp(S.resp_modelspec.responses,'RT')),any(strcmp(S.resp_modelspec.responses,'EEG')),any(strcmp(S.resp_modelspec.responses,'HGFvar'))]);
+    S.use_y_col = find([any(strcmp(S.resp_modelspec.responses,'Ch')), any(strcmp(S.resp_modelspec.responses,'RT')),any(strcmp(S.resp_modelspec.responses,'EEG')) || any(strcmp(S.resp_modelspec.responses,'HGFvar')) || any(strcmp(S.resp_modelspec.responses,'CCA_FApred'))]);
 end
 
 % when simulating there may be multiple y created

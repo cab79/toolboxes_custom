@@ -60,8 +60,13 @@ else
 end
 
 if plotsd
-    sa_0=r.p_prc.([priormodel '_sa_0']);
-    sa = r.traj.(priormodel).sa;
+    if isfield(r.traj.(priormodel),'g')
+        sa = r.traj.(priormodel).sa;
+        sa_0=sa(1);
+    else
+        sa_0=r.p_prc.([priormodel '_sa_0']);
+        sa = r.traj.(priormodel).sa;
+    end
 end
 
 ll=0;
@@ -98,15 +103,15 @@ end
 % Input level
 subplot(l+ll,1,l);
 
-%if l>1
+try
     plot(ts, [tapas_sgm(mu_0(2), 1); tapas_sgm(mu(:,2), 1)], 'b', 'LineWidth', 2);
     hold all;
     plot(0, tapas_sgm(mu_0(2), 1), 'ob', 'LineWidth', 2); % prior
-%else
+catch
     plot(ts, [mu_0(1); mu(:,1)], 'r', 'LineWidth', 1);
     hold all;
     plot(0, mu_0(1), 'or', 'LineWidth', 1); % prior
-%end
+end
 plot(ts(2:end), r.u(:,1), '.', 'Color', [0 0.6 0]); % inputs
 plot(ts(2:end), wt(:,1), 'k') % implied learning rate 
 if (ploty == true) && ~isempty(find(strcmp(fieldnames(r),'y'))) && ~isempty(r.y)

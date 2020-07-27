@@ -68,7 +68,7 @@ switch S.resp_modelspec.responses{:}
         end
         varargout = {cc_mean,brr};
         
-    case 'HGFvar' % decoded HGF trajectories
+    case {'HGFvar','CCA_FApred'} % decoded HGF trajectories
         for d = 1:length(D_act)
             actual_var(d,:,:) = D_act(d).HGF.y(:,3:end);
             for rep = 1:S.numsimrep

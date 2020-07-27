@@ -474,8 +474,19 @@ for d = 1:length(D)
         end
         corrmat = triu(corrmat + corrmat',1);
         figure;imagesc(corrmat);colorbar;colormap('jet'); caxis([-1 1])
-        xticks(1:length(var_names)); xticklabels(var_names); xtickangle(90);
-        yticks(1:length(var_names)); yticklabels(var_names);
+        plot_names = var_names;
+        if ~isempty(S.prep.calc.pred.varname_parts_plot)
+            for pn = 1:length(plot_names)
+                nparts = strsplit(plot_names{pn},'_');
+                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
+                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
+                    plot_names{pn} = strjoin(nparts,'_');
+                end
+            end
+            S.prep.calc.pred.varname_parts_plot;
+        end
+        xticks(1:length(var_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(var_names)); yticklabels(plot_names);
         title('collinearity of predictors')
         
         save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
@@ -521,67 +532,75 @@ for d = 1:length(D)
     
     if S.prep.calc.eeg.pca.on
         
-        %% inputs for PLS/CCA
-        Sf.PCAmethod = S.prep.calc.eeg.pca.PCAmethod;
-        Sf.type = S.prep.calc.eeg.pca.type;
-        Sf.type_obs_sep = S.prep.calc.eeg.pca.type_sep; % analyse "observation" separately. E.g. if temporal PCA, apply separately to each spatial channel?
-        Sf.type_numfac = S.prep.calc.eeg.pca.numfac; % max number of factors
-        Sf.data_in = S.prep.calc.eeg.pca.data_in; % type of data to analyse: trials or averaged conditions
-        Sf.centre_output = S.prep.calc.eeg.pca.centre;
-        Sf.standardise_output = S.prep.calc.eeg.pca.standardise;
-        Sf.pca_FA_type = S.prep.calc.eeg.pca.FA_type;
-        Sf.maxGig = S.prep.calc.eeg.pca.maxGig;
-        Sf.normalise_cca_weights = S.prep.calc.eeg.cca.normalise_weights;
-        Sf.img=S.img;
-        Sf.Y_use4output = S.prep.calc.eeg.pls.Y_use4output;
-        Sf.select_ncomp = S.prep.calc.eeg.pca.select_ncomp;
-        Sf.cca_reg_weights = S.prep.calc.eeg.cca.reg_weights;
-        Sf.cca_test_nPCAcomp = S.prep.calc.eeg.cca.test_nPCAcomp;
-        Sf.cca_method = S.prep.calc.eeg.cca.method;
-        Sf.cca_reduce_by_scree = S.prep.calc.eeg.cca.reduce_by_scree;
-        Sf.cca_select_nPCA_per_group = S.prep.calc.eeg.cca.select_nPCA_per_group;
-        Sf.cca_FA_type = S.prep.calc.eeg.cca.FA_type;
-        
-        % PLS
-        Y={};
-        if any(strcmp(Sf.PCAmethod,'PLS'))
-            if S.prep.calc.eeg.pca.on
-                Y = D(d).prep.pred_PCA.Yscore;
-                col_names = D(d).prep.pred_PCA.col_names;
-            else
-                error('run PCA on predictors prior to PLS')
-            end
-        end
-        
-        % RUN function
-        if any(strcmp(Sf.PCAmethod,'PLS')) && S.prep.calc.eeg.pls.Y_select % select a model and output that single model
-            [D(d)]=eegstats_components_analysis(D(d),Sf,{Y,col_names});
-        elseif any(strcmp(Sf.PCAmethod,'PLS')) % output all models
-            D_orig=D;
-            for ym = 1:length(Y)
-                [Dtemp]=eegstats_components_analysis(D_orig(d),Sf,{Y(ym),col_names(ym)});
-                D(d).prep(ym) = D(d).prep(1);
-                D(d).prep(ym).grpdata=Dtemp.prep.grpdata;
-                D(d).prep(ym).PCA=Dtemp.prep.PCA;
-                D(d).prep(ym).dim=Dtemp.prep.dim;
-                close all
-                mse_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.MSE{:}),3); 
-                msecv_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.MSE_CV{:}),3); 
-                pvar_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.explained{:}),3); 
-                mse_plot(ym,:) = mse_temp(:,end);
-                msecv_plot(ym,:) = msecv_temp(:,end);
-                pvar_plot(ym,:) = sum(pvar_temp,2);
-            end
-            figure
-            subplot(2,3,1); bar(mse_plot(:,1)); title('X MSE per model')
-            subplot(2,3,2); bar(msecv_plot(:,1)); title('X CV MSE per model')
-            subplot(2,3,3); bar(pvar_plot(:,1)); title('X % var explained per model')
-            subplot(2,3,4); bar(mse_plot(:,2)); title('Y MSE per model')
-            subplot(2,3,5); bar(msecv_plot(:,2)); title('Y CV MSE per model')
-            subplot(2,3,6); bar(pvar_plot(:,2)); title('Y % var explained per model')
-            clear Dtemp D_orig
+        %% use existing data or calculate instead?
+        if isfield(S.prep.calc.eeg.pca,'use_existing_data') && ~isempty(S.prep.calc.eeg.pca.use_existing_data)
+            Dy = load(S.prep.calc.eeg.pca.use_existing_data,'D');
+            D.prep.PCA = Dy.D.prep.PCA;
+            D.prep.Y = Dy.D.prep.Y;
         else
-            [D(d)]=eegstats_components_analysis(D(d),Sf);
+        
+            %% inputs for PLS/CCA
+            Sf.PCAmethod = S.prep.calc.eeg.pca.PCAmethod;
+            Sf.type = S.prep.calc.eeg.pca.type;
+            Sf.type_obs_sep = S.prep.calc.eeg.pca.type_sep; % analyse "observation" separately. E.g. if temporal PCA, apply separately to each spatial channel?
+            Sf.type_numfac = S.prep.calc.eeg.pca.numfac; % max number of factors
+            Sf.data_in = S.prep.calc.eeg.pca.data_in; % type of data to analyse: trials or averaged conditions
+            Sf.centre_output = S.prep.calc.eeg.pca.centre;
+            Sf.standardise_output = S.prep.calc.eeg.pca.standardise;
+            Sf.pca_FA_type = S.prep.calc.eeg.pca.FA_type;
+            Sf.maxGig = S.prep.calc.eeg.pca.maxGig;
+            Sf.normalise_cca_weights = S.prep.calc.eeg.cca.normalise_weights;
+            Sf.img=S.img;
+            Sf.Y_use4output = S.prep.calc.eeg.pls.Y_use4output;
+            Sf.select_ncomp = S.prep.calc.eeg.pca.select_ncomp;
+            Sf.cca_reg_weights = S.prep.calc.eeg.cca.reg_weights;
+            Sf.cca_test_nPCAcomp = S.prep.calc.eeg.cca.test_nPCAcomp;
+            Sf.cca_method = S.prep.calc.eeg.cca.method;
+            Sf.cca_reduce_by_scree = S.prep.calc.eeg.cca.reduce_by_scree;
+            Sf.cca_select_nPCA_per_group = S.prep.calc.eeg.cca.select_nPCA_per_group;
+            Sf.cca_FA_type = S.prep.calc.eeg.cca.FA_type;
+
+            % PLS
+            Y={};
+            if any(strcmp(Sf.PCAmethod,'PLS'))
+                if S.prep.calc.eeg.pca.on
+                    Y = D(d).prep.pred_PCA.Yscore;
+                    col_names = D(d).prep.pred_PCA.col_names;
+                else
+                    error('run PCA on predictors prior to PLS')
+                end
+            end
+
+            % RUN function
+            if any(strcmp(Sf.PCAmethod,'PLS')) && S.prep.calc.eeg.pls.Y_select % select a model and output that single model
+                [D(d)]=eegstats_components_analysis(D(d),Sf,{Y,col_names});
+            elseif any(strcmp(Sf.PCAmethod,'PLS')) % output all models
+                D_orig=D;
+                for ym = 1:length(Y)
+                    [Dtemp]=eegstats_components_analysis(D_orig(d),Sf,{Y(ym),col_names(ym)});
+                    D(d).prep(ym) = D(d).prep(1);
+                    D(d).prep(ym).grpdata=Dtemp.prep.grpdata;
+                    D(d).prep(ym).PCA=Dtemp.prep.PCA;
+                    D(d).prep(ym).dim=Dtemp.prep.dim;
+                    close all
+                    mse_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.MSE{:}),3); 
+                    msecv_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.MSE_CV{:}),3); 
+                    pvar_temp=mean(cat(3,D(d).prep(ym).PCA.O.PLS.explained{:}),3); 
+                    mse_plot(ym,:) = mse_temp(:,end);
+                    msecv_plot(ym,:) = msecv_temp(:,end);
+                    pvar_plot(ym,:) = sum(pvar_temp,2);
+                end
+                figure
+                subplot(2,3,1); bar(mse_plot(:,1)); title('X MSE per model')
+                subplot(2,3,2); bar(msecv_plot(:,1)); title('X CV MSE per model')
+                subplot(2,3,3); bar(pvar_plot(:,1)); title('X % var explained per model')
+                subplot(2,3,4); bar(mse_plot(:,2)); title('Y MSE per model')
+                subplot(2,3,5); bar(msecv_plot(:,2)); title('Y CV MSE per model')
+                subplot(2,3,6); bar(pvar_plot(:,2)); title('Y % var explained per model')
+                clear Dtemp D_orig
+            else
+                [D(d)]=eegstats_components_analysis(D(d),Sf);
+            end
         end
     else
         for ip = 1:length(D(d).prep)
@@ -589,20 +608,22 @@ for d = 1:length(D)
         end
     end
     % FOR EVERY SAMPLE OVER ALL SUBJECTS:
-    for ip = 1:length(D(d).prep)
-        for s = 1:size(D(d).prep(ip).grpdata,2)
-            % duplicate dtab over data samples
-    %         D(d).prep(ip).Y(s).dtab = D(d).prep(ip).dtab;
-            D(d).prep(ip).Y(s).dtab=table;
+    if ~exist('Dy','var') %|| ~isfield(Dy.prep,'Y') % if Y not added in earlier from existing data file
+        for ip = 1:length(D(d).prep)
+            for s = 1:size(D(d).prep(ip).grpdata,2)
+                % duplicate dtab over data samples
+        %         D(d).prep(ip).Y(s).dtab = D(d).prep(ip).dtab;
+                D(d).prep(ip).Y(s).dtab=table;
 
-            % add EEG after z-scoring over trials (unit variance) so that statistical coefficients are normalised
-            if S.prep.calc.eeg.zscore
-                D(d).prep(ip).Y(s).data_mean = nanmean(double(D(d).prep(ip).grpdata(:,s)));
-                D(d).prep(ip).Y(s).data_std = nanstd(double(D(d).prep(ip).grpdata(:,s)));
-                D(d).prep(ip).Y(s).dtab.data = (double(D(d).prep(ip).grpdata(:,s)) - D(d).prep(ip).Y(s).data_mean) / D(d).prep(ip).Y(s).data_std;
-    %             [D(d).prep(ip).Y(s).dtab.data, D(d).prep(ip).Y(s).data_mean, D(d).prep(ip).Y(s).data_std] = zscore(double(D.prep.grpdata(:,s)));
-            else
-                D(d).prep(ip).Y(s).dtab.data = double(D(d).prep(ip).grpdata(:,s));
+                % add EEG after z-scoring over trials (unit variance) so that statistical coefficients are normalised
+                if S.prep.calc.eeg.zscore
+                    D(d).prep(ip).Y(s).data_mean = nanmean(double(D(d).prep(ip).grpdata(:,s)));
+                    D(d).prep(ip).Y(s).data_std = nanstd(double(D(d).prep(ip).grpdata(:,s)));
+                    D(d).prep(ip).Y(s).dtab.data = (double(D(d).prep(ip).grpdata(:,s)) - D(d).prep(ip).Y(s).data_mean) / D(d).prep(ip).Y(s).data_std;
+        %             [D(d).prep(ip).Y(s).dtab.data, D(d).prep(ip).Y(s).data_mean, D(d).prep(ip).Y(s).data_std] = zscore(double(D.prep.grpdata(:,s)));
+                else
+                    D(d).prep(ip).Y(s).dtab.data = double(D(d).prep(ip).grpdata(:,s));
+                end
             end
         end
     end
@@ -692,7 +713,18 @@ for ci = 1:length(cv.def)
         pred.(pred_label{pr})=predtemp(tnums,pr);
     end
 end
-
+% remove almost identical data
+dat = corr(table2array(pred));
+rm_dat = find(dat(1,2:end)>0.99999);
+if ~isempty(rm_dat)
+    pred(:,rm_dat+1) = [];
+end
+% remove data with almost no variance
+dat = std(table2array(pred));
+rm_dat = dat<0.00001;
+if any(rm_dat)
+    pred(:,rm_dat) = [];
+end 
 
 function pred = eegfile_covariate(cv,dat,tnums)
 % imports from substructure within eeg data file. Designed for Andrej's
@@ -859,7 +891,11 @@ switch S.prep.calc.pred.PCA_type
                 explainedrand = randResults.scree;
                 explainedrand = explainedrand*(sum(explained)/sum(explainedrand)); %scale to same size as real data
                 nfac_temp = find(explained<explainedrand);
-                nfac = nfac_temp(1)-1;
+                if isempty(nfac_temp)
+                    nfac=1;
+                else
+                    nfac = nfac_temp(1)-1;
+                end
             end
             FactorResults = erp_pca(Y{ym},nfac,type);
             out.Ycoeff{ym} = FactorResults.FacCof;

@@ -249,6 +249,210 @@ if any(strcmp(r.c_obs.responses, 'HGFvar'))
         end
         y(:,2+yi) = logresp; % response time without Gaussian noise
     end
+end
+
+%% Regression with CCA components
+if any(strcmp(r.c_obs.responses, 'CCA_FApred'))
+
+    % Create param struct
+    type='reg'; % regression
+    for pn=1:length(nme)
+        if strcmp(nme{pn,1}(1:length(type)),type)
+            eval([nme_gen{pn} ' = pvec(idx{pn})'';']);
+        end
+    end
+
+    u = r.u(:,1);
+    
+    % Extract trajectories of interest from infStates
+    mu1 = r.traj.(r.c_obs.model).mu(:,1);
+    mu1hat = r.traj.(r.c_obs.model).muhat(:,1);
+    sa1hat = r.traj.(r.c_obs.model).sahat(:,1);
+    sa1 = r.traj.(r.c_obs.model).sa(:,1);
+    dau = r.traj.(r.c_obs.model).dau;
+    ep1 = r.traj.(r.c_obs.model).epsi(:,1);
+    da1 = r.traj.(r.c_obs.model).da(:,1);
+    ep2 = r.traj.(r.c_obs.model).epsi(:,2);
+    if l>1
+        mu2    = r.traj.(r.c_obs.model).mu(:,2);
+        sa2    = r.traj.(r.c_obs.model).sa(:,2);
+        mu2hat = r.traj.(r.c_obs.model).muhat(:,2);
+        sa2hat = r.traj.(r.c_obs.model).sahat(:,2);
+    end
+    if l>2
+        mu3 = r.traj.(r.c_obs.model).mu(:,3);
+        sa3 = r.traj.(r.c_obs.model).sa(:,3);
+        da2 = r.traj.(r.c_obs.model).da(:,2);
+        ep3 = r.traj.(r.c_obs.model).epsi(:,3);
+        da3 = r.traj.(r.c_obs.model).da(:,3);
+    end
+    
+    
+%     % prediction error
+%     % ~~~~~~~~
+%     if abs_switch
+%         daureg = abs(dau);
+%         %daureg(r.irr) = [];
+%         ep1reg = abs(ep1);
+%         %ep1reg(r.irr) = [];
+%         da1reg = abs(da1);
+%         %da1reg(r.irr) = [];
+%         ep2reg = abs(ep2);
+%         %ep2reg(r.irr) = [];
+%         if l>2
+%             da2reg = abs(da2);
+%             %da2reg(r.irr) = [];
+%             ep3reg = abs(ep3);
+%             %ep3reg(r.irr) = [];
+%             da3reg = abs(da3);
+%             %da3reg(r.irr) = [];
+%         end
+%     else
+        daureg = dau;
+        %daureg(r.irr) = [];
+        ep1reg = ep1;
+        %ep1reg(r.irr) = [];
+        da1reg = da1;
+        %da1reg(r.irr) = [];
+        ep2reg = ep2;
+        %ep2reg(r.irr) = [];
+        if l>2
+            da2reg = da2;
+            %da2reg(r.irr) = [];
+            ep3reg = ep3;
+            %ep3reg(r.irr) = [];
+            da3reg = da3;
+            %da3reg(r.irr) = [];
+        end
+%     end
+    
+    % Posterior expectation
+    % ~~~~~~~~
+    m1reg = mu1;
+    %m1reg(r.irr) = [];
+    sa1reg = sa1;
+    %sa1reg(r.irr) = [];
+    if l>1
+        m2reg = mu2;
+        %m2reg(r.irr) = [];
+        sa2reg = sa2;
+        %sa2reg(r.irr) = [];
+    end
+    if l>2
+        m3reg = mu3;
+        %m3reg(r.irr) = [];
+        sa3reg = sa3;
+        %sa3reg(r.irr) = [];
+    end
+
+    % Surprise: informational
+    % ~~~~~~~~
+    %m1hreg = mu1hat;
+    %m1hreg(r.irr) = [];
+    poo = m1reg.^u.*(1-m1reg).^(1-u); % probability of observed outcome
+    surp = -log2(poo);
+
+    % Bernoulli variance (aka irreducible uncertainty, risk) 
+    % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    bernv = sa1;
+    %bernv(r.irr) = [];
+    
+    bernvhat = sa1hat;
+    %bernvhat(r.irr) = [];
+    
+    mu1hreg = mu1hat;
+    %mu1hreg(r.irr) = [];
+
+    if l>1 % CAB
+        % Inferential variance (aka informational or estimation uncertainty, ambiguity)
+        % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        %inferv = tapas_sgm(mu2, 1).*(1 -tapas_sgm(mu2, 1)).*sa2; % transform down to 1st level
+        sigmoid_mu2 = 1./(1+exp(-mu2)); % transform down to 1st level
+        inferv = sigmoid_mu2.*(1 -sigmoid_mu2).*sa2; 
+        %inferv = sa2; 
+        %inferv(r.irr) = [];
+        
+        mu2hreg = mu2hat;
+        %mu2hreg(r.irr) = [];
+        sa2hreg = sa2hat;
+        %sa2hreg(r.irr) = [];
+    end
+
+    if l>2 % CAB
+        % Phasic volatility (aka environmental or unexpected uncertainty)
+        % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        pv = sigmoid_mu2.*(1-sigmoid_mu2).*exp(mu3); % transform down to 1st level
+        %pv = exp(mu3); 
+        %pv(r.irr) = [];
+        
+    end
+    
+    ynames = r.c_obs.ynames;
+    weights = r.c_obs.weights;
+    factors = r.c_obs.factors;
+    fac = unique([factors{:}]);
+    for f=fac
+       yvar = ynames;%(facnum==f);
+       yval=0;
+       for yi = 1:length(yvar)
+           wn = ismember(ynames,yvar{yi});
+           switch yvar{yi}
+                case 'HGF_PL_dau_1'
+                    var = daureg;
+                case 'HGF_PL_da_1'
+                    var = da1reg;
+                case 'HGF_PL_da_2'
+                    var = da2reg;
+                    if l<2; weights(wn,f)=0; end
+                case 'HGF_PL_mu_1'
+                    var = m1reg;
+                case 'HGF_PL_mu_2'
+                    var = m2reg;
+                    if l<2; weights(wn,f)=0; end
+                case 'HGF_PL_mu_3'
+                    var = m3reg;
+                    if l<3; weights(wn,f)=0; end
+                case 'HGF_PL_sa_1'
+                    var = sa1reg;
+                case 'HGF_PL_sa_2'
+                    var = sa2reg;
+                    if l<2; weights(wn,f)=0; end
+                case 'HGF_PL_sa_3'
+                    var = sa3reg;
+                    if l<3; weights(wn,f)=0; end
+           end
+           yval = yval + var*weights(wn,f);
+        end
+        eval(['f' num2str(f) ' = yval;']);
+    end
+        
+    for yi=1:length(r.c_obs.params_cell)
+
+        % assign intercept
+        eval(['be0 = be0' num2str(yi) ';']);
+        
+        % assign slopes, one per factor (x4)
+        param_nums = r.c_obs.params_cell{yi};
+        eval(['be1 = be' num2str(param_nums(1)) ';']);
+        eval(['be2 = be' num2str(param_nums(2)) ';']);
+        eval(['be3 = be' num2str(param_nums(3)) ';']);
+        eval(['be4 = be' num2str(param_nums(4)) ';']);
+        
+        % assign zeta
+        eval(['ze = ze' num2str(yi) ';']);
+        
+        % Calculate predicted log-response
+        % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        if l>2
+            logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3 +be4.*f4;
+        elseif l>1
+            logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3 +be4.*f4;
+        else
+            logresp = be0 +be1.*f1 +be2.*f2 +be3.*f3;
+        end
+        
+        y(:,2+yi) = logresp; % response time without Gaussian noise
+    end
 
 
 end
