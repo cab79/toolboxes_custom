@@ -446,7 +446,7 @@ for d = 1:length(D)
         if S.prep.calc.pred.PCA_model_add2dtab
             ym=S.prep.calc.pred.PCA_model_add2dtab;
             for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
-                pcname=['PC' num2str(k)];
+                pcname=[S.prep.calc.pred.PCA_type num2str(k)];
                 D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore{ym}(:,k);
             end
         end
@@ -537,6 +537,7 @@ for d = 1:length(D)
             Dy = load(S.prep.calc.eeg.pca.use_existing_data,'D');
             D.prep.PCA = Dy.D.prep.PCA;
             D.prep.Y = Dy.D.prep.Y;
+            D.prep.dim = Dy.D.prep.dim;
         else
         
             %% inputs for PLS/CCA

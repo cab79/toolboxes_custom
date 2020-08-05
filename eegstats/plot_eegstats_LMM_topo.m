@@ -111,7 +111,7 @@ if ~isempty(S.model.index)
             all_cimg = all(all_cimg,4);
         end
         % coefficient image
-        coeff_term = S.model.coeff_term{ci};
+        coeff_term = S.model.coeff_term;
         coeff_img=spm_read_vols(spm_vol(D.model(i).coeff(strcmp({D.model(i).coeff(:).name},coeff_term)).b_img_file));
         regress_erp = coeff_img.*erp;
         % mask

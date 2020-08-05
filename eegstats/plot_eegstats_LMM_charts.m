@@ -579,6 +579,7 @@ function [cells_IVplot, celltypes_IVplot, IV_levels, label] = IV_cells_labels(de
 if ~isempty(IVs)
     [cells_IVplot, celltypes_IVplot] = get_cells(design, design.Properties.VariableNames, IVs);
     if ~isempty(levels)
+        newcelltypes_IVplot = table;
         for lev=1:length(levels)
             if iscategorical(celltypes_IVplot.(IVs{lev})) && isprotected(celltypes_IVplot.(IVs{lev}))
                 celltypes_IVplot.(IVs{lev}) = cellstr(celltypes_IVplot.(IVs{lev}));
@@ -586,12 +587,12 @@ if ~isempty(IVs)
             oldlev=unique(celltypes_IVplot.(IVs{lev}),'stable');
             for ol = 1:length(oldlev)
                 if iscell(oldlev)
-                    celltypes_IVplot.(IVs{lev})(strcmp(celltypes_IVplot.(IVs{lev}),oldlev{ol}))=levels{lev}(ol);
+                    newcelltypes_IVplot.(IVs{lev})(strcmp(celltypes_IVplot.(IVs{lev}),oldlev{ol}))=levels{lev}(ol);
                 else
-                    celltypes_IVplot.(IVs{lev})(celltypes_IVplot.(IVs{lev})==oldlev(ol))=levels{lev}(ol);
+                    newcelltypes_IVplot.(IVs{lev})(celltypes_IVplot.(IVs{lev})==oldlev(ol))=levels{lev}(ol);
                 end
             end
-            celltypes_IVplot.(IVs{lev}) = cellstr(celltypes_IVplot.(IVs{lev}));
+            celltypes_IVplot.(IVs{lev}) = cellstr(newcelltypes_IVplot.(IVs{lev}));
         end
     end
 else

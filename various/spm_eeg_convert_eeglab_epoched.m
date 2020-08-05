@@ -90,6 +90,9 @@ if ~isfield(S, 'mode') || ~isequal(S.mode, 'header')
     S1.mode           = 'header';
     S1.dataset        = S.dataset;
     S1.outfile        = S.outfile;
+    if isfield(S,'chantype')
+        S1.chantype = S.chantype;
+    end
     S1.inputformat    = S.inputformat;
     Dhdr              = spm_eeg_convert_eeglab_epoched(S1,readalltrials);
     hdr               = Dhdr.hdr;
@@ -520,7 +523,12 @@ if isfield(hdr, 'orig')
     
     % Uses fileio function to get the information about channel types stored in
     % the original header.
-    origchantypes = repmat({'eeg'},length(hdr.label),1);%ft_chantype(hdr);
+    
+    if isfield(S,'chantype')
+        origchantypes = repmat({S.chantype},length(hdr.label),1);
+    else
+        origchantypes = repmat({'eeg'},length(hdr.label),1);%ft_chantype(hdr);
+    end
     
     [sel1, sel2] = spm_match_str(D.chanlabels, hdr.label);
     origchantypes = origchantypes(sel2);
