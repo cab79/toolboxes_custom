@@ -157,7 +157,7 @@ end
 % varargout = {D};
 try
     disp('saving stats')
-    save(fullfile(S.encode.path.outputs,['stats_' S.encode.sname '.mat']),'D','S');
+    save(fullfile(S.encode.path.outputs,[S.encode.sname '.mat']),'D','S');
 catch
     error('cannot save results')
 end

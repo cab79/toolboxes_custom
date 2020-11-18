@@ -2,7 +2,7 @@ function eegstats_cca_reconstruct(comp)
 dbstop if error
 close all
 pth='C:\Data\CORE\eeg\ana\prep\cleaned\part2\eegstats_dataprep';
-fname = 'eegstats_dtab20200717T165007.mat';
+fname = 'eegstats_dtab20201002T105819.mat';
 cd(pth);
 
 load(fullfile(pth,fname))

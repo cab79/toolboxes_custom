@@ -21,15 +21,22 @@ for s = 1:size(Y,2)
     N=size(X,1);
     K=S.brr.folds;
     if K
-        x_val_in  = crossvalind('Kfold', N, K);
+        CVsample = cvpartition(N,'KFold',K);
+%         x_val_in  = crossvalind('Kfold', N, K);
+
     else
         % if no folds, run all trials for both training and testing
         x_val_in = ones(N,1);
         K=1;
     end
     for i = K : -1 : 1
-
-        val_in    = x_val_in == i;
+        
+        if S.brr.folds
+            val_in = test(CVsample,i);
+        else
+            val_in = x_val_in == i;
+        end
+        
         es_in     = ~val_in;
         if ~any(es_in); es_in=val_in; end
 

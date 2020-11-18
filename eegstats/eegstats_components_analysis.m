@@ -58,11 +58,11 @@ for pt = 1:length(S.type)
                 repidx{u} = C;
             end
         case 'trials'
-            trialidx = unique([D.prep.tnums{:}]); % repetitions
+            trialidx = unique(D.prep.dtab.tnums); % repetitions
             nreps = trialidx(end);
             for u=1:length(U)
                 dat{u} = reshape(grpdata(iU==u,:),[],currdim(1),currdim(2));
-                repidx{u} = D.prep.tnums{u};
+                repidx{u} = D.prep.dtab.tnums(iU==u);
                 if ~isempty(Y)
                     for ym = 1:length(Y)
                         Ydat{ym}{u} = Y{ym}(iU==u,:);
@@ -167,7 +167,11 @@ for pt = 1:length(S.type)
             end
         end
         
-        NUM_FAC(2) = min(NUM_FAC(2),NUM_FAC(1)); % previously this was inside the next if statement, but caused a crash doign PLS on its own later
+        try
+            NUM_FAC(2) = min(NUM_FAC(2),NUM_FAC(1)); % previously this was inside the next if statement, but caused a crash doign PLS on its own later
+        catch
+            NUM_FAC(2) = 1;
+        end
         if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
             disp(['CCA: ' S.type{pt}])
             
@@ -1188,6 +1192,7 @@ switch PCAmethod
                 xlabel('Observed Response');
                 ylabel('Fitted Response');
         end
+        i
     case 'CCA'
         
         ncomp=inf;

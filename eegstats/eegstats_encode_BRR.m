@@ -28,7 +28,10 @@ for s = 1:length(Y)
         
         % fit model
         Sb.brr = S.encode.brr;  
-        Sb.zscore = 0;
+        Sb.zscore = S.encode.brr.z_score;
+        if S.encode.brr.use_groups==0
+            groups=[];
+        end
         brr=bayesreg_crossval(train_pred,train_data,Sb,groups,categ);
 
         % outputs common to all samples
@@ -77,6 +80,8 @@ terms = strsplit(def,'+'); % identify terms occuring after a '+'
 terms(1)=[];
 
 % % expand
+maineffects = {};
+interactions = {};
 for tm = 1:length(terms) % find interactions
     terms{tm} = regexprep(terms{tm},'+','');
     if any(regexp(terms{tm}, '.[*].'))
@@ -88,7 +93,7 @@ for tm = 1:length(terms) % find interactions
                 interactions = [interactions {strjoin(allcombs(ac,:),':')}];
             end
         end
-        terms(tm)=[];
+        terms{tm}='';
     end
 end
 terms = [terms maineffects interactions];
@@ -103,7 +108,7 @@ if ~isempty(interactions)
 else % otherwise don't use LMM, to save time
     pnames = terms;
     for p = 1:length(terms)
-        pred(:,p) = dtab.(terms{p});
+        pred(:,p) = double(dtab.(terms{p}));
     end
 end
 % remove intercept if present
