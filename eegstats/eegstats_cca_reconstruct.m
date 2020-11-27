@@ -1,8 +1,8 @@
 function eegstats_cca_reconstruct(comp)
 dbstop if error
 close all
-pth='C:\Data\CORE\eeg\ana\prep\cleaned\part2\eegstats_dataprep';
-fname = 'eegstats_dtab20201002T105819.mat';
+pth='G:\Q_backup\Projects\CORE\eeg\ana\stats\Current\1. EEG learning\1. EEG modelling\1. BRR analyses';
+fname = 'eegprep_Y_group_PCA86_CCA8.mat';
 cd(pth);
 
 load(fullfile(pth,fname))

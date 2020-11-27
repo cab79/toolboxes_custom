@@ -70,6 +70,9 @@ switch S.prep.output.format
         %% create Y structure using for encoding models
         for d=1:length(D)
             for ip = 1:length(D(d).prep)
+                if iscell(D(d).prep(ip).grpdata)
+                    D(d).prep(ip).grpdata = D(d).prep(ip).grpdata{:};
+                end
                 for s = 1:size(D(d).prep(ip).grpdata,2)
                     % duplicate dtab over data samples
             %         D(d).prep(ip).Y(s).dtab = D(d).prep(ip).dtab;

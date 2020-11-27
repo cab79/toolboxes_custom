@@ -189,7 +189,7 @@ for pt = 1:length(S.type)
             r= S.cca_reg_weights;
             nr=length(r);
             if S.cca_test_nPCAcomp
-                ncomp =  1 : ceil(size(O(o).scores,1)/S.cca_test_nPCAcomp) : size(O(o).scores,1);
+                ncomp =  1 : ceil(size(O(o).scores,1)/min(size(O(o).scores,1),S.cca_test_nPCAcomp)) : size(O(o).scores,1);
             else
                 ncomp = size(O(o).scores,1);
             end
@@ -229,6 +229,8 @@ for pt = 1:length(S.type)
                 %nCCA_train(nCCA_train==0) = []; % remove zeros
                 if S.cca_test_nPCAcomp
                     nCCAtest = 1:min([ncomp(nc),NUM_FAC(2),min(nCCA_train)]);
+                elseif r(end)>0
+                    nCCAtest = 1:min([NUM_FAC(2),min(nCCA_train)]);
                 else
                     nCCAtest = min([NUM_FAC(2),min(nCCA_train)]);
                 end
@@ -240,7 +242,7 @@ for pt = 1:length(S.type)
                     nci=nci+1;
                     ncii(nci,1)=nc;
                     ncii(nci,2)=ncCCA;
-                    parfor u=1:length(U)
+                    for u=1:length(U)
                         for cv = 1:CV_fold
                             for ri = 1:nr
                                 
@@ -300,6 +302,7 @@ for pt = 1:length(S.type)
             nPCA = ncomp(ncii(minYi,1));
             disp(['n CCA comp: ' num2str(nCCA) ', n PCA comp: ' num2str(nPCA)])
             O(o).CCA_regularisation = minR(minYi);
+            O(o).RMSECV = rmdat;
                         
             % reduce PCs
             O(o).scores = O(o).scores(1:nPCA,:,:);
@@ -317,6 +320,7 @@ for pt = 1:length(S.type)
             
             sz=size(O(o).mdata);
             O(o).mdata_avg = squeeze(mean(reshape(O(o).mdata,sz(1),nreps,obsdim,sz(3)),2));
+            
         end
     end
 

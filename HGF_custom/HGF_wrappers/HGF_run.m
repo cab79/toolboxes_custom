@@ -67,8 +67,8 @@ end
 % fit = tapas_fitModel_CAB([], D(1).HGF(1).u, prc_model, S.bayesopt_config, opt_algo,S, 0);
 % sim=fit;
 fit=cell(length(D),1);sim=cell(length(D),1);
-% parfor (d = 1:length(D),parforArg)
-for d = 1:length(D)
+parfor (d = 1:length(D),parforArg)
+% for d = 1:length(D)
     
     disp(['testing perc model ' num2str(S.perc_model) ', resp model ' num2str(S.resp_model) ', subject ' num2str(d) '/' num2str(length(D))])
 
@@ -87,14 +87,14 @@ for d = 1:length(D)
     failed=0;
     while fin==0
         
-        if isfield(S,'D_perc')
-            c_prc = r(d).c_prc;
-            if failed 
-                c_prc.priormus(S.fix_param_indices(end-1)) = c_prc.priormus(S.fix_param_indices(end-1))-failed;
-            end
-        else
+%         if isfield(S,'D_perc')
+%             c_prc = r(d).c_prc;
+%             if failed 
+%                 c_prc.priormus(S.fix_param_indices(end-1)) = c_prc.priormus(S.fix_param_indices(end-1))-failed;
+%             end
+%         else
             c_prc = [];
-        end
+%         end
         
         if sim_on==1
             if isfield(S,'sim') && ~isempty(S.sim)

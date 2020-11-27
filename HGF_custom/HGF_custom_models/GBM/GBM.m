@@ -105,9 +105,12 @@ for m=1:r.c_prc.nModels
     end
 
     if exist('om','var')
-        if l(m)>1
-            th(1,1,m)   = exp(om(end,1,m));
-            om(end,1,m)=NaN;
+        if l(m)==3
+            th(1,1,m)   = exp(om(3,1,m));
+            om(3,1,m)=NaN;
+        elseif l(m)==2
+            th(1,1,m)   = exp(om(2,1,m));
+            om(2,1,m)=NaN;
         end
     end
 
@@ -583,7 +586,9 @@ for m=1:nModels
         jumpTol = 16;
         if any(abs(dmu(:)) > jumpTol*rmdmu(:)) || any(abs(dpi(:)) > jumpTol*rmdpi(:))
             disp('hgf:VarApproxInvalid: GBM Variational approximation invalid. Parameters are in a region where model assumptions are violated.');
-            disp('Use plot for diagnosis: see within function'); % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
+            disp('Use plot for diagnosis: see within function'); 
+            % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
+            % plot(abs(dmu(:))); hold on; plot(rmdmu(:),'r'); hold on; plot(jumpTol*rmdmu(:),'g')
             infStates = [];
             return
         end
