@@ -98,7 +98,12 @@ if ~isempty(S.model.index)
             end
             c = find(strcmp({D.model(i).con(:).term},S.model.contrast_term{ci}));
             disp('loading image file')
-            cimg_all = spm_read_vols(spm_vol(D.model(i).con(c).MCC.([S.clus_image '_img_file'])));
+            if isfield(S.img.path,'swap') && ~isempty(S.img.path.swap)
+                newpath = strrep(D.model(i).con(c).MCC.([S.clus_image '_img_file']),S.img.path.swap{1},S.img.path.swap{2});
+                cimg_all = spm_read_vols(spm_vol(newpath));
+            else
+                cimg_all = spm_read_vols(spm_vol(D.model(i).con(c).MCC.([S.clus_image '_img_file'])));
+            end
             
             % reduce to only those clusters within D.model(i).con(c).vox
             cimg{ci} = zeros(size(cimg_all));
@@ -112,11 +117,22 @@ if ~isempty(S.model.index)
         end
         % coefficient image
         coeff_term = S.model.coeff_term;
-        coeff_img=spm_read_vols(spm_vol(D.model(i).coeff(strcmp({D.model(i).coeff(:).name},coeff_term)).b_img_file));
+        if isfield(S.img.path,'swap') && ~isempty(S.img.path.swap)
+            newpath = strrep(D.model(i).coeff(strcmp({D.model(i).coeff(:).name},coeff_term)).b_img_file,S.img.path.swap{1},S.img.path.swap{2});
+            coeff_img = spm_read_vols(spm_vol(newpath));
+        else
+            coeff_img=spm_read_vols(spm_vol(D.model(i).coeff(strcmp({D.model(i).coeff(:).name},coeff_term)).b_img_file));
+        end
+        
         regress_erp = coeff_img.*erp;
         % mask
         if ~exist('maskimg','var')
-            maskimg = spm_read_vols(spm_vol(D.model(i).mask_img_file));
+            if isfield(S.img.path,'swap') && ~isempty(S.img.path.swap)
+                newpath = strrep(D.model(i).mask_img_file,S.img.path.swap{1},S.img.path.swap{2});
+                maskimg = spm_read_vols(spm_vol(newpath));
+            else
+                maskimg = spm_read_vols(spm_vol(D.model(i).mask_img_file));
+            end
             maskimg(maskimg==0)=nan;
         end
         % plot clusters per contrast

@@ -331,10 +331,10 @@ set(gca,'XTick',1,'XTickLabel',XYlabel,'FontSize',12)
 set(gca,'YTick',[])
 %     ax2.YAxisLocation = 'right';
 ax2.XAxisLocation = 'top';
-ax3=subplot('Position',[0.1 0.08 0.5*(size(data,2)/3) 0.1])
+ax3=subplot('Position',[0.1 0.08 0.5 0.1])
 imagesc(family{2},clims)
 set(gca,'YTick',1,'YTickLabel',XYlabel,'FontSize',12)
 set(gca,'XTick',[])
-colorbar('Position',[0.74 0.08 0.03 0.1*size(data,1)+0.12])
+colorbar('Position',[0.74 0.08 0.03 0.42])
 
 colormap(flipud(cbrewer('seq', 'Reds', 100, 'pchip')))

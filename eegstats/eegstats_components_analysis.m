@@ -229,7 +229,7 @@ for pt = 1:length(S.type)
                 %nCCA_train(nCCA_train==0) = []; % remove zeros
                 if S.cca_test_nPCAcomp
                     nCCAtest = 1:min([ncomp(nc),NUM_FAC(2),min(nCCA_train)]);
-                elseif r(end)>0
+                elseif S.cca_test_nCCAcomp>0
                     nCCAtest = 1:min([NUM_FAC(2),min(nCCA_train)]);
                 else
                     nCCAtest = min([NUM_FAC(2),min(nCCA_train)]);
@@ -298,6 +298,7 @@ for pt = 1:length(S.type)
                 scatter(ncii(minYi,2),mintemp);
             end
             hold off
+            
             nCCA = ncii(minYi,2);
             nPCA = ncomp(ncii(minYi,1));
             disp(['n CCA comp: ' num2str(nCCA) ', n PCA comp: ' num2str(nPCA)])
@@ -827,11 +828,7 @@ for i = 1:length(dataAll)
     tmpscore = squeeze(dataAll{i});
     mu{i} = mean(tmpscore);
     cdata{i} = tmpscore - repmat(mu{i},size(tmpscore,1),1);
-end%     if ~isempty(Y)
-%         for ym=1:length(Y)
-%             Y{ym}{i} = zscore(Y{ym}{i});
-%         end
-%     end
+end
 
 % parallel processing
 checkp = gcp('nocreate');
