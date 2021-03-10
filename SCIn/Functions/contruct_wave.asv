@@ -404,8 +404,8 @@ else
     h.Seq.stimseq = [h.Seq.stimseq h.mwav];
 end
 
-% write to disk (optional)
-%audiowrite(['C:\Matlab\toolboxes_custom\SCIn\Outputs\stim' num2str(h.tr) '.ogg'],h.mwav',h.Fs,'Quality',100)
+% write to disk
+audiowrite(filename,y,Fs)
 
 if strcmp(h.Settings.design,'continuous')
     if isfield(h,'i') % add to trialend according to true position in sequence

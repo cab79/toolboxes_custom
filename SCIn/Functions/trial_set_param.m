@@ -368,6 +368,7 @@ switch h.Settings.stim(h.sn).control
                     elseif ~strcmp(h.Settings.stim(1).durtype,'oddballvalue')
                         if isnumeric(h.Settings.stim(h.sn).patternvalue)
                             h.freq = h.Settings.stim(h.sn).patternvalue;
+                            h.dur = h.Settings.stim(h.sn).dur{h.Seq.signal(h.sn,h.tr)}; % may need to remove this for some experiments
                         elseif iscell(h.Settings.stim(h.sn).patternvalue) %&& strcmp(h.Settings.oddballmethod,'pattern')
                             h.freq = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.tr)};
                         end
