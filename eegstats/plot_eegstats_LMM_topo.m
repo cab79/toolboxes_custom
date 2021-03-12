@@ -107,7 +107,7 @@ if ~isempty(S.model.index)
             
             % reduce to only those clusters within D.model(i).con(c).vox
             cimg{ci} = zeros(size(cimg_all));
-            idx = sort(vertcat(D.model(i).con(c).vox{:}));
+            idx = sort(vertcat(D.model(i).con(c).vox{intersect(S.model.clus,1:length(D.model(i).con(c).vox))}));
             cimg{ci}(idx) = cimg_all(idx);
         end
         % only include overlaps?
@@ -144,8 +144,8 @@ if ~isempty(S.model.index)
             % subplots per cluster
             for cl = nclus
 
-                figure('Name',['model ' num2str(i) ', ' S.model.contrast_term{ci} ', cluster ' num2str(cl)]);
-                set(gcf, 'renderer', 'opengl');
+                figure('Name',['model ' num2str(i) ', ' S.model.contrast_term{ci} ', cluster ' num2str(cl)],'units','normalized','outerposition',[0 0 0.75 1]);
+                %set(gcf, 'renderer', 'opengl');
                 clear ax1 ax2
                 % find clusters
                 clusvox = D.model(i).con(c).vox{cl};
@@ -198,6 +198,7 @@ if ~isempty(S.model.index)
                 end
                 cimg_avg(isnan(cimg_avg)) = 0;
                 cimg_avgmask(isnan(cimg_avgmask)) = 0;
+                cimg_extent_ms{cl} = S.time([find(cimg_avgmask,1,'first'),find(cimg_avgmask,1,'last')]);
 %                 coeff_avgmask(isnan(coeff_avgmask)) = 0;
                 ax1(1)=subplot(5,6,[1:3]);
                 hold on
@@ -229,13 +230,13 @@ if ~isempty(S.model.index)
                 [peaks,locs]=findpeaks(cimg_avgmask,S.time,'MinPeakDistance',S.MinPeakDistance);
                 
                 if length(locs)==1
-                    plot([locs(1) locs(1)],[0.5,1.5],'k--')
+                    plot([locs(1) locs(1)],[0.5,1.5],'k--', 'LineWidth', 1.5)
 %                     ti=[min(find(cimg_avgmask))-1,max(find(cimg_avgmask))+1];
 %                     ri=S.time([max(ti(1),1),min(ti(end),length(cimg_avgmask))]);
 %                     rectangle('Position', [ri(1), 0.5, ri(end)-ri(1), 1], 'EdgeColor', [0.1 0.1 0.1],'LineWidth',2);
                 elseif length(locs)>1
-                    for pk = 1:length(locs)
-                        plot([locs(pk) locs(pk)],[0.5,1.5],'k--')
+                    for pk = 1:min([3,S.Nlocs,length(locs)])
+                        plot([locs(pk) locs(pk)],[0.5,1.5],'k--', 'LineWidth', 1.5)
 %                         if pk<4 % only plot first 3 as rectangles
 %                             ti=[locs(pk)-S.MinPeakDistance/2,locs(pk)+S.MinPeakDistance/2];
 %                             ri=[max(ti(1),min(S.time)),min(ti(end),max(S.time))];
@@ -247,7 +248,7 @@ if ~isempty(S.model.index)
 
                 % plot image topo
                 spi=[4:6];
-                for pk=1:min(3,length(locs))
+                for pk=1:min([3,S.Nlocs,length(locs)])
                     ax2(spi(pk))=subplot(5,6,spi(pk)); 
                     plotimg = maskimg(:,:,S.time==locs(pk)).*cimgmask0(:,:,S.time==locs(pk));
                     pcolor(plotimg), shading interp; axis off
@@ -276,12 +277,12 @@ if ~isempty(S.model.index)
                     ylim(limy)
                     plot([0 0],limy,'k')
                     % lines
-                    for pk = 1:min(3,length(locs))
-                        plot([locs(pk) locs(pk)],limy,'k--')
+                    for pk = 1:min([3,S.Nlocs,length(locs)])
+                        plot([locs(pk) locs(pk)],limy,'k--', 'LineWidth', 1.5)
                     end
 
                     spi=[10:12];
-                    for pk=1:min(3,length(locs))
+                    for pk=1:min([3,S.Nlocs,length(locs)])
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
                         pcolor(erp(:,:,S.time==locs(pk))), shading interp; axis off
                         title([num2str(locs(pk)) ' ms'])
@@ -294,12 +295,12 @@ if ~isempty(S.model.index)
                     [wf,mn,mx] = plot_clusterovertime(input_avg,clusmask,S,'b');
                     title('input: MIP ERP (blue) and MIP rERP (green)')
                     plot([0 0],[mn,mx],'k')
-                    for pk = 1:min(3,length(locs))
-                        plot([locs(pk) locs(pk)],[mn,mx],'k--')
+                    for pk = 1:min([3,S.Nlocs,length(locs)])
+                        plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
                     end
 
                     spi=[16:18];
-                    for pk=1:min(3,length(locs))
+                    for pk=1:min([3,S.Nlocs,length(locs)])
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
                         pcolor(input_avg(:,:,S.time==locs(pk))), shading interp; axis off
                         title([num2str(locs(pk)) ' ms'])
@@ -312,12 +313,12 @@ if ~isempty(S.model.index)
                     [wf,mn,mx] = plot_clusterovertime(fitted_avg{i},clusmask,S,'b');
                     title('fitted: MIP ERP (blue) and MIP rERP (green)')
                     plot([0 0],[mn,mx],'k')
-                    for pk = 1:min(3,length(locs))
-                        plot([locs(pk) locs(pk)],[mn,mx],'k--')
+                    for pk = 1:min([3,S.Nlocs,length(locs)])
+                        plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
                     end
 
                     spi=[22:24];
-                    for pk=1:min(3,length(locs))
+                    for pk=1:min([3,S.Nlocs,length(locs)])
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
                         pcolor(fitted_avg{i}(:,:,S.time==locs(pk))), shading interp; axis off
                         title([num2str(locs(pk)) ' ms'])
@@ -329,31 +330,41 @@ if ~isempty(S.model.index)
                     [wf,mn,mx] = plot_clusterovertime(resid_avg{i},clusmask,S,'b');
                     title('resid: MIP ERP (blue) and MIP rERP (green)')
                     plot([0 0],[mn,mx],'k')
-                    for pk = 1:min(3,length(locs))
-                        plot([locs(pk) locs(pk)],[mn,mx],'k--')
+                    for pk = 1:min([3,S.Nlocs,length(locs)])
+                        plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
                     end
 
                     spi=[28:30];
-                    for pk=1:min(3,length(locs))
+                    for pk=1:min([3,S.Nlocs,length(locs)])
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
                         pcolor(resid_avg{i}(:,:,S.time==locs(pk))), shading interp; axis off
                         title([num2str(locs(pk)) ' ms'])
                     end
                 end
+                
+                % add spacing
                 for a=1:length(ax1)
-%                     ax(a).OuterPosition(4) = ax(a).OuterPosition(4)*0.95;
-                    ax1(a).Position(2) = ax1(a).Position(2)*1.05;  
+                    ax1(a).Position(2) = ax1(a).Position(2)-S.vertical_spacing*a;  
                     ax1(a).FontSize = S.FontSize; 
                 end
                 if exist('ax2','var')
                     for a=1:length(ax2)
+                        
+                        if ismember(a,4:6) mult = 1;
+                        elseif ismember(a,10:12) mult = 2;
+                        elseif ismember(a,16:18) mult = 3;
+                        elseif ismember(a,22:24) mult = 4;
+                        elseif ismember(a,28:30) mult = 5;
+                        end
+                        
                         try
-        %                     ax(a).OuterPosition(4) = ax(a).OuterPosition(4)*0.95;
-                            ax2(a).Position(2) = ax2(a).Position(2)*1.05;  
-                            ax2(a).FontSize = 6; 
+                            ax2(a).Position(2) = ax2(a).Position(2)-S.vertical_spacing*mult;  
+                            ax2(a).FontSize = S.FontSize; 
                         end
                     end
                 end
+                
+                % match the x axes
                 pos1=get(ax1(1),'Position');
                 for a = 2:length(ax1)
                     try
@@ -362,14 +373,9 @@ if ~isempty(S.model.index)
                         set(ax1(a),'Position',pos);
                     end
                 end
-%                 [ax1,h1]=suplabel('time (ms)');
-%                 [ax2,h2]=suplabel('super Y label','y');
-%                 [ax4,h3]=suplabel('super Title'  ,'t');
-%                 set(h3,'FontSize',30)
-%                 orient portrait
-
-
+                disp(['model ' num2str(i) ', contrast ' num2str(ci) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
             end
+            
         end
     end
 end
@@ -414,7 +420,7 @@ mipmask = mipmask-mean(mipmask(bp));
 hold on
 % plot(S.time,gfp,'b');
 % plot(S.time,avgmask,'b');
-plot(S.time,mipmask,col);
+plot(S.time,mipmask,col, 'LineWidth', 2);
 xlim([S.time(1) S.time(end)])
 % colorbar
 % set(colorbar,'visible','off')

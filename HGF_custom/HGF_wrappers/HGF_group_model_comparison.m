@@ -50,6 +50,15 @@ else
     xl = 'response models';
 end
 
+% axis ticks
+if isfield(S,'xticklabels')
+    yt = S.yticklabels;
+    xt = S.xticklabels;
+else
+    yt = S.perc_models;
+    xt = S.resp_models;
+end
+
 for pm = 1:length(S.perc_models)
 %     load(fullfile(fitted_path,['CORE_fittedparameters_percmodel' num2str(S.perc_models(m)) '_respmodel' num2str(S.resp_model) '_fractrain' num2str(S.frac_train) '_' S.sname '.mat']));
 
@@ -160,7 +169,7 @@ if (rm>1 || pm>1) && om==1
     
     pLME = reshape(sum(cat(2,LMEgrp{:}),2),rm,pm)';
     clims = [min(pLME(:)), max(pLME(:))];
-    image_plot(pLME,S,clims,'Log-model evidence','mean',{},xl,yl)
+    image_plot(pLME,S,clims,'Log-model evidence','mean',{},xl,yl,xt,yt)
     
     % plot mean LME; separate by groups
 %     for g = 1:length(grpuni)
@@ -211,7 +220,7 @@ if S.family_on
     ef_rm = rm_out{1}.families.Ef';
     ef = reshape(ef,rm,pm)';
     clims = [min(ef(:)), max(ef(:))];
-    image_plot(ef,S,clims,'Estimated model frequencies','family',{ef_pm,ef_rm},xl,yl)
+    image_plot(ef,S,clims,'Estimated model frequencies','family',{ef_pm,ef_rm},xl,yl,xt,yt)
     % figure
     % ax1=subplot('Position',[0.1 0.2 0.3 0.6])
     % imagesc(ef,clims)
@@ -237,7 +246,7 @@ if S.family_on
     ep_rm = rm_out{1}.families.ep;
     ep = reshape(ep,rm,pm)';
     clims = [0 1];
-    image_plot(ep,S,clims,'Exceedence probability (EP)','family',{ep_pm,ep_rm},xl,yl)
+    image_plot(ep,S,clims,'Exceedence probability (EP)','family',{ep_pm,ep_rm},xl,yl,xt,yt)
     % figure
     % ax1=subplot('Position',[0.1 0.2 0.3 0.6])
     % imagesc(ep,clims)
@@ -263,7 +272,7 @@ if S.family_on
     pep_rm = rm_out{1}.families.pep;
     pep = reshape(pep,rm,pm)';
     clims = [0 1];
-    image_plot(pep,S,clims,'Protected exceedence probability (PEP)','family',{pep_pm,pep_rm},xl,yl)
+    image_plot(pep,S,clims,'Protected exceedence probability (PEP)','family',{pep_pm,pep_rm},xl,yl,xt,yt)
     % figure
     % ax1=subplot('Position',[0.1 0.2 0.3 0.6])
     % imagesc(pep,clims)
@@ -310,31 +319,37 @@ else
     varargout=[varargout {pm_out,rm_out}];
 end
 
-function image_plot(data,S,clims,title_text,XYlabel,family,xl,yl)
+function image_plot(data,S,clims,title_text,XYlabel,family,xl,yl,xt,yt)
 if isempty(family)
     family{1} = mean(data,2)';
     family{2} = mean(data,1);
 end
 figure
-ax1=subplot('Position',[0.1 0.2 0.5*(size(data,2)/3) 0.1*size(data,1)]);
+ax1=subplot('Position',[0.1 0.2 0.5*(size(data,2)/6) 0.1*size(data,1)]); % [left bottom width height]
 imagesc(data,clims)
 set(gca,'XTick',1:length(S.resp_models),'YTick',1:length(S.perc_models))
-set(gca,'XTickLabel',strsplit(num2str(S.resp_models)),'YTickLabel',strsplit(num2str(S.perc_models)),'FontSize',12)
+set(gca,'XTickLabel',strsplit(num2str(xt)),'YTickLabel',strsplit(num2str(yt)),'FontSize',12)
 ax1.XAxisLocation = 'top';
 ax1.YAxisLocation = 'left';
 ylabel(yl)
 xlabel(xl)
-title(title_text)
-ax2=subplot('Position',[0.62 0.2 0.5/6 0.1*size(data,1)])
-imagesc(family{1}',clims)
-set(gca,'XTick',1,'XTickLabel',XYlabel,'FontSize',12)
-set(gca,'YTick',[])
-%     ax2.YAxisLocation = 'right';
-ax2.XAxisLocation = 'top';
-ax3=subplot('Position',[0.1 0.08 0.5*(size(data,2)/3) 0.1])
-imagesc(family{2},clims)
-set(gca,'YTick',1,'YTickLabel',XYlabel,'FontSize',12)
-set(gca,'XTick',[])
-colorbar('Position',[0.74 0.08 0.03 0.1*size(data,1)+0.12])
+t=title(title_text,'position',[0 -0.8]);
+set(t,'horizontalAlignment','left');
+if size(data,1)>1 && size(data,2)>1
+    % right family
+    ax2=subplot('Position',[0.5*(size(data,2)/6)+0.12 0.2 0.5/6 0.1*size(data,1)]) % [left bottom width height] 
+    imagesc(family{1}',clims)
+    set(gca,'XTick',1,'XTickLabel',XYlabel,'FontSize',12)
+    set(gca,'YTick',[])
+    ax2.XAxisLocation = 'top';
+    % lower family
+    ax3=subplot('Position',[0.1 0.08 0.5*(size(data,2)/6) 0.1])
+    imagesc(family{2},clims)
+    set(gca,'YTick',1,'YTickLabel',XYlabel,'FontSize',12)
+    set(gca,'XTick',[])
+    colorbar('Position',[0.5*(size(data,2)/6)+0.24 0.08 0.03 0.1*size(data,1)+0.12]) % [left bottom width height]
+else
+    colorbar('Position',[0.5*(size(data,2)/6)+0.12 0.2 0.03 0.1*size(data,1)+0.12]) % [left bottom width height]
+end
 
 colormap(flipud(cbrewer('seq', 'Reds', 100, 'pchip')))
