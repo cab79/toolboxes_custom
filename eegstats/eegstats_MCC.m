@@ -76,29 +76,39 @@ for d=1:length(D)
                         load(D(d).model(i).resid_vol_file);
                     else
                         disp(['MCC: for model ' num2str(i) ', loading resid file'])
-                        load(D(d).model(i).resid_file);
+                        vr = load(D(d).model(i).resid_file);
                         if ~exist('resid_vol','var') && ~isempty(S.img.file.coord)
-                            disp(['MCC: for model ' num2str(i) ', creating resid vol'])
-                            resid_vol = topotime_3D(resid,S);
-                            disp(['MCC: for model ' num2str(i) ', saving resid vol'])
+                            % chunk it to reduce memory load
+                            chunksize = 2000;
+                            n_chunks = max(1,ceil(size(vr.resid,3)/chunksize));
+                            resid_vol=nan(S.img.imgsize,S.img.imgsize,size(vr.resid,2),size(vr.resid,3));
                             D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
                             save(D(d).model(i).resid_vol_file,'resid_vol','-v7.3');
+                            clear resid_vol;
+                            m = matfile(D(d).model(i).resid_vol_file,'Writable',true);
+                            for nc = 1:n_chunks
+                                si = chunksize*(nc-1)+1 : min(chunksize*nc,size(vr.resid,3));
+                                disp(['MCC: for model ' num2str(i) ', creating resid vol, chunk ' (num2str(nc))])
+                                m.resid_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(vr.resid,2),si)=topotime_3D(vr.resid(:,:,si),S);
+                            end
+                            load(D(d).model(i).resid_vol_file);
                         else
                             D(d).model(i).resid_vol_file = D(d).model(i).resid_file;
                             if ~exist('resid_vol','var')
-                                resid_vol=resid;
+                                resid_vol=vr.resid;
                             end
                         end
                         %delete(D(d).model(i).resid_file)
                     end
                     
-                    disp('MCC: standardise residuals')
+                    disp('MCC: standardise residuals') % chunked to reduce memory load
                     ndim_resid = ndims(resid_vol);
-                    resid_vol_mean=mean(resid_vol,ndim_resid);
-                    resid_vol_std=std(resid_vol,[],ndim_resid);
-                    resid_vol_z = bsxfun(@rdivide,bsxfun(@minus,resid_vol,resid_vol_mean),resid_vol_std);
-                    szR = size(resid_vol_z,ndim_resid);
-                    clear resid_vol
+                    for nc = 1:size(resid_vol,3)
+                        resid_vol_mean(:,:,nc)=mean(resid_vol(:,:,nc,:),ndim_resid);
+                        resid_vol_std(:,:,nc)=std(resid_vol(:,:,nc,:),[],ndim_resid);
+                        resid_vol(:,:,nc,:)= bsxfun(@rdivide,bsxfun(@minus,resid_vol(:,:,nc,:),resid_vol_mean(:,:,nc)),resid_vol_std(:,:,nc));
+                    end
+                    szR = size(resid_vol,ndim_resid);
                 
                     % save as multiple volumes
                     pcc=0;
@@ -111,15 +121,15 @@ for d=1:length(D)
                         trn = sprintf( '%06d', tr );
                         V.fname = fullfile(D(d).model(i).resid_vol_dir,['resid' trn '.nii']);
                         if ndim_resid ==4
-                            spm_write_vol(V,resid_vol_z(:,:,:,tr));
+                            spm_write_vol(V,resid_vol(:,:,:,tr));
                         elseif ndim_resid ==3
-                            spm_write_vol(V,resid_vol_z(:,:,tr));
+                            spm_write_vol(V,resid_vol(:,:,tr));
                         end
                     end
                 end
-                clear resid_vol_z
+                clear resid_vol
                 fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
-                resid_vol_z = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
+                resid_vol = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
                 
                 %- Filename of mapped mask image
                 if ~isempty(S.MCC.mask_img)
@@ -135,11 +145,11 @@ for d=1:length(D)
 %                 mask_dims = 1:ndims(mask_img);
 %                 rep_dim = mask_dims(~ismember(mask_dims,S.MCC.dim));
 %                 if isempty(rep_dim)
-                    [L,Ve,ssq,Dx,Ix,Iy,Iz] = resid_smoothness(resid_vol_z,VM);
+                    [L,Ve,ssq,Dx,Ix,Iy,Iz] = resid_smoothness(resid_vol,VM);
 %                 else
 %                     nrep = size(mask_img,rep_dim);
 %                     for nr = 1:nrep
-%                         [L,Ve,ssq,Dx,Ix,Iy,Iz] = resid_smoothness(resid_vol_z,VM);
+%                         [L,Ve,ssq,Dx,Ix,Iy,Iz] = resid_smoothness(resid_vol,VM);
 %                     end
 %                 end
             end

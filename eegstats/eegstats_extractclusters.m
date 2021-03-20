@@ -57,61 +57,46 @@ for d=1:length(D)
     Ddtab = load(S.clus.path.dtab_inputs);
                 
     %% create/load input volume
-    types = S.clus.summary_types;
-    if ~isempty(types)
-        if ismember('input',S.clus.summary_data)
-            i=S.clus.model.index(1);
-            D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
-            if exist(D(d).model(i).input_vol_file,'file')
-                disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
-                load(D(d).model(i).input_vol_file);
-            else
-                datadim = Ddtab.D.prep.dim;
-                samples=struct;
-                disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
-                for s = 1:length(Ddtab.D.prep.Y)
-                    input=Ddtab.D.prep.Y(s).dtab.data;
-                    input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-scale
-                    samples(s).input_scaled=input_scaled;
-                end
-                input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
-                input_vol = topotime_3D(input_scaled_mat,S);
-                clear input_scaled input_scaled_mat
-                if S.clus.save_vols
-                    disp([save_pref num2str(d) ', model ' num2str(i) ', saving input image'])
-                    save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
-                end
-            end
-
-            sz=size(input_vol);
-            input_vol=reshape(input_vol,[],size(input_vol,4));
-            input_avg=reshape(mean(input_vol,2),sz(1),sz(2),sz(3));
+    i=S.clus.model.index(1);
+    D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
+    if exist(D(d).model(i).input_vol_file,'file')
+        disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
+        load(D(d).model(i).input_vol_file);
+    else
+        datadim = Ddtab.D.prep.dim;
+        samples=struct;
+        disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
+        for s = 1:length(Ddtab.D.prep.Y)
+            input=Ddtab.D.prep.Y(s).dtab.data;
+            input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-scale
+            samples(s).input_scaled=input_scaled;
         end
-        if ismember('fitted',S.clus.summary_data)
-            for i=1:length(S.clus.model.index)
-                D(d).model(i).fitted_vol_file = strrep(D(d).model(i).fitted_file,'.mat','_vol.mat');
-                if exist(D(d).model(i).fitted_vol_file,'file')
-                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
-                    load(D(d).model(i).fitted_vol_file);
-                else
-                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
-                    load(D(d).model(i).fitted_file);
-                    if ~exist('fitted_vol','var')
-                        disp([save_pref num2str(d) ', model ' num2str(i) ', creating fitted image'])
-                        fitted_vol = topotime_3D(fitted,S);
-                        if S.clus.save_vols
-                            disp([save_pref num2str(d) ', model ' num2str(i) ', saving fitted image'])
-                            save(D(d).model(i).fitted_vol_file,'fitted_vol','-v7.3');
-                        end
-                        clear fitted
-                    end
-                end
-                fitted_voli{i}=reshape(fitted_vol,[],size(fitted_vol,4));
-            end
+        input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
+
+        % chunk it to reduce memory load
+        chunksize = 2000;
+        n_chunks = max(1,ceil(size(input_scaled_mat,3)/chunksize));
+        input_vol=nan(S.img.imgsize,S.img.imgsize,size(input_scaled_mat,2),size(input_scaled_mat,3));
+        D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
+        save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
+        clear input_vol;
+        m = matfile(D(d).model(i).input_vol_file,'Writable',true);
+        for nc = 1:n_chunks
+            si = chunksize*(nc-1)+1 : min(chunksize*nc,size(input_scaled_mat,3));
+            disp(['Cluster: for model ' num2str(i) ', creating input vol, chunk ' (num2str(nc))])
+            m.input_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(input_scaled_mat,2),si)=topotime_3D(input_scaled_mat(:,:,si),S);
+        end
+        load(D(d).model(i).input_vol_file);
+        clear input_scaled input_scaled_mat
+        if ~S.clus.save_vols
+            delete(D(d).model(i).input_vol_file,'input_vol','-v7.3');
         end
     end
 
-    
+    sz=size(input_vol);
+    input_vol=reshape(input_vol,[],size(input_vol,4));
+    input_avg=reshape(mean(input_vol,2),sz(1),sz(2),sz(3));
+        
     if S.clus.model.index
         for i = S.clus.model.index
             disp(['extracting clusters for ' save_pref num2str(d) ', model ' num2str(i)])
@@ -469,15 +454,16 @@ for d=1:length(D)
                     CondInd = ones(height(Ddtab.D.prep.dtab),1);
                 end
                 
-                for c = S.clus.model.contrast{i}
-                    nc=numel(D(d).model(i).con(c).vox);
-                    for ci=1:nc
-                        cii = D(d).model(i).con(c).vox{ci};
-                        if any(strcmp(types,'median'))
-                            % median value from each row (voxel), for each
-                            % observation. I.e. voxel can differ depending on the
-                            % observation (subject, trial, etc.)
-                            if ismember('input',S.clus.summary_data)
+                if ismember('input',S.clus.summary_data)
+                
+                    for c = S.clus.model.contrast{i}
+                        nc=numel(D(d).model(i).con(c).vox);
+                        for ci=1:nc
+                            cii = D(d).model(i).con(c).vox{ci};
+                            if any(strcmp(types,'median'))
+                                % median value from each row (voxel), for each
+                                % observation. I.e. voxel can differ depending on the
+                                % observation (subject, trial, etc.)
                                 D(d).model(i).con(c).clus(ci).input_median=squeeze(nanmedian(input_vol(cii,:),1));
                                 for u = 1:length(U)
                                     temp=[];
@@ -487,22 +473,20 @@ for d=1:length(D)
                                     D(d).model(i).con(c).clus(ci).input_median_median(u) = mean(temp);
                                 end
                             end
-                            if ismember('fitted',S.clus.summary_data)
-                                D(d).model(i).con(c).clus(ci).fitted_median=squeeze(nanmedian(fitted_voli{i}(cii,:),1));
-                                for u = 1:length(U)
-                                    temp=[];
-                                    for cind = CI'
-                                        temp(cind) = nanmedian(D(d).model(i).con(c).clus(ci).fitted_median(iU==u & CondInd==cind));
-                                    end
-                                    D(d).model(i).con(c).clus(ci).fitted_median_median(u) = mean(temp);
-                                end
-                            end
-                        end
+%                             if ismember('fitted',S.clus.summary_data)
+%                                 D(d).model(i).con(c).clus(ci).fitted_median=squeeze(nanmedian(fitted_voli{i}(cii,:),1));
+%                                 for u = 1:length(U)
+%                                     temp=[];
+%                                     for cind = CI'
+%                                         temp(cind) = nanmedian(D(d).model(i).con(c).clus(ci).fitted_median(iU==u & CondInd==cind));
+%                                     end
+%                                     D(d).model(i).con(c).clus(ci).fitted_median_median(u) = mean(temp);
+%                                 end
+%                             end
 
-                        if any(strcmp(types,'mean'))
+                            if any(strcmp(types,'mean'))
                             % disp(['means for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
                             
-                            if ismember('input',S.clus.summary_data)
                                 D(d).model(i).con(c).clus(ci).input_mean=squeeze(nanmean(input_vol(cii,:),1));
                                 for u = 1:length(U)
                                     temp=[];
@@ -512,22 +496,20 @@ for d=1:length(D)
                                     D(d).model(i).con(c).clus(ci).input_mean_mean(u) = mean(temp);
                                 end
                             end
-                            if ismember('fitted',S.clus.summary_data)
-                                D(d).model(i).con(c).clus(ci).fitted_mean=squeeze(nanmean(fitted_voli{i}(cii,:),1));
-                                for u = 1:length(U)
-                                    temp=[];
-                                    for cind = CI'
-                                        temp(cind) = nanmean(D(d).model(i).con(c).clus(ci).fitted_mean(iU==u & CondInd==cind));
-                                    end
-                                    D(d).model(i).con(c).clus(ci).fitted_mean_mean(u) = mean(temp);
-                                end
-                            end
-                        end
+%                             if ismember('fitted',S.clus.summary_data)
+%                                 D(d).model(i).con(c).clus(ci).fitted_mean=squeeze(nanmean(fitted_voli{i}(cii,:),1));
+%                                 for u = 1:length(U)
+%                                     temp=[];
+%                                     for cind = CI'
+%                                         temp(cind) = nanmean(D(d).model(i).con(c).clus(ci).fitted_mean(iU==u & CondInd==cind));
+%                                     end
+%                                     D(d).model(i).con(c).clus(ci).fitted_mean_mean(u) = mean(temp);
+%                                 end
+%                             end
 
-                        if any(strcmp(types,'eig'))
-                            disp(['eigenvariate for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
+                            if any(strcmp(types,'eig'))
+                                disp(['eigenvariate for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
                             
-                            if ismember('input',S.clus.summary_data)
                                 X=input_vol(cii,:)';
                                 randind=randperm(size(X,2));
                                 maxind = min(size(X,2),S.clus.cluster_pca_maxclussize);
@@ -542,7 +524,106 @@ for d=1:length(D)
                                     D(d).model(i).con(c).clus(ci).input_eig_mean(u) = mean(temp);
                                 end
                             end
-                            if ismember('fitted',S.clus.summary_data)
+%                             if ismember('fitted',S.clus.summary_data)
+%                                 X=fitted_voli{i}(cii,:)';
+%                                 randind=randperm(size(X,2));
+%                                 maxind = min(size(X,2),S.clus.cluster_pca_maxclussize);
+%                                 Xsub=X(:,randind(1:maxind));
+%                                 [~,score] = pca(Xsub,'Algorithm','eig','NumComponents',1);
+%                                 D(d).model(i).con(c).clus(ci).fitted_eig=score';
+%                                 for u = 1:length(U)
+%                                     temp=[];
+%                                     for cind = CI'
+%                                          [~,temp(cind)] = nanmean(D(d).model(i).con(c).clus(ci).fitted_eig(iU==u & CondInd==cind));
+%                                     end
+%                                     D(d).model(i).con(c).clus(ci).fitted_eig_mean(u) = mean(temp);
+%                                 end
+%                             end
+                        end
+                        
+                    end
+                end
+                
+                
+                if ismember('fitted',S.clus.summary_data)
+                    
+                    clear input_vol
+                    for i=1:length(S.clus.model.index)
+                        D(d).model(i).fitted_vol_file = strrep(D(d).model(i).fitted_file,'.mat','_vol.mat');
+                        if exist(D(d).model(i).fitted_vol_file,'file')
+                            disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
+                            load(D(d).model(i).fitted_vol_file);
+                        else
+                            disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
+                            load(D(d).model(i).fitted_file);
+                            if ~exist('fitted_vol','var')
+
+                                % chunk it to reduce memory load
+                                chunksize = 2000;
+                                n_chunks = max(1,ceil(size(fitted,3)/chunksize));
+                                fitted_vol=nan(S.img.imgsize,S.img.imgsize,size(fitted,2),size(fitted,3));
+                                D(d).model(i).fitted_vol_file = strrep(D(d).model(i).fitted_file,'.mat','_vol.mat');
+                                save(D(d).model(i).fitted_vol_file,'fitted_vol','-v7.3');
+                                clear fitted_vol;
+                                m = matfile(D(d).model(i).fitted_vol_file,'Writable',true);
+                                for nc = 1:n_chunks
+                                    si = chunksize*(nc-1)+1 : min(chunksize*nc,size(fitted,3));
+                                    disp(['Cluster: for model ' num2str(i) ', creating fitted vol, chunk ' (num2str(nc))])
+                                    m.fitted_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(fitted,2),si)=topotime_3D(fitted(:,:,si),S);
+                                end
+                                load(D(d).model(i).fitted_vol_file);
+                                clear fitted
+                                if ~S.clus.save_vols
+                                    delete(D(d).model(i).fitted_vol_file,'fitted_vol','-v7.3');
+                                end
+
+        %                         disp([save_pref num2str(d) ', model ' num2str(i) ', creating fitted image'])
+        %                         fitted_vol = topotime_3D(fitted,S);
+        %                         if S.clus.save_vols
+        %                             disp([save_pref num2str(d) ', model ' num2str(i) ', saving fitted image'])
+        %                             save(D(d).model(i).fitted_vol_file,'fitted_vol','-v7.3');
+        %                         end
+        %                         clear fitted
+                            end
+                        end
+                        fitted_voli{i}=reshape(fitted_vol,[],size(fitted_vol,4));
+                        clear fitted_vol
+                    end
+                    
+                    for c = S.clus.model.contrast{i}
+                        nc=numel(D(d).model(i).con(c).vox);
+                        for ci=1:nc
+                            cii = D(d).model(i).con(c).vox{ci};
+                            if any(strcmp(types,'median'))
+                                % median value from each row (voxel), for each
+                                % observation. I.e. voxel can differ depending on the
+                                % observation (subject, trial, etc.)
+                                D(d).model(i).con(c).clus(ci).fitted_median=squeeze(nanmedian(fitted_voli{i}(cii,:),1));
+                                for u = 1:length(U)
+                                    temp=[];
+                                    for cind = CI'
+                                        temp(cind) = nanmedian(D(d).model(i).con(c).clus(ci).fitted_median(iU==u & CondInd==cind));
+                                    end
+                                    D(d).model(i).con(c).clus(ci).fitted_median_median(u) = mean(temp);
+                                end
+                            end
+
+                            if any(strcmp(types,'mean'))
+                            % disp(['means for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
+                            
+                                D(d).model(i).con(c).clus(ci).fitted_mean=squeeze(nanmean(fitted_voli{i}(cii,:),1));
+                                for u = 1:length(U)
+                                    temp=[];
+                                    for cind = CI'
+                                        temp(cind) = nanmean(D(d).model(i).con(c).clus(ci).fitted_mean(iU==u & CondInd==cind));
+                                    end
+                                    D(d).model(i).con(c).clus(ci).fitted_mean_mean(u) = mean(temp);
+                                end
+                            end
+
+                            if any(strcmp(types,'eig'))
+                                disp(['eigenvariate for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
+                            
                                 X=fitted_voli{i}(cii,:)';
                                 randind=randperm(size(X,2));
                                 maxind = min(size(X,2),S.clus.cluster_pca_maxclussize);
@@ -561,28 +642,29 @@ for d=1:length(D)
                         
                     end
                 end
-                for c = 1:length(imgUC)
-                    nc=numel(D(d).model(i).conUC(c).vox);
-                    for ci=1:nc
-                        cii = D(d).model(i).conUC(c).vox{ci};
-                        if any(strcmp(types,'median'))
-                            % median value from each row (voxel), for each
-                            % observation. I.e. voxel can differ depending on the
-                            % observation (subject, trial, etc.)
-                            D(d).model(i).conUC(c).clus(ci).input_median=squeeze(nanmedian(input_vol(cii,:),1));
-                        end
-
-                        if any(strcmp(types,'mean'))
-                            D(d).model(i).conUC(c).clus(ci).input_mean=squeeze(nanmean(input_vol(cii,:),1));
-                        end
-                        
-                        % calculate covariance explained by fixed and
-                        % random factors - useful for comparing models -
-                        % TBC
-%                         (sum(diag(lme.CoefficientCovariance),'all')+sum(diag(r{1}),'all'))/(sum(diag(lme.CoefficientCovariance),'all')+lme.MSE+sum(diag(r{1}),'all'));
-                    end
-                end
-                %clear input_vol
+                
+%                 for c = 1:length(imgUC)
+%                     nc=numel(D(d).model(i).conUC(c).vox);
+%                     for ci=1:nc
+%                         cii = D(d).model(i).conUC(c).vox{ci};
+%                         if any(strcmp(types,'median'))
+%                             % median value from each row (voxel), for each
+%                             % observation. I.e. voxel can differ depending on the
+%                             % observation (subject, trial, etc.)
+%                             D(d).model(i).conUC(c).clus(ci).input_median=squeeze(nanmedian(input_vol(cii,:),1));
+%                         end
+% 
+%                         if any(strcmp(types,'mean'))
+%                             D(d).model(i).conUC(c).clus(ci).input_mean=squeeze(nanmean(input_vol(cii,:),1));
+%                         end
+%                         
+%                         % calculate covariance explained by fixed and
+%                         % random factors - useful for comparing models -
+%                         % TBC
+% %                         (sum(diag(lme.CoefficientCovariance),'all')+sum(diag(r{1}),'all'))/(sum(diag(lme.CoefficientCovariance),'all')+lme.MSE+sum(diag(r{1}),'all'));
+%                     end
+%                 end
+%                 %clear input_vol
             end
         end
     end

@@ -80,19 +80,35 @@ for d=1:length(D)
     end
 end
 
+% experimental: ratios
+% results.con45ratio1 = D.model.con(4).clus(3).input_median_median' - D.model.con(5).clus(1).input_median_median';
+
 
 [corrmat, pmat] = corr(table2array(results),'type',S.covcorr.type);
 plot_names = results.Properties.VariableNames;
-figure
-imagesc(corrmat(1:npred,npred+1:end));colorbar;colormap('jet'); caxis([-1 1])
-xticks(1:width(results)-npred); xticklabels(plot_names(npred+1:width(results))); xtickangle(90);
-yticks(1:npred); yticklabels(plot_names(1:npred));
-title('predictor correlations - Rho values')
-figure
-imagesc(pmat(1:npred,npred+1:end)*S.covcorr.bonferroni);colorbar;colormap('jet'); caxis([0 0.05])
-xticks(1:width(results)); xticklabels(plot_names(npred+1:width(results))); xtickangle(90);
-yticks(1:npred); yticklabels(plot_names(1:npred));
-title('predictor correlations - p values')
+if (S.covcorr.trim_matrix)
+    figure
+    imagesc(corrmat(1:npred,npred+1:end));colorbar;colormap('jet'); caxis([-1 1])
+    xticks(1:width(results)-npred); xticklabels(plot_names(npred+1:width(results))); xtickangle(90);
+    yticks(1:npred); yticklabels(plot_names(1:npred));
+    title('predictor correlations - Rho values')
+    figure
+    imagesc(pmat(1:npred,npred+1:end)*S.covcorr.bonferroni);colorbar;colormap('jet'); caxis([0 0.05])
+    xticks(1:width(results)); xticklabels(plot_names(npred+1:width(results))); xtickangle(90);
+    yticks(1:npred); yticklabels(plot_names(1:npred));
+    title('predictor correlations - p values')
+else
+    figure
+    imagesc(corrmat);colorbar;colormap('jet'); caxis([-1 1])
+    xticks(1:width(results)); xticklabels(plot_names); xtickangle(90);
+    yticks(1:width(results)); yticklabels(plot_names);
+    title('predictor correlations - Rho values')
+    figure
+    imagesc(pmat*S.covcorr.bonferroni);colorbar;colormap('jet'); caxis([0 0.05])
+    xticks(1:width(results)); xticklabels(plot_names); xtickangle(90);
+    yticks(1:width(results)); yticklabels(plot_names);
+    title('predictor correlations - p values')
+end
 
 % lm_results = table2array(results);
 % lm_var = lm_results(:,npred+1:end);

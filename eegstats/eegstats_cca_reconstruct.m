@@ -2,7 +2,7 @@ function eegstats_cca_reconstruct(comp)
 dbstop if error
 close all
 pth='G:\Q_backup\Projects\CORE\eeg\ana\stats\Current\1. EEG learning\1. EEG modelling\1. BRR analyses';
-fname = 'eegprep_Y_group_PCA86_CCA8.mat';
+fname = 'eegprep_Y_PCA100_CCA8.mat';
 cd(pth);
 
 load(fullfile(pth,fname))

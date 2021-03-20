@@ -124,7 +124,7 @@ if ~isempty(S.model.index)
             coeff_img=spm_read_vols(spm_vol(D.model(i).coeff(strcmp({D.model(i).coeff(:).name},coeff_term)).b_img_file));
         end
         
-        regress_erp = coeff_img.*erp;
+        regress_erp = coeff_img;
         % mask
         if ~exist('maskimg','var')
             if isfield(S.img.path,'swap') && ~isempty(S.img.path.swap)
@@ -276,6 +276,7 @@ if ~isempty(S.model.index)
                     limy=[-max(abs(yliml)),max(abs(yliml))];
                     ylim(limy)
                     plot([0 0],limy,'k')
+                    plot([S.time(1) S.time(end)],[0 0],'k-')
                     % lines
                     for pk = 1:min([3,S.Nlocs,length(locs)])
                         plot([locs(pk) locs(pk)],limy,'k--', 'LineWidth', 1.5)
@@ -295,6 +296,7 @@ if ~isempty(S.model.index)
                     [wf,mn,mx] = plot_clusterovertime(input_avg,clusmask,S,'b');
                     title('input: MIP ERP (blue) and MIP rERP (green)')
                     plot([0 0],[mn,mx],'k')
+                    plot([S.time(1) S.time(end)],[0 0],'k-')
                     for pk = 1:min([3,S.Nlocs,length(locs)])
                         plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
                     end
@@ -313,6 +315,7 @@ if ~isempty(S.model.index)
                     [wf,mn,mx] = plot_clusterovertime(fitted_avg{i},clusmask,S,'b');
                     title('fitted: MIP ERP (blue) and MIP rERP (green)')
                     plot([0 0],[mn,mx],'k')
+                    plot([S.time(1) S.time(end)],[0 0],'k-')
                     for pk = 1:min([3,S.Nlocs,length(locs)])
                         plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
                     end
@@ -330,6 +333,7 @@ if ~isempty(S.model.index)
                     [wf,mn,mx] = plot_clusterovertime(resid_avg{i},clusmask,S,'b');
                     title('resid: MIP ERP (blue) and MIP rERP (green)')
                     plot([0 0],[mn,mx],'k')
+                    plot([S.time(1) S.time(end)],[0 0],'k-')
                     for pk = 1:min([3,S.Nlocs,length(locs)])
                         plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
                     end
@@ -374,6 +378,7 @@ if ~isempty(S.model.index)
                     end
                 end
                 disp(['model ' num2str(i) ', contrast ' num2str(ci) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
+                disp(['model ' num2str(i) ', contrast ' num2str(ci) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
             end
             
         end

@@ -113,7 +113,7 @@ for d=1:length(D)
                     else
                         [b_img, mask_img] = topotime_3D(D(d).model(i).coeff(b).b,S);
                     end
-                    b_img = topotime_3D(D(d).model(i).coeff(b).b,S);
+                    %b_img = topotime_3D(D(d).model(i).coeff(b).b,S);
                 else
                     b_img=D(d).model(i).coeff(b).b;
                     mask_img=ones(size(b_img));
@@ -124,6 +124,37 @@ for d=1:length(D)
                 V.fname = D(d).model(i).coeff(b).b_img_file;
                 V.dim(1:length(size(mask_img))) = size(mask_img);
                 spm_write_vol(V,b_img.*mask_img);
+            end
+            
+            %% random effects - assumes full random slopes model
+            randmat = D(d).model(i).random;
+            D(d).model(i).random = struct;
+            for b = 1:length(D(d).model(i).coeff)
+                [U,~,Ui] = unique(D(d).model(i).randomnames.Level,'stable');
+                for u = 1:length(U)
+                    idx = find(Ui==u & strcmp(D(d).model(i).randomnames.Name,D(d).model(i).coeff(b).name));
+                    if length(idx)>1; error('wrong random count'); end
+                    % create
+                    if ~isempty(S.img.file.coord)
+                        if ~isempty(S.img.mask_img)
+                            [r_img] = topotime_3D(randmat(:,:,idx),S);
+                        else
+                            [r_img, mask_img] = topotime_3D(randmat(:,:,idx),S);
+                        end
+                    else
+                        r_img=randmat(:,:,idx);
+                    end
+                    % add to file
+                    D(d).model(i).random(idx).Level = D(d).model(i).randomnames.Level{idx};
+                    D(d).model(i).random(idx).Name = D(d).model(i).randomnames.Name{idx};
+                    D(d).model(i).random(idx).b = r_img;
+                    % save images
+                    V = makeV(size(mask_img,3));
+                    D(d).model(i).random(idx).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_randcoeff_' num2str(b) '_' num2str(u) '.nii']);
+                    V.fname = D(d).model(i).random(idx).b_img_file;
+                    V.dim(1:length(size(mask_img))) = size(mask_img);
+                    spm_write_vol(V,r_img.*mask_img);
+                end
             end
             
             %% model quantities
