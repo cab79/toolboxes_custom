@@ -65,8 +65,17 @@ if ~isempty(S.model_comp_mask.index)
 end
 
 cmp=cbrewer('seq', 'Reds', 100, 'pchip');
-colmod = repmat(linspace(0.9,1,100),3,1)';
-cmp=cmp.*colmod; % make darker
+% colmod = repmat(linspace(0.9,1,100),3,1)';
+% cmp=cmp.*colmod; % make darker
+cmp=1-cmp; % make darker
+cmp2=cbrewer('div', 'PiYG', 100, 'pchip');
+% cmp2 = 1-cmp2;
+cmp2 = rescale(exp(cmp2),0,0.9);
+% cmp2=cmp2.*colmod; % make darker
+cmp3=cbrewer('div', 'Spectral', 100, 'pchip');
+% cmp3 = 1-cmp3;
+cmp3 = rescale(exp(cmp3),0,0.9);
+% cmp3=cmp3.*colmod; % make darker
 % add in white for -1 values
 % cmp = [1 1 1; cmp];
 
@@ -117,11 +126,12 @@ if ~isempty(S.model.index)
         end
         % coefficient image
         coeff_term = S.model.coeff_term;
+        coeff_idx = find(strcmp({D.model(i).coeff(:).name},coeff_term));
         if isfield(S.img.path,'swap') && ~isempty(S.img.path.swap)
-            newpath = strrep(D.model(i).coeff(strcmp({D.model(i).coeff(:).name},coeff_term)).b_img_file,S.img.path.swap{1},S.img.path.swap{2});
+            newpath = strrep(D.model(i).coeff(coeff_idx).b_img_file,S.img.path.swap{1},S.img.path.swap{2});
             coeff_img = spm_read_vols(spm_vol(newpath));
         else
-            coeff_img=spm_read_vols(spm_vol(D.model(i).coeff(strcmp({D.model(i).coeff(:).name},coeff_term)).b_img_file));
+            coeff_img=spm_read_vols(spm_vol(D.model(i).coeff(coeff_idx).b_img_file));
         end
         
         regress_erp = coeff_img;
@@ -228,6 +238,8 @@ if ~isempty(S.model.index)
                 title('Cluster Z-values over time (ms)')
                 % add peak highlights
                 [peaks,locs]=findpeaks(cimg_avgmask,S.time,'MinPeakDistance',S.MinPeakDistance);
+                D.model(i).con(c).clus(cl).peaks = locs;
+                D.model(i).con(c).clus(cl).extent = cimg_extent_ms{cl};
                 
                 if length(locs)==1
                     plot([locs(1) locs(1)],[0.5,1.5],'k--', 'LineWidth', 1.5)
@@ -248,7 +260,7 @@ if ~isempty(S.model.index)
 
                 % plot image topo
                 spi=[4:6];
-                for pk=1:min([3,S.Nlocs,length(locs)])
+                for pk=1:min([2,S.Nlocs,length(locs)])
                     ax2(spi(pk))=subplot(5,6,spi(pk)); 
                     plotimg = maskimg(:,:,S.time==locs(pk)).*cimgmask0(:,:,S.time==locs(pk));
                     pcolor(plotimg), shading interp; axis off
@@ -258,21 +270,46 @@ if ~isempty(S.model.index)
                     end
                     title([num2str(locs(pk)) ' ms'])
                 end
+                
+                % plot regression ERP
+                if S.plot_regressionerp
+
+                    ax1(2)=subplot(5,6,[7:9]);
+                    wf = plot_clusterovertime(regress_erp,clusmask,S,cmp2,ax1(2));
+                    D.model(i).con(c).clus_rerp_mip{cl}=wf;
+                    title('Cluster regression ERP (coefficients)')
+                    %%align zero for left and right
+                    ylimr = get(gca,'Ylim'); 
+                    limy=[-max(abs(ylimr)),max(abs(ylimr))];
+                    ylim(limy)
+                    plot([0 0],limy,'k')
+                    plot([S.time(1) S.time(end)],[0 0],'k-')
+                    % lines
+                    for pk = 1:min([3,S.Nlocs,length(locs)])
+                        plot([locs(pk) locs(pk)],limy,'k--', 'LineWidth', 1.5)
+                    end
+
+
+                    spi=[10:12];
+                    for pk=1:min([3,S.Nlocs,length(locs)])
+                        ax2(spi(pk))=subplot(5,6,spi(pk)); 
+                        plotimg = regress_erp(:,:,S.time==locs(pk));
+                        pcolor(plotimg), shading interp; axis off
+                        colormap(ax2(spi(pk)),cmp2); 
+                        title([num2str(locs(pk)) ' ms'])
+                    end
+
+                end
 
                 % plot grand average and cluster-over-time
                 if S.plot_erp
 
-                    ax1(2)=subplot(5,6,[7:9]);
-                    [wf,mn,mx] = plot_clusterovertime(erp,clusmask,S,'b');
+                    ax1(3)=subplot(5,6,[13:15]);
+                    [wf,mn,mx] = plot_clusterovertime(erp,clusmask,S,cmp3,ax1(3));
                     D.model(i).con(c).clus_erp_mip{cl}=wf;
-                    yyaxis right
-                    wf = plot_clusterovertime(regress_erp,clusmask,S,'g');
-                    D.model(i).con(c).clus_rerp_mip{cl}=wf;
-                    yyaxis left
-                    title('Cluster MIP ERP (blue) and MIP rERP (green)')
+                    title('Cluster maximum intensity projection')
                     %%align zero for left and right
-                    yyaxis right; ylimr = get(gca,'Ylim'); ylim([-max(abs(ylimr)),max(abs(ylimr))])
-                    yyaxis left; yliml = get(gca,'Ylim'); 
+                    yliml = get(gca,'Ylim'); 
                     limy=[-max(abs(yliml)),max(abs(yliml))];
                     ylim(limy)
                     plot([0 0],limy,'k')
@@ -282,33 +319,34 @@ if ~isempty(S.model.index)
                         plot([locs(pk) locs(pk)],limy,'k--', 'LineWidth', 1.5)
                     end
 
-                    spi=[10:12];
-                    for pk=1:min([3,S.Nlocs,length(locs)])
-                        ax2(spi(pk))=subplot(5,6,spi(pk)); 
-                        pcolor(erp(:,:,S.time==locs(pk))), shading interp; axis off
-                        title([num2str(locs(pk)) ' ms'])
-                    end
-
-                end
-                if S.plot_input
-
-                    ax1(3)=subplot(5,6,[13:15]);
-                    [wf,mn,mx] = plot_clusterovertime(input_avg,clusmask,S,'b');
-                    title('input: MIP ERP (blue) and MIP rERP (green)')
-                    plot([0 0],[mn,mx],'k')
-                    plot([S.time(1) S.time(end)],[0 0],'k-')
-                    for pk = 1:min([3,S.Nlocs,length(locs)])
-                        plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
-                    end
-
                     spi=[16:18];
                     for pk=1:min([3,S.Nlocs,length(locs)])
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
-                        pcolor(input_avg(:,:,S.time==locs(pk))), shading interp; axis off
+                        pcolor(erp(:,:,S.time==locs(pk))), shading interp; axis off
+                        colormap(ax2(spi(pk)),cmp3); 
                         title([num2str(locs(pk)) ' ms'])
                     end
 
                 end
+%                 if S.plot_input
+% 
+%                     ax1(3)=subplot(5,6,[13:15]);
+%                     [wf,mn,mx] = plot_clusterovertime(input_avg,clusmask,S,'b');
+%                     title('input: MIP ERP (blue) and MIP rERP (green)')
+%                     plot([0 0],[mn,mx],'k')
+%                     plot([S.time(1) S.time(end)],[0 0],'k-')
+%                     for pk = 1:min([3,S.Nlocs,length(locs)])
+%                         plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
+%                     end
+% 
+%                     spi=[16:18];
+%                     for pk=1:min([3,S.Nlocs,length(locs)])
+%                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
+%                         pcolor(input_avg(:,:,S.time==locs(pk))), shading interp; axis off
+%                         title([num2str(locs(pk)) ' ms'])
+%                     end
+% 
+%                 end
                 if S.plot_fitted
 
                     ax1(4)=subplot(5,6,[19:21]);
@@ -377,8 +415,8 @@ if ~isempty(S.model.index)
                         set(ax1(a),'Position',pos);
                     end
                 end
-                disp(['model ' num2str(i) ', contrast ' num2str(ci) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
-                disp(['model ' num2str(i) ', contrast ' num2str(ci) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
+                disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
+                disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
             end
             
         end
@@ -395,7 +433,7 @@ for p = 1:size(S.path.code,1)
     end
 end
 
-function [mipmask,mn,mx] = plot_clusterovertime(avg,clusmask,S,col)
+function [mipmask,mn,mx] = plot_clusterovertime(avg,clusmask,S,col,ax)
 avg_re = reshape(avg,[],size(avg,3));
 avgmask_re = avg_re.*clusmask;
 mip_mask = repmat(any(clusmask,2),1,size(clusmask,2));
@@ -423,12 +461,21 @@ bp = dsearchn(S.time',S.base');
 mipmask = mipmask-mean(mipmask(bp));
         
 hold on
-% plot(S.time,gfp,'b');
-% plot(S.time,avgmask,'b');
-plot(S.time,mipmask,col, 'LineWidth', 2);
+h=plot(S.time,mipmask,'LineWidth', 3);
 xlim([S.time(1) S.time(end)])
-% colorbar
-% set(colorbar,'visible','off')
+
+if ischar(col) || size(col,1)==1
+    h.color = col;
+else
+    % cmap
+    cm = colormap(ax,col); 
+    maxval = max(abs(mipmask));
+    cm = interp1(linspace(-maxval,maxval,length(cm)),cm,mipmask); % map color to y values
+    cm = uint8(cm'*255); % need a 4xN uint8 array
+    cm(4,:) = 255; % last column is transparency
+    drawnow
+    set(h.Edge,'ColorBinding','interpolated','ColorData',cm)
+end
 
 mn = min([mipmask,avgmask]);
 mx = max([mipmask,avgmask]);

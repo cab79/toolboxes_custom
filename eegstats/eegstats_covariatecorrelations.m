@@ -37,10 +37,18 @@ for d=1:length(D)
             S.covcorr.model.contrast{i} = 1:length(D(d).model(i).con);
         end
     end
+    
+    % participant IDs
+    ID=table;
+    ID.ID = unique({D(d).model(1).random(:).Level},'stable')';
 
     % results table
-    results=readtable(S.covcorr.path.pred);
-    npred = width(results);
+    if ~isempty(S.covcorr.path.pred)
+        results=readtable(S.covcorr.path.pred);
+        npred = width(results);
+    else
+        results=table;
+    end
     
     if S.covcorr.model.index
         for i = S.covcorr.model.index
@@ -76,17 +84,35 @@ for d=1:length(D)
                     end
                 end
             end
+            
+            if ismember('coeffs',S.covcorr.summary_data)
+                
+                for co = 1:length(D(d).model(i).coeff)
+                    inp_ind = find(strcmp(S.covcorr.summary_coeffs(:,2),D(d).model.coeff(co).name)); % input index
+                    con_name = S.covcorr.summary_coeffs{inp_ind,1};
+                    c = find(strcmp({D(d).model.con(:).term},con_name));
+                    nc=numel(D(d).model(i).con(c).vox);
+                    
+                    for ci=1:nc
+                        results.([strrep(con_name,':','-') '-clus' num2str(ci)]) = D(d).model(i).coeff(co).clus(ci).coeff_mean;
+                    end
+                end
+            end
         end
     end
 end
 
+if S.covcorr.save_table
+    IDresults = [ID results];
+    writetable(IDresults,fullfile(S.covcorr.path.inputs,'covariates.xls'));
+end
 % experimental: ratios
 % results.con45ratio1 = D.model.con(4).clus(3).input_median_median' - D.model.con(5).clus(1).input_median_median';
 
 
 [corrmat, pmat] = corr(table2array(results),'type',S.covcorr.type);
 plot_names = results.Properties.VariableNames;
-if (S.covcorr.trim_matrix)
+if (S.covcorr.trim_matrix && ~isempty(S.covcorr.path.pred))
     figure
     imagesc(corrmat(1:npred,npred+1:end));colorbar;colormap('jet'); caxis([-1 1])
     xticks(1:width(results)-npred); xticklabels(plot_names(npred+1:width(results))); xtickangle(90);

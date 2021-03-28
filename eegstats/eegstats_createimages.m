@@ -129,10 +129,11 @@ for d=1:length(D)
             %% random effects - assumes full random slopes model
             randmat = D(d).model(i).random;
             D(d).model(i).random = struct;
-            for b = 1:length(D(d).model(i).coeff)
+            rU = unique(D(d).model(i).randomnames.Name);
+            for b = 1:length(rU)
                 [U,~,Ui] = unique(D(d).model(i).randomnames.Level,'stable');
                 for u = 1:length(U)
-                    idx = find(Ui==u & strcmp(D(d).model(i).randomnames.Name,D(d).model(i).coeff(b).name));
+                    idx = find(Ui==u & strcmp(D(d).model(i).randomnames.Name,rU{b}));
                     if length(idx)>1; error('wrong random count'); end
                     % create
                     if ~isempty(S.img.file.coord)

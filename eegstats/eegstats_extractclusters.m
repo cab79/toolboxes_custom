@@ -545,6 +545,33 @@ for d=1:length(D)
                 end
                 
                 
+                if ismember('coeffs',S.clus.summary_data)
+                        
+                    for co = 1:length(D(d).model(i).coeff)
+                        inp_ind = find(strcmp(S.clus.summary_coeffs(:,2),D(d).model.coeff(co).name)); % input index
+                        c = find(strcmp({D(d).model.con(:).term},S.clus.summary_coeffs(inp_ind,1)));
+                        nc=numel(D(d).model(i).con(c).vox);
+                        for ci=1:nc
+                            cii = D(d).model(i).con(c).vox{ci};
+                            
+                            % coefficient image
+                            coeff_img=spm_read_vols(spm_vol(D(d).model(i).coeff(co).b_img_file));
+                            % add random image
+                            for u = 1:length(U)
+                                subname = U{u};
+                                idx = find(strcmp({D.model(i).random(:).Level},subname) & strcmp({D.model(i).random(:).Name},S.clus.summary_coeffs(inp_ind,3)));
+                                random_img=D(d).model(i).random(idx).b;
+                                combined_img = coeff_img+random_img;
+                                combined_img = combined_img(:);
+
+                                D(d).model(i).coeff(co).clus(ci).coeff_mean(u,1)=nanmean(combined_img(cii));
+                            end
+
+                        end
+                        
+                    end
+                end
+                
                 if ismember('fitted',S.clus.summary_data)
                     
                     clear input_vol

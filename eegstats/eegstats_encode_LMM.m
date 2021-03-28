@@ -26,11 +26,13 @@ for s = 1:length(Y)
         % fit model
         try
             train_data = Y(s).dtab(find(double(Y(s).dtab.train)),:);
+            if (S.encode.zscore); train_data = applyz(train_data);end
             lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
             last_s_worked=s;
         catch
             failed_s{i} = [failed_s{i} s];
             train_data = Y(last_s_worked).dtab(find(double(Y(last_s_worked).dtab.train)),:);
+            if (S.encode.zscore); train_data = applyz(train_data);end
             lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
         end
         model(i).lmm = lmm; % temporary var for model comparisons
@@ -124,3 +126,9 @@ if isempty(varargin)
 else
     varargout = {M};
 end
+
+function train_data = applyz(train_data)
+
+train_data_mean = nanmean(train_data);
+train_data_std = nanstd(train_data);
+train_data = (train_data - train_data_mean) / train_data_std;
