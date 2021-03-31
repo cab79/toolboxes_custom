@@ -4,6 +4,11 @@ function [varargout] = eegstats_encode_LMM(varargin)
 if isempty(varargin)
     % assume Condor
     load input.mat;
+    Y=struct;
+    for s = 1:size(tempY,2)
+        temp = array2table(tempY(:,s),'VariableNames',{'data'});
+        Y(s).dtab = horzcat(dtab,temp);
+    end
 else
     % assume S,Y inputs
     S=varargin{1};
@@ -25,27 +30,45 @@ for s = 1:length(Y)
 
         % fit model
         try
-            train_data = Y(s).dtab(find(double(Y(s).dtab.train)),:);
-            if (S.encode.zscore); train_data = applyz(train_data);end
+            if isfield(Y(s).dtab,'train')
+                train_data = Y(s).dtab(find(double(Y(s).dtab.train)),:);
+            else
+                train_data = Y(s).dtab;
+            end
+            data_mean = nanmean(train_data.data);
+            data_std = nanstd(train_data.data);
+            if data_std>0
+                train_data.data = (train_data.data - data_mean) / data_std;
+            end
             lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
             last_s_worked=s;
         catch
             failed_s{i} = [failed_s{i} s];
-            train_data = Y(last_s_worked).dtab(find(double(Y(last_s_worked).dtab.train)),:);
-            if (S.encode.zscore); train_data = applyz(train_data);end
+            if isfield(Y(s).dtab,'train')
+                train_data = Y(last_s_worked).dtab(find(double(Y(last_s_worked).dtab.train)),:);
+            else
+                train_data = Y(last_s_worked).dtab;
+            end
+            data_mean = nanmean(train_data.data);
+            data_std = nanstd(train_data.data);
+            if data_std>0
+                train_data.data = (train_data.data - data_mean) / data_std;
+            end
             lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
         end
         model(i).lmm = lmm; % temporary var for model comparisons
         [R,Rn]=randomEffects(lmm);
         
         % outputs common to all samples
-        M.model(i).samples(1).def = char(lmm.Formula);
-        M.model(i).samples(1).pred = lmm.PredictorNames;
-        M.model(i).samples(1).fixeddesign = designMatrix(lmm,'Fixed');
-        M.model(i).samples(1).randomdesign = designMatrix(lmm,'Random');
-        M.model(i).samples(1).CoefficientNames = lmm.CoefficientNames;
-        M.model(i).samples(1).RandomNames = Rn;
-        M.model(i).samples(1).failed_s = failed_s{i};
+        if s==1
+            M.model(i).samples(1).def = char(lmm.Formula);
+            M.model(i).samples(1).pred = lmm.PredictorNames;
+            M.model(i).samples(1).fixeddesign = designMatrix(lmm,'Fixed');
+            M.model(i).samples(1).randomdesign = designMatrix(lmm,'Random');
+            M.model(i).samples(1).CoefficientNames = lmm.CoefficientNames;
+            M.model(i).samples(1).RandomNames = Rn;
+            M.model(i).samples(1).failed_s = failed_s{i};
+        end
         
         % outputs for each sample
         M.model(i).samples(s).b = double(lmm.Coefficients(:,2));
@@ -127,8 +150,10 @@ else
     varargout = {M};
 end
 
-function train_data = applyz(train_data)
+function data = applyz(data)
 
-train_data_mean = nanmean(train_data);
-train_data_std = nanstd(train_data);
-train_data = (train_data - train_data_mean) / train_data_std;
+data_mean = nanmean(data);
+data_std = nanstd(data);
+if data_std>0
+    data = (data - data_mean) / data_std;
+end

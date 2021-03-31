@@ -32,7 +32,7 @@ for d = 1:length(D)
     % containing Y (if Y is too large to keep in memory entirely)
     if ~isempty(S.encode.path.inputsY)
         matY = matfile(S.encode.path.inputsY);
-        lenY = length(matY,'Y');
+        [~,lenY] = size(matY,'Y');
     else
         Yin = D(d).prep(np).Y;
         lenY = length(Yin);
@@ -62,12 +62,13 @@ for d = 1:length(D)
         % combine design matrix with data
         if ~isempty(S.encode.path.inputsY)
             for s = 1:length(si)
-                Y(s).dtab = D(d).prep(np).dtab;
-                Y(s).data = matY.Y(si,:);
-                if isfield(D(d).prep(np).Y,'data_mean')
-                    Y(s).data_mean = D(d).prep(np).Y(s).data_mean;
-                    Y(s).data_std = D(d).prep(np).Y(s).data_std;
-                end
+                disp(['loading sample ' num2str(si) '/' num2str(length(si)) ' from matfile...']);
+                temp = array2table(matY.Y(:,s),'VariableNames',{'data'});
+                Y(s).dtab = horzcat(D(d).prep(np).dtab,temp);
+                %if isfield(D(d).prep(np).Y,'data_mean')
+                %    Y(s).data_mean = D(d).prep(np).Y(s).data_mean;
+                %    Y(s).data_std = D(d).prep(np).Y(s).data_std;
+                %end
             end
         else
             Yy = Yin(si);

@@ -119,7 +119,7 @@ for d=1:length(D)
                     mask_img=ones(size(b_img));
                 end
                 % save images
-                V = makeV(size(mask_img,3));
+                V = makeV;
                 D(d).model(i).coeff(b).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_coeff_' num2str(b) '_b.nii']);
                 V.fname = D(d).model(i).coeff(b).b_img_file;
                 V.dim(1:length(size(mask_img))) = size(mask_img);
@@ -128,6 +128,7 @@ for d=1:length(D)
             
             %% random effects - assumes full random slopes model
             randmat = D(d).model(i).random;
+            rm_dim = ndims(randmat);
             D(d).model(i).random = struct;
             rU = unique(D(d).model(i).randomnames.Name);
             for b = 1:length(rU)
@@ -143,14 +144,18 @@ for d=1:length(D)
                             [r_img, mask_img] = topotime_3D(randmat(:,:,idx),S);
                         end
                     else
-                        r_img=randmat(:,:,idx);
+                        if rm_dim==3 % sensor
+                            r_img=randmat(:,:,idx);
+                        elseif rm_dim==4 % source
+                            r_img=randmat(:,:,:,idx);
+                        end
                     end
                     % add to file
                     D(d).model(i).random(idx).Level = D(d).model(i).randomnames.Level{idx};
                     D(d).model(i).random(idx).Name = D(d).model(i).randomnames.Name{idx};
                     D(d).model(i).random(idx).b = r_img;
                     % save images
-                    V = makeV(size(mask_img,3));
+                    V = makeV;
                     D(d).model(i).random(idx).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_randcoeff_' num2str(b) '_' num2str(u) '.nii']);
                     V.fname = D(d).model(i).random(idx).b_img_file;
                     V.dim(1:length(size(mask_img))) = size(mask_img);
@@ -265,7 +270,7 @@ for p = 1:size(S.path.code,1)
     end
 end
 
-function V = makeV(zsize)
+function V = makeV
 V.fname = '';
 V.dim = [1 1 1];
 V.dt = [16,0];

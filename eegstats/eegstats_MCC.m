@@ -74,10 +74,12 @@ for d=1:length(D)
                     if exist(D(d).model(i).resid_vol_file,'file')
                         disp(['MCC: for model ' num2str(i) ', loading resid vol file'])
                         load(D(d).model(i).resid_vol_file);
-                    else
+                    elseif exist(D(d).model(i).resid_file,'file')
                         disp(['MCC: for model ' num2str(i) ', loading resid file'])
                         vr = load(D(d).model(i).resid_file);
-                        if ~exist('resid_vol','var') && ~isempty(S.img.file.coord)
+                        % if not source data from condor, i.e. a resid file
+                        % of channels x timepoints x samples
+                        if ~exist('resid_vol','var') && ~isempty(S.img.file.coord) && ndims(vr.resid)>2
                             % chunk it to reduce memory load
                             chunksize = 2000;
                             n_chunks = max(1,ceil(size(vr.resid,3)/chunksize));
@@ -92,42 +94,106 @@ for d=1:length(D)
                                 m.resid_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(vr.resid,2),si)=topotime_3D(vr.resid(:,:,si),S);
                             end
                             load(D(d).model(i).resid_vol_file);
-                        else
+                        elseif ndims(vr.resid)>2
                             D(d).model(i).resid_vol_file = D(d).model(i).resid_file;
                             if ~exist('resid_vol','var')
                                 resid_vol=vr.resid;
                             end
+                        else
+                            disp('using 2D residuals from condor')
                         end
                         %delete(D(d).model(i).resid_file)
+                    elseif isfield(D(d).model(i),'resid') && ~isempty(D(d).model(i).resid)
+                        disp('using residuals within data structure')
                     end
                     
                     disp('MCC: standardise residuals') % chunked to reduce memory load
-                    ndim_resid = ndims(resid_vol);
-                    for nc = 1:size(resid_vol,3)
-                        resid_vol_mean(:,:,nc)=mean(resid_vol(:,:,nc,:),ndim_resid);
-                        resid_vol_std(:,:,nc)=std(resid_vol(:,:,nc,:),[],ndim_resid);
-                        resid_vol(:,:,nc,:)= bsxfun(@rdivide,bsxfun(@minus,resid_vol(:,:,nc,:),resid_vol_mean(:,:,nc)),resid_vol_std(:,:,nc));
+                    if exist('resid_vol','var')
+                        ndim_resid = ndims(resid_vol);
+                        for nc = 1:size(resid_vol,3)
+                            resid_vol_mean(:,:,nc)=mean(resid_vol(:,:,nc,:),ndim_resid);
+                            resid_vol_std(:,:,nc)=std(resid_vol(:,:,nc,:),[],ndim_resid);
+                            resid_vol(:,:,nc,:)= bsxfun(@rdivide,bsxfun(@minus,resid_vol(:,:,nc,:),resid_vol_mean(:,:,nc)),resid_vol_std(:,:,nc));
+                        end
+                        szR = size(resid_vol,ndim_resid);
+                    elseif (isfield(D(d).model(i),'resid') && ~isempty(D(d).model(i).resid)) || ndims(vr.resid)==2
+                        % SOURCE DATA
+                        szR = size(D(d).model(i).fixeddesign,1);
+                        dim_resid = [size(D(d).model(i).s), szR];
+                        ndim_resid = length(dim_resid);
+                        
+                        if isfield(D(d).model(i),'resid') && ~isempty(D(d).model(i).resid) % if resids are part of D
+                            maxs = length(D(d).model(i).resid);
+                            lasts=0;
+                            for s = 1:maxs
+
+                                % monitor progress
+                                prog=floor(s*100/maxs);
+                                if prog>lasts
+                                    disp(['standardising: ' num2str(prog) '%']);
+                                    lasts = prog;
+                                end
+
+                                resid_mean=nanmean(D(d).model(i).resid(s).samples);
+                                resid_std=nanstd(D(d).model(i).resid(s).samples);
+                                D(d).model(i).resid(s).samples=(D(d).model(i).resid(s).samples-resid_mean)/resid_std;
+                            end
+                        elseif ndims(vr.resid)==2
+                            % separate resid file - already z-scored on
+                            % condor (in eegstats_encode_compile_samples.m)
+                            maxs = size(vr.resid,2);
+                            
+                        end
+                        
+                        % empty volume 
+                        resid_empty = nan(dim_resid(1:end-1));
                     end
-                    szR = size(resid_vol,ndim_resid);
-                
+                    
                     % save as multiple volumes
                     pcc=0;
                     for tr = 1:szR
+                        
+                        % monitor progress
                         pc = floor(tr*100/szR);
                         if pcc<pc
                             pcc=pc;
                             disp(['writing resid volumes: ' num2str(pc) '%'])
                         end
+                        
+                        % filename
                         trn = sprintf( '%06d', tr );
                         V.fname = fullfile(D(d).model(i).resid_vol_dir,['resid' trn '.nii']);
-                        if ndim_resid ==4
-                            spm_write_vol(V,resid_vol(:,:,:,tr));
-                        elseif ndim_resid ==3
-                            spm_write_vol(V,resid_vol(:,:,tr));
+                        
+                        % method
+                        if exist('resid_vol','var')
+                            if ndim_resid ==4
+                                spm_write_vol(V,resid_vol(:,:,:,tr));
+                            elseif ndim_resid ==3
+                                spm_write_vol(V,resid_vol(:,:,tr));
+                            end
+                        elseif ndims(vr.resid)==2
+                            % SOURCE DATA from condor: create empty NaN image template and it's indices; copy it; add indices of all samples within
+                            % image N as lookup matrix; find indices of rows of
+                            % resid (from resid_samples) corresponding to image N
+                            % indices (intersect indices?); load each in turn and index into the empty image template. 
+                            resid = resid_empty;
+                            if tr==1 
+                                sidx = find(~isnan(D(d).model(i).s(:)))'; % sample indices within image
+                                if length(sidx)~= maxs % check
+                                    error('wrong number of samples in resid data');
+                                end
+                            end
+                            resid(sidx) = vr.resid(tr,:); % 
+                            
+                            % write image
+                            spm_write_vol(V,resid);
                         end
+                        
+                        
                     end
                 end
-                clear resid_vol
+                clear resid_vol 
+                clear vr
                 fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
                 resid_vol = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
                 
