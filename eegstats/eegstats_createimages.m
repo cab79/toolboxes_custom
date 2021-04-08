@@ -81,7 +81,8 @@ for d=1:length(D)
     end
 
     if ~isempty(S.img.mask_img)
-        mask_img = spm_read_vols(spm_vol(S.img.mask_img))>0;
+        mask_img = double(spm_read_vols(spm_vol(S.img.mask_img))>0);
+        mask_img(mask_img==0) = nan;
     end
     
     % change file locations for resid, fitted, input
@@ -114,12 +115,15 @@ for d=1:length(D)
                         [b_img, mask_img] = topotime_3D(D(d).model(i).coeff(b).b,S);
                     end
                     %b_img = topotime_3D(D(d).model(i).coeff(b).b,S);
+                    V = makeV;
                 else
                     b_img=D(d).model(i).coeff(b).b;
-                    mask_img=ones(size(b_img));
+                    if isempty(S.img.mask_img)
+                        mask_img=ones(size(b_img));
+                    end
+                    V = makeV3; % assume MNI volumne
                 end
                 % save images
-                V = makeV;
                 D(d).model(i).coeff(b).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_coeff_' num2str(b) '_b.nii']);
                 V.fname = D(d).model(i).coeff(b).b_img_file;
                 V.dim(1:length(size(mask_img))) = size(mask_img);
@@ -143,11 +147,14 @@ for d=1:length(D)
                         else
                             [r_img, mask_img] = topotime_3D(randmat(:,:,idx),S);
                         end
+                        V = makeV;
                     else
                         if rm_dim==3 % sensor
                             r_img=randmat(:,:,idx);
+                            V = makeV;
                         elseif rm_dim==4 % source
                             r_img=randmat(:,:,:,idx);
+                            V = makeV3; % assume MNI volumne
                         end
                     end
                     % add to file
@@ -155,7 +162,6 @@ for d=1:length(D)
                     D(d).model(i).random(idx).Name = D(d).model(i).randomnames.Name{idx};
                     D(d).model(i).random(idx).b = r_img;
                     % save images
-                    V = makeV;
                     D(d).model(i).random(idx).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_randcoeff_' num2str(b) '_' num2str(u) '.nii']);
                     V.fname = D(d).model(i).random(idx).b_img_file;
                     V.dim(1:length(size(mask_img))) = size(mask_img);
@@ -211,7 +217,7 @@ for d=1:length(D)
             % save image mask
             D(d).model(i).mask_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_mask.nii']);
             V.fname = D(d).model(i).mask_img_file;
-            spm_write_vol(V,mask_img);
+            spm_write_vol(V,double(~isnan(D(d).model(i).s)) .* mask_img);
         end
     end
 
@@ -280,3 +286,13 @@ V.n = [1,1];
 V.descrip = '';
 % V.private
 
+function V = makeV3
+% makes 3D volume in MNI space
+V.fname = '';
+V.dim = [1 1 1];
+V.dt = [16,0];
+V.pinfo = [1;0;32];
+V.mat = [-2,0,0,92;0,2,0,-128;0,0,2,-74;0,0,0,1];
+V.n = [1,1];
+V.descrip = '';
+% V.private

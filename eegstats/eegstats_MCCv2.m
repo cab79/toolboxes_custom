@@ -71,20 +71,28 @@ for d=1:length(D)
     if S.MCC.model.index
         for i = S.MCC.model.index
             if S.MCC.estimate && (S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF'))
-            % First, estimate of smoothness based on [residual] images
                 D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
                 D(d).model(i).resid_vol_dir = strrep(D(d).model(i).resid_vol_file,'.mat','_dir');
                 if ~exist(D(d).model(i).resid_vol_dir,'dir') || length(dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'))) ~= length(D.model(i).fixeddesign)
                     mkdir(D(d).model(i).resid_vol_dir)
+                    
                     if exist(D(d).model(i).resid_vol_file,'file')
                         disp(['MCC: for model ' num2str(i) ', loading resid vol file'])
                         load(D(d).model(i).resid_vol_file);
+                        
                     elseif exist(D(d).model(i).resid_file,'file')
                         disp(['MCC: for model ' num2str(i) ', loading resid file'])
-                        vr = load(D(d).model(i).resid_file);
+                        
+                        vr=[];
+                        if S.MCC.load_resid_as_matfile
+                            vrmat = matfile(D(d).model(i).resid_file);
+                        else
+                            vr = load(D(d).model(i).resid_file);
+                        end
+                        
                         % if not source data from condor, i.e. a resid file
                         % of channels x timepoints x samples
-                        if ~exist('resid_vol','var') && ~isempty(S.img.file.coord) && ndims(vr.resid)>2
+                        if ~exist('resid_vol','var') && ~isempty(S.img.file.coord) && ~isempty(vr) && ndims(vr.resid)>2
                             % chunk it to reduce memory load
                             chunksize = 2000;
                             n_chunks = max(1,ceil(size(vr.resid,3)/chunksize));
@@ -99,7 +107,7 @@ for d=1:length(D)
                                 m.resid_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(vr.resid,2),si)=topotime_3D(vr.resid(:,:,si),S);
                             end
                             load(D(d).model(i).resid_vol_file);
-                        elseif ndims(vr.resid)>2
+                        elseif ~isempty(vr) && ndims(vr.resid)>2
                             D(d).model(i).resid_vol_file = D(d).model(i).resid_file;
                             if ~exist('resid_vol','var')
                                 resid_vol=vr.resid;
@@ -121,7 +129,7 @@ for d=1:length(D)
                             resid_vol(:,:,nc,:)= bsxfun(@rdivide,bsxfun(@minus,resid_vol(:,:,nc,:),resid_vol_mean(:,:,nc)),resid_vol_std(:,:,nc));
                         end
                         szR = size(resid_vol,ndim_resid);
-                    elseif (isfield(D(d).model(i),'resid') && ~isempty(D(d).model(i).resid)) || ndims(vr.resid)==2
+                    elseif (isfield(D(d).model(i),'resid') && ~isempty(D(d).model(i).resid)) || (~isempty(vr) || exist('vrmat','var'))
                         % SOURCE DATA
                         szR = size(D(d).model(i).fixeddesign,1);
                         dim_resid = [size(D(d).model(i).s), szR];
@@ -143,10 +151,16 @@ for d=1:length(D)
                                 resid_std=nanstd(D(d).model(i).resid(s).samples);
                                 D(d).model(i).resid(s).samples=(D(d).model(i).resid(s).samples-resid_mean)/resid_std;
                             end
-                        elseif ndims(vr.resid)==2
+                        elseif ~isempty(vr) && ndims(vr.resid)==2
                             % separate resid file - already z-scored on
                             % condor (in eegstats_encode_compile_samples.m)
                             maxs = size(vr.resid,2);
+                            
+                        elseif S.MCC.load_resid_as_matfile
+                            % separate resid file - already z-scored on
+                            % condor (in eegstats_encode_compile_samples.m)
+                            maxs = size(vrmat,'resid');
+                            maxs = maxs(2);
                             
                         end
                         
@@ -176,7 +190,7 @@ for d=1:length(D)
                             elseif ndim_resid ==3
                                 spm_write_vol(V,resid_vol(:,:,tr));
                             end
-                        elseif ndims(vr.resid)==2
+                        elseif ~isempty(vr) && ndims(vr.resid)==2
                             % SOURCE DATA from condor: create empty NaN image template and it's indices; copy it; add indices of all samples within
                             % image N as lookup matrix; find indices of rows of
                             % resid (from resid_samples) corresponding to image N
@@ -195,13 +209,44 @@ for d=1:length(D)
                             
                             % write image
                             spm_write_vol(V,resid.*double(mask_img));
+                        elseif S.MCC.load_resid_as_matfile % MATFILE VERSION
+                            % SOURCE DATA from condor
+                            resid = resid_empty;
+                            if tr==1 
+                                sidx = find(~isnan(D(d).model(i).s(:)))'; % sample indices within image
+                                if length(sidx)~= maxs % check
+                                    error('wrong number of samples in resid data');
+                                end
+                            end
+                                
+                            % for now, chunk into two halves. Later,
+                            % chunking size can be a setting.
+                            chunk_checkpoints = [1,ceil(szR/2)];
+                            if ismember(tr, chunk_checkpoints)
+                                if tr==1
+                                    tempmat = vrmat.resid(1:ceil(szR/2)-1,:);
+                                    tr_sub = 0;
+                                elseif tr==ceil(szR/2)
+                                    clear tempmat
+                                    tempmat = vrmat.resid(ceil(szR/2):szR,:);
+                                    tr_sub = ceil(szR/2)-1;
+                                end
+                            end
+                                
+                            resid(sidx) = tempmat(tr-tr_sub,:); % 
+                            
+                            resid = resid.*double(mask_img); % mask it
+                            resid(isnan(resid))= 0; % must be no NaN for smoothness function
+                            
+                            % write image
+                            spm_write_vol(V,resid.*double(mask_img));
                         end
                         
                         
                     end
                 end
                 clear resid_vol 
-                clear vr
+                clear vr vrmat tempmat
                 fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
                 resid_vol = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
                 
@@ -368,7 +413,8 @@ for d=1:length(D)
             xlab = 'contrast';
             ylab = 'Z values';
             try
-                jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl)
+                f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl);
+                saveas(f,fullfile(S.MCC.path.inputs,'Z_values.png'))
             catch
                 disp(['no significant effects for model ' num2str(i)])
             end
@@ -474,10 +520,10 @@ for p = 1:size(S.path.code,1)
     end
 end
 
-function jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl)
+function f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl)
 plotdatX=-plotdatX;
 plotdatX(plotdatX==0)=NaN;
-figure('name',figname)
+f=figure('name',figname);
 minmax = -[size(plotdatX,2)+0.5,0.5];
 hold on
 s=scatter(plotdatX(:), plotdatY(:),10,'k','filled', 'jitter','on', 'jitterAmount',0.3);
