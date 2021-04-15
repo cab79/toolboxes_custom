@@ -56,7 +56,7 @@ switch opt
     % duration of stimulus sequence in seconds
     h.Settings.totdur = 0; 
     % duration of trial in seconds
-    h.Settings.trialdur = 1; % if 0, consecutive stimuli will occur with no gap. 'Inf' requires participant to respond to move on to next trial.
+    h.Settings.trialdur = 2; % if 0, consecutive stimuli will occur with no gap. 'Inf' requires participant to respond to move on to next trial.
     % Tactile: number of pulses per trial
     h.Settings.nstim_trial = 1; 
     % Which stims are targets for behavioural responses?
@@ -64,26 +64,192 @@ switch opt
     
     %% first stimulus
     
-    % initial settings
-    nstim=4; % minimum frequency of duration changes. Must divide by 2 to produce integer. In this example: on/off/on/off = 4.
-    train_dur = 0.24; % 240ms
+%     % OPTION 1: stimulus intervals. create 9 trial types in 50ms steps
+%     nstim=4; % minimum frequency of duration changes. Must divide by 2 to produce integer. In this example: on/off/on/off = 4.
+%     train_dur = 0.64; % 640ms
+%     gap = 0.05;
+%     pip = 0.030;
+%     step = 0.050;
+%     h.Settings.stim(1).dur = {
+%         [pip gap pip train_dur-gap-2*pip] % e.g. 15,50,15,180 for on/off/on/off
+%         [pip gap+1*step pip train_dur-(gap+1*step)-2*pip] 
+%         [pip gap+2*step pip train_dur-(gap+2*step)-2*pip]
+%         [pip gap+3*step pip train_dur-(gap+3*step)-2*pip]
+%         [pip gap+4*step pip train_dur-(gap+4*step)-2*pip]
+%         [pip gap+5*step pip train_dur-(gap+5*step)-2*pip]
+%         [pip gap+6*step pip train_dur-(gap+6*step)-2*pip]
+%         [pip gap+7*step pip train_dur-(gap+7*step)-2*pip]
+%         [pip gap+8*step pip train_dur-(gap+8*step)-2*pip] % e.g. 15,210,15,0
+%         };
+%     ngaps=nstim/2;
+%     h.Settings.stim(1).patternvalue = repmat([400 0],1,ngaps);
     
-    % create 9 trial types, gaps of 50ms to 210ms in 20ms steps
-    gap = 0.05;
-    pip = 0.015;
-    step = 0.020;
-    h.Settings.stim(1).dur = {
-        [pip gap pip train_dur-gap-2*pip] % e.g. 15,50,15,160 for on/off/on/off
-        [pip gap+1*step pip train_dur-(gap+1*step)-2*pip] 
-        [pip gap+2*step pip train_dur-(gap+2*step)-2*pip]
-        [pip gap+3*step pip train_dur-(gap+3*step)-2*pip]
-        [pip gap+4*step pip train_dur-(gap+4*step)-2*pip]
-        [pip gap+5*step pip train_dur-(gap+5*step)-2*pip]
-        [pip gap+6*step pip train_dur-(gap+6*step)-2*pip]
-        [pip gap+7*step pip train_dur-(gap+7*step)-2*pip]
-        [pip gap+8*step pip train_dur-(gap+8*step)-2*pip] % e.g. 15,210,15,0
+%     % OPTION 2: contant filled stimuli. create 9 trial types in 50ms steps
+%     nstim=2; % minimum frequency of duration changes. Must divide by 2 to produce integer. In this example: on/off/on/off = 4.
+%     train_dur = 0.64; % 640ms
+%     gap = 0.05;
+%     %pip = 0.030;
+%     step = 0.050;
+%     h.Settings.stim(1).dur = {
+%         [gap train_dur-gap] % e.g. 15,50,15,180 for on/off/on/off
+%         [gap+1*step train_dur-(gap+1*step)] 
+%         [gap+2*step train_dur-(gap+2*step)]
+%         [gap+3*step train_dur-(gap+3*step)]
+%         [gap+4*step train_dur-(gap+4*step)]
+%         [gap+5*step train_dur-(gap+5*step)]
+%         [gap+6*step train_dur-(gap+6*step)]
+%         [gap+7*step train_dur-(gap+7*step)]
+%         [gap+8*step train_dur-(gap+8*step)] % e.g. 15,210,15,0
+%         };
+%     ngaps=1;
+%     h.Settings.stim(1).patternvalue = repmat([400 0],1,ngaps);
+    
+%     % OPTION 3: contant filled stimuli. create 9 trial types in 50ms steps
+%     nstim=2; % minimum frequency of duration changes. Must divide by 2 to produce integer. In this example: on/off/on/off = 4.
+%     train_dur = 2; % 640ms
+%     gap = 0.05;
+%     %pip = 0.030;
+%     step = 1.4;
+%     h.Settings.stim(1).dur = {
+%         [gap train_dur-gap] % e.g. 15,50,15,180 for on/off/on/off
+%         [gap*step train_dur-(gap*step)] 
+%         [gap*step^2 train_dur-(gap*step^2)]
+%         [gap*step^3 train_dur-(gap*step^3)]
+%         [gap*step^4 train_dur-(gap*step^4)]
+%         [gap*step^5 train_dur-(gap*step^5)]
+%         [gap*step^6 train_dur-(gap*step^6)]
+%         [gap*step^7 train_dur-(gap*step^7)]
+%         [gap*step^8 train_dur-(gap*step^8)] % e.g. 15,210,15,0
+%         };
+%     ngaps=1;
+%     h.Settings.stim(1).patternvalue = repmat([400 0],1,ngaps);
+    
+%     % OPTION 4: stimulus intervals - multiplier. create 9 trial types in 50ms steps
+%     nstim=2; % minimum frequency of duration changes. Must divide by 2 to produce integer. In this example: on/off/on/off = 4.
+%     train_dur = 2; % 640ms
+%     gap = 0.05;
+%     pip = 0.030;
+%     step = 1.4;
+%     h.Settings.stim(1).dur = {
+%         [pip gap pip train_dur-gap-2*pip] % e.g. 15,50,15,180 for on/off/on/off
+%         [pip gap*step pip train_dur-(gap*step)-2*pip] 
+%         [pip gap*step^2 pip train_dur-(gap*step^2)-2*pip]
+%         [pip gap*step^3 pip train_dur-(gap*step^3)-2*pip]
+%         [pip gap*step^4 pip train_dur-(gap*step^4)-2*pip]
+%         [pip gap*step^5 pip train_dur-(gap*step^5)-2*pip]
+%         [pip gap*step^6 pip train_dur-(gap*step^6)-2*pip]
+%         [pip gap*step^7 pip train_dur-(gap*step^7)-2*pip]
+%         [pip gap*step^8 pip train_dur-(gap*step^8)-2*pip] % e.g. 15,210,15,0
+%         };
+%     ngaps=2;
+%     h.Settings.stim(1).patternvalue = repmat([400 0],1,ngaps);
+    
+%     % OPTION 5: frequencies
+%     train_dur = 1; % seconds
+%     freq1 = 10; % first frequency, Hz
+%     step = 1.2; % multiplier of freq
+%     h.Settings.stim(1).patternvalue = {
+%         repmat([400 0],1,freq1)
+%         repmat([400 0],1,round(freq1*step)) 
+%         repmat([400 0],1,round(freq1*step^2)) 
+%         repmat([400 0],1,round(freq1*step^3)) 
+%         repmat([400 0],1,round(freq1*step^4)) 
+%         repmat([400 0],1,round(freq1*step^5)) 
+%         repmat([400 0],1,round(freq1*step^6)) 
+%         repmat([400 0],1,round(freq1*step^7)) 
+%         repmat([400 0],1,round(freq1*step^8)) 
+%         %repmat([400 0],1,round(freq1*step^9)) 
+%         };
+%     h.Settings.stim(1).dur = {
+%         repmat([1/(freq1*2)],1,length(h.Settings.stim(1).patternvalue{1}))
+%         repmat([1/(freq1*step*2)],1,length(h.Settings.stim(1).patternvalue{2})) 
+%         repmat([1/(freq1*step^2*2)],1,length(h.Settings.stim(1).patternvalue{3})) 
+%         repmat([1/(freq1*step^3*2)],1,length(h.Settings.stim(1).patternvalue{4})) 
+%         repmat([1/(freq1*step^4*2)],1,length(h.Settings.stim(1).patternvalue{5})) 
+%         repmat([1/(freq1*step^5*2)],1,length(h.Settings.stim(1).patternvalue{6})) 
+%         repmat([1/(freq1*step^6*2)],1,length(h.Settings.stim(1).patternvalue{7})) 
+%         repmat([1/(freq1*step^7*2)],1,length(h.Settings.stim(1).patternvalue{8})) 
+%         repmat([1/(freq1*step^8*2)],1,length(h.Settings.stim(1).patternvalue{9})) 
+%         %repmat([1/(freq1*step^9*2)],1,length(h.Settings.stim(1).patternvalue{10})) 
+%         };
+%     
+%     % OPTION 6: frequency AND duration
+%     train_dur = 2; % seconds
+%     freq1 = 10; % first frequency, Hz
+%     step = 1.2; % multiplier of freq
+%     h.Settings.stim(1).patternvalue = {
+%         repmat([400 0],1,freq1)
+%         repmat([400 0],1,freq1) 
+%         repmat([400 0],1,freq1) 
+%         repmat([400 0],1,freq1) 
+%         repmat([400 0],1,freq1) 
+%         repmat([400 0],1,freq1) 
+%         repmat([400 0],1,freq1) 
+%         repmat([400 0],1,freq1) 
+%         repmat([400 0],1,freq1) 
+%         %repmat([400 0],1,round(freq1*step^9)) 
+%         };
+%     h.Settings.stim(1).dur = {
+%         repmat([1/(freq1*2)],1,length(h.Settings.stim(1).patternvalue{1}))
+%         repmat([1/(freq1*step*2)],1,length(h.Settings.stim(1).patternvalue{2}))
+%         repmat([1/(freq1*step^2*2)],1,length(h.Settings.stim(1).patternvalue{3}))
+%         repmat([1/(freq1*step^3*2)],1,length(h.Settings.stim(1).patternvalue{4}))
+%         repmat([1/(freq1*step^4*2)],1,length(h.Settings.stim(1).patternvalue{5}))
+%         repmat([1/(freq1*step^5*2)],1,length(h.Settings.stim(1).patternvalue{6}))
+%         repmat([1/(freq1*step^6*2)],1,length(h.Settings.stim(1).patternvalue{7})) 
+%         repmat([1/(freq1*step^7*2)],1,length(h.Settings.stim(1).patternvalue{8})) 
+%         repmat([1/(freq1*step^8*2)],1,length(h.Settings.stim(1).patternvalue{9}))
+%         %repmat([1/(freq1*step^9*2)],1,length(h.Settings.stim(1).patternvalue{10})) 
+%         };
+%     % increase the duration of blank space at the end
+%     for d = 1:length(h.Settings.stim(1).dur)
+%         h.Settings.stim(1).dur{d}(end) = train_dur - sum(h.Settings.stim(1).dur{d}(1:end-1));
+%     end
+    
+     % Freq stimuli for Chris Knaggs
+    train_dur = 2; % seconds
+    h.Settings.stim(1).patternvalue = {
+        repmat([400 0],1,18)
+        repmat([400 0],1,18) 
+        repmat([400 0],1,19) 
+        repmat([400 0],1,19) 
+        repmat([400 0],1,21) 
+        repmat([400 0],1,21) 
+        repmat([400 0],1,22) 
+        repmat([400 0],1,22) 
+        repmat([400 0],1,23)
+        repmat([400 0],1,23) 
+        repmat([400 0],1,24) 
+        repmat([400 0],1,24) 
+        repmat([400 0],1,26) 
+        repmat([400 0],1,26) 
+        repmat([400 0],1,27) 
+        repmat([400 0],1,27)  
         };
-    ngaps=nstim/2;
+    h.Settings.stim(1).dur = {
+        repmat([1/(18*2)],1,length(h.Settings.stim(1).patternvalue{1}))
+        repmat([1/(18.5*2)],1,length(h.Settings.stim(1).patternvalue{2}))
+        repmat([1/(19*2)],1,length(h.Settings.stim(1).patternvalue{3}))
+        repmat([1/(19.5*2)],1,length(h.Settings.stim(1).patternvalue{4}))
+        repmat([1/(20.5*2)],1,length(h.Settings.stim(1).patternvalue{5}))
+        repmat([1/(21*2)],1,length(h.Settings.stim(1).patternvalue{6}))
+        repmat([1/(21.5*2)],1,length(h.Settings.stim(1).patternvalue{7})) 
+        repmat([1/(22*2)],1,length(h.Settings.stim(1).patternvalue{8})) 
+        repmat([1/(23*2)],1,length(h.Settings.stim(1).patternvalue{9}))
+        repmat([1/(23.5*2)],1,length(h.Settings.stim(1).patternvalue{10}))
+        repmat([1/(24*2)],1,length(h.Settings.stim(1).patternvalue{11}))
+        repmat([1/(24.5*2)],1,length(h.Settings.stim(1).patternvalue{12}))
+        repmat([1/(25.5*2)],1,length(h.Settings.stim(1).patternvalue{13}))
+        repmat([1/(26*2)],1,length(h.Settings.stim(1).patternvalue{14}))
+        repmat([1/(26.5*2)],1,length(h.Settings.stim(1).patternvalue{15})) 
+        repmat([1/(27*2)],1,length(h.Settings.stim(1).patternvalue{16})) 
+        };
+    % increase the duration of blank space at the end
+    for d = 1:length(h.Settings.stim(1).dur)
+        h.Settings.stim(1).dur{d}(end) = train_dur - sum(h.Settings.stim(1).dur{d}(1:end-1));
+    end
+    
+    %% the rest
     h.Settings.stim(1).gaprandind = []; % random this index in same order as actual gaps. divide by 2 since we are converting from gap indices in whole train (even numbers) to indices of gaps only
     h.Settings.stim(1).stimrandind{1} = []; % first train's gap order is stimrandind
     
@@ -109,9 +275,9 @@ switch opt
         h.Settings.stim(1).maxinten = 200; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     else
         % use audio
-        h.Settings.stim(1).patternvalue = repmat([300 0],1,ngaps); % one per stimdur in each cell; one cell per oddball value
+        %h.Settings.stim(1).patternvalue = repmat([400 0],1,ngaps); % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch, duration. 
-        h.Settings.stim(1).f0 = 300; % pitch
+        h.Settings.stim(1).f0 = 400; % pitch
         h.Settings.stim(1).inten_type = 'dB'; % either 'dB' or 'abs'
         h.Settings.stim(1).df = 0;
         h.Settings.stim(1).atten = 0; % attenuation level in decibels
@@ -146,7 +312,7 @@ switch opt
     h.Settings.PL.oddprob = [
         1 
         ];
-    h.Settings.ntrials = [9]; % if 3 stims per trial should multiples of 3 to allow every combination as programmed in oddballvalue. 
+    h.Settings.ntrials = [16]; % if 3 stims per trial should multiples of 3 to allow every combination as programmed in oddballvalue. 
     
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1

@@ -371,6 +371,7 @@ switch h.Settings.stim(h.sn).control
                             h.dur = h.Settings.stim(h.sn).dur{h.Seq.signal(h.sn,h.tr)}; % may need to remove this for some experiments
                         elseif iscell(h.Settings.stim(h.sn).patternvalue) %&& strcmp(h.Settings.oddballmethod,'pattern')
                             h.freq = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.tr)};
+                            h.dur = h.Settings.stim(h.sn).dur{h.Seq.signal(h.sn,h.tr)}; % may need to remove this for some experiments
                         end
                         % OLD CODE: NOT NEEDED?
                         %elseif iscell(h.Settings.stim(h.sn).patternvalue)
@@ -381,7 +382,7 @@ switch h.Settings.stim(h.sn).control
                     end
                 end
                 % for Seq_Discrim expt
-                if strcmp(h.Settings.PL.oddballmethod,'duration') || strcmp(h.Settings.PL.oddballmethod,'duration_shuffle') || strcmp(h.Settings.PL.oddballmethod,'pattern')
+                if strcmp(h.Settings.PL.oddballmethod,'duration') || strcmp(h.Settings.PL.oddballmethod,'duration_shuffle') %|| strcmp(h.Settings.PL.oddballmethod,'pattern')
                     % just take the first pattern
                     if strcmp(h.Settings.stim(1).durtype,'oddballvalue')
                         h.freq = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.tr)};

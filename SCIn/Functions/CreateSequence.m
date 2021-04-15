@@ -132,7 +132,7 @@ for dt = 1:length(dtypes)
     % calculate number of sets that can provide at least h.Settings.totdur of stimulation AND n_odd oddballs per CP
     num_sets{dt}=0;
     if isfield(h.Settings,'totdur')
-        num_sets{dt} = ceil(h.Settings.totdur/totdur);
+        num_sets{dt} = ceil(h.Settings.totdur./totdur);
     end
     if isempty(setn_set) && ~isempty(setn_odd)
         try
