@@ -624,7 +624,7 @@ for gd = 1:length(Ngrp)
                         fname = factor_img(subdir,D.imglist,condlist,scanname,D.fileoptype,D.znorm,D.transform);
                         %fnames = dir(fullfile(subdir, ['*' scanname scanname_ext '*']));
                     else
-                        fname = dir(fullfile(subdir,D.imglist{:}));
+                        fname = dir(fullfile(subdir,[subfile D.imglist{:}]));
                         fname = fullfile(subdir,fname.name);
                     end
                     for i=1%:length(fnames)

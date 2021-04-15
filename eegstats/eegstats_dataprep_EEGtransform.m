@@ -49,6 +49,7 @@ for d = 1:length(D)
             Sf.cca_reduce_by_scree = S.prep.calc.eeg.cca.reduce_by_scree;
             Sf.cca_select_nPCA_per_group = S.prep.calc.eeg.cca.select_nPCA_per_group;
             Sf.cca_FA_type = S.prep.calc.eeg.cca.FA_type;
+            Sf.cca_test_nCCAcomp = S.prep.calc.eeg.cca.test_nCCAcomp;
 
             % PLS
             Y={};

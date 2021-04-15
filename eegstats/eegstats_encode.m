@@ -27,15 +27,25 @@ else
     np=1;
 end
 for d = 1:length(D)
-    Yin = D(d).prep(np).Y;
-    n_chunks_d = max(1,ceil(length(Yin)/S.encode.parallel.chunksize));
-    chunksize = ceil(length(Yin)/n_chunks_d);
+    
+    % NEW select whether to load the data Y from D or from a separate file
+    % containing Y (if Y is too large to keep in memory entirely)
+    if ~isempty(S.encode.path.inputsY)
+        matY = matfile(S.encode.path.inputsY);
+        [~,lenY] = size(matY,'Y');
+    else
+        Yin = D(d).prep(np).Y;
+        lenY = length(Yin);
+    end
+    
+    n_chunks_d = max(1,ceil(lenY/S.encode.parallel.chunksize));
+    chunksize = ceil(lenY/n_chunks_d);
 
     for nc = 1:n_chunks_d
-        si = chunksize*(nc-1)+1 : min(chunksize*nc,length(Yin));
+        si = chunksize*(nc-1)+1 : min(chunksize*nc,lenY);
 
         % chunk info
-        chunk_info.S=length(Yin);
+        chunk_info.S=lenY;
         chunk_info.nD=length(D);
         chunk_info.n_chunks_d = n_chunks_d;
         chunk_info.sample_index=si;
@@ -47,17 +57,30 @@ for d = 1:length(D)
         index_length = chunk_info.nD*n_chunks_d;
         chunk_info.c=c;
         
-        % combine design matrix with data
-        Yy = Yin(si);
         Y=struct;
-        for s = 1:length(Yy)
-            Y(s).dtab = horzcat(D(d).prep(np).dtab,Yy(s).dtab);
-            if isfield(Yy,'data_mean')
-                Y(s).data_mean = Yy(s).data_mean;
-                Y(s).data_std = Yy(s).data_std;
+        
+        % combine design matrix with data
+        if ~isempty(S.encode.path.inputsY)
+            for s = 1:length(si)
+                disp(['loading sample ' num2str(si) '/' num2str(length(si)) ' from matfile...']);
+                temp = array2table(matY.Y(:,s),'VariableNames',{'data'});
+                Y(s).dtab = horzcat(D(d).prep(np).dtab,temp);
+                %if isfield(D(d).prep(np).Y,'data_mean')
+                %    Y(s).data_mean = D(d).prep(np).Y(s).data_mean;
+                %    Y(s).data_std = D(d).prep(np).Y(s).data_std;
+                %end
+            end
+        else
+            Yy = Yin(si);
+            for s = 1:length(si)
+                Y(s).dtab = horzcat(D(d).prep(np).dtab,Yy(s).dtab);
+                if isfield(Yy,'data_mean')
+                    Y(s).data_mean = Yy(s).data_mean;
+                    Y(s).data_std = Yy(s).data_std;
+                end
             end
         end
-
+        
         % save
         if strcmp(S.encode.parallel.option,'condor')
             disp(['creating input file ' num2str(c) '/' num2str(index_length)])
