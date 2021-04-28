@@ -217,7 +217,8 @@ for d=1:length(D)
             % save image mask
             D(d).model(i).mask_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_mask.nii']);
             V.fname = D(d).model(i).mask_img_file;
-            spm_write_vol(V,double(~isnan(D(d).model(i).s)) .* mask_img);
+%             spm_write_vol(V,double(~isnan(D(d).model(i).s)) .* mask_img);
+            spm_write_vol(V,double(mask_img));
         end
     end
 

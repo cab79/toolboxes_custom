@@ -47,7 +47,11 @@ for d = 1:nD % subject
         disp(['compiling output from file ' num2str(c)])
         
         si = [si C(c).chunk_info.sample_index]; % samples
-        sinz = [sinz C(c).chunk_info.sample_index_nonzero]; % samples
+        if isfield(C(c).chunk_info,'sample_index_nonzero')
+            sinz = [sinz C(c).chunk_info.sample_index_nonzero]; % samples
+        else
+            sinz = si; % samples
+        end
     
         if ~isfield(M,'model')
             M = C(c).M;
