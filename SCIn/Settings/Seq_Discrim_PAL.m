@@ -89,7 +89,6 @@ switch opt
     title('gap durations')
     ylabel('seconds')
     % other settings
-    h.Settings.stim(1).patternvalue = [repmat([5 0],1,ngaps) 5]; % one per stimdur in each cell; one cell per oddball value
     h.Settings.stim(1).durtype = '';%'oddballvalue','sequence_rand'; 
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R

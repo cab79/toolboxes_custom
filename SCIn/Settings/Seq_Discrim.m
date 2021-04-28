@@ -297,9 +297,13 @@ switch opt
     %% first stimulus: audio
     h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch. Not supported: channel, duration
     % play with these:
-    h.Settings.stim(1).dur = {repmat(1/20,1,20),repmat(1/24,1,24)}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
+    % NOTE: the original pilot used 20 and 24 (10Hz and 12Hz) incorrectly!
+    % ...and had adaptive turned on for stim 1.
+    % To output only 1 frequency for saving as wav - change all numbers to
+    % be the same freq and set adaptive startting level to 0;
+    h.Settings.stim(1).dur = {repmat(1/48,1,48),repmat(1/52,1,52)}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
     h.Settings.stim(1).stimrandind = [];% index of stimdur to randomise/adapt. 
-    h.Settings.stim(1).patternvalue = {repmat([300 0],1,20/2),repmat([300 0],1,24/2)}; % one per stimdur in each cell; one cell per oddball value
+    h.Settings.stim(1).patternvalue = {repmat([300 0],1,48/2),repmat([300 0],1,52/2)}; % one per stimdur in each cell; one cell per oddball value
     h.Settings.stim(1).durtype = 'oddballvalue';%'oddballvalue','sequence_rand'; 
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
