@@ -235,11 +235,11 @@ switch h.Settings.stim(h.sn).control
 
                     % Allocate memory for the stream-out buffer
                     max_buffer = 16384;
-                    buffer_size = max(32,pow2(ceil(log2(length(h.mwav))))*2); % min of 32
-                    if buffer_size>max_buffer
-                        buffer_size=max_buffer;
+                    if length(h.mwav)>(max_buffer/2-1)
                         warning('stimtrain.m: T7 buffer exceeds maximum - truncating')
+                        h.mwav = h.mwav(1:max_buffer/2-1);
                     end
+                    buffer_size = max(32,pow2(ceil(log2(length(h.mwav))))*2); % min of 32
                     LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_ENABLE', 0);
                     LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_TARGET', aAddressesOut(1));
                     LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_BUFFER_SIZE', buffer_size);
@@ -260,6 +260,9 @@ switch h.Settings.stim(h.sn).control
                             aAddressesOut, aTypesOut);
 
                     % Configure and start stream
+                    if (h.freq>100000)
+                        error('reduce scan rate to <100,000')
+                    end
                     aScanList = aAddressesOut(1); % FIO0
                     scanRate = h.freq; % Hz
                     scansPerRead = scanRate/2; % eStreamRead frequency = ScanRate / ScansPerRead

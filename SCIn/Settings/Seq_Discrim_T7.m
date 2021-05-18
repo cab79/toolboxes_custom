@@ -44,19 +44,20 @@ switch opt
     % duration of stimulus sequence in seconds
     h.Settings.totdur = 0; 
     % duration of trial in seconds
+    h.Settings.trialdur = 2; % if 0, consecutive stimuli will occur with no gap
     h.Settings.nstim_trial = 1; % set to zero to be determined by stimdur
     h.Settings.wait=0; % within-trial frequency (Hz); one value per nstim 
     
     %% stimulus
-    min_trigger = 0.0001;
-    h.Settings.stim(1).dur{1} = [min_trigger];
+    min_trigger=0.0001;
+    h.Settings.stim(1).dur{1} = [min_trigger 0.5-min_trigger]; % must be at least 0.5s in total due to f0 calculation below
     h.Settings.stim(1).durtype = '';%'oddballvalue','sequence_rand'; 
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff_max = []; % value between 0 and 1000mA for Digitimer DS8R
     if h.Settings.labjack
         % use labjack T7
-        h.Settings.stim(1).patternvalue = {[5]}; % one per stimdur in each cell; one cell per oddball value
+        h.Settings.stim(1).patternvalue = {[5 0]}; %{[repmat([5 0],1,n) 0]}; %{[0 5 0]};  %% one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
         h.Settings.stim(1).inten_type = 'abs'; % either 'dB' or 'abs'
@@ -177,15 +178,15 @@ switch opt
     h.Settings.wait=0; % within-trial frequency (Hz); one value per nstim 
     
     %% stimulus
-    min_trigger = 0.0001;
-    h.Settings.stim(1).dur{1} = [min_trigger];
+    min_trigger=0.0001;
+    h.Settings.stim(1).dur{1} = [min_trigger 0.5-min_trigger];
     h.Settings.stim(1).durtype = '';%'oddballvalue','sequence_rand'; 
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff_max = []; % value between 0 and 1000mA for Digitimer DS8R
     if h.Settings.labjack
         % use labjack T7
-        h.Settings.stim(1).patternvalue = {[5]}; % one per stimdur in each cell; one cell per oddball value
+        h.Settings.stim(1).patternvalue = {[5 0]}; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
         h.Settings.stim(1).inten_type = 'abs'; % either 'dB' or 'abs'
@@ -345,6 +346,161 @@ switch opt
     % ALTERNATIVE: randomise 10 trials consisting of single pulses (5
     % trials) and trains of 5 pulses at 2Hz (5 trials) and ask
     % participants for a rating after each one.
+    
+    % set general options
+    h = setgeneral(h);
+    
+    % FILENAME OF SEQUENCE CREATION FUNCTION (without .m)
+    h.SeqFun = 'CreateDesign';
+    
+    %% TRIALS or CONTINUOUS?
+    h.Settings.design = 'trials';
+    % if continuous, how many trials ahead should be in the player schedule?
+    % (applied to stimulation via soundcard only)
+    h.Settings.ntrialsahead = 0;  %0 = all trials
+    
+    %% EXPERIMENTAL CONDIITIONS
+    % name the settings that define orthogonal condtions at a different row
+    h.Settings.conds = {};
+    
+    %% Output options
+    % save sinwave from all trials as part of stim sequence file
+    %h.Settings.savesinwave = 0;
+    
+    %% BLOCKING/RUN OPTIONS
+    % 'divide' = equally divide trials by nblocks; 
+    % 'cond' = separate block for each condition
+    % 'index' = use h.Settings.block_index to define blocks in relation to conditions
+    h.Settings.blockopt = 'index';
+    % further options for 'divide':
+        % number of blocks (containing multiple conditions)
+        %h.Settings.nblocks = 1; % must integer-divide each value in h.Settings.cond_rep_init
+        %distribute conditions equally among blocks
+    %    h.Settings.distblocks = 1;
+    % options to start sequence at beginning of every run
+    % 'msgbox', 'labjack', 'buttonpress', 'audio' - can have more than one in
+    % cell array
+    h.Settings.blockstart = {'buttonpress'}; % audio,labjack,audio
+    h.Settings.pauseeachblock = 0; % pause after every block?
+    % names of any audiofiles
+    h.Settings.audiofile = {};
+    
+    %% Condition-independent stimulus parameters - can be superceded by condition-dependent parameters
+    % duration of stimulus sequence in seconds
+    h.Settings.totdur = 0; 
+    % duration of trial in seconds
+    h.Settings.trialdur = inf; % if 0, consecutive stimuli will occur with no gap
+    % Tactile: number of pulses per trial
+    h.Settings.nstim_trial = 1; %
+    % Which stims that are targets for behavioural responses?
+    h.Settings.target_stims = [1 2];
+    
+    %% first stimulus
+    min_trigger=0.001; % made this larger to avoid a problem in constructing hwav later
+    h.Settings.stim(1).dur = {[min_trigger 0.5-min_trigger], repmat([min_trigger 0.5-min_trigger],1,5)}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
+    h.Settings.stim(1).stimrandind = [];% index of stimdur to randomise/adapt. 
+    h.Settings.stim(1).durtype = 'oddballvalue';%'oddballvalue','sequence_rand'; 
+    h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
+    h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
+    h.Settings.stim(1).inten_diff_max = []; % value between 0 and 1000mA for Digitimer DS8R
+    h.Settings.stim(1).maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
+    if h.Settings.labjack
+        % use labjack T7
+        h.Settings.stim(1).patternvalue = {[5 0], repmat([5 0],1,5)}; % one per stimdur in each cell; one cell per oddball value
+        h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
+        h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
+        h.Settings.stim(1).inten_type = 'abs'; % either 'dB' or 'abs'
+        h.Settings.stim(1).chan = 'DAC0'; h.Settings.stim(1).chanforLJ = 1;
+        h.Settings.stim(1).nrchannels = 1; % total number of channels, e.g. on sound card
+        h.Settings.stim(1).npulses_train = 0; % Tactile: number of pulses in a train; set to zero to be determined by stimdur
+        h.Settings.stim(1).p_freq=[]; % Tactile: within-train frequency (Hz). only needed if not specifying using stimdur
+        h.Settings.stim(1).labjack_timer=1; % Use timer to control frequency of labjack outputs? Otherwise uses software timing. must use if there are a large number of pulses (e.g. >4)
+        h.Settings.stim(1).wavetype = 'digital'; % sin, square, step or digital.
+        h.Settings.stim(1).f0 = {16384/(2*sum(h.Settings.stim(1).dur{1})), 16384/(2*sum(h.Settings.stim(1).dur{2}))}; % frequency of output (1 / min duration). 16384 bytes is the max buffer size, and each output requires 2 bytes.
+        h.Settings.stim(1).maxinten = 200; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
+    else
+        % use audio
+        h.Settings.stim(1).patternvalue = {[300 0],[repmat([300 0],1,5)]}; % one per stimdur in each cell; one cell per oddball value
+        h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch, duration. 
+        h.Settings.stim(1).f0 = 300; % pitch
+        h.Settings.stim(1).inten_type = 'dB'; % either 'dB' or 'abs'
+        h.Settings.stim(1).df = 0;
+        h.Settings.stim(1).atten = 0; % attenuation level in decibels
+        h.Settings.stim(1).attenchan = [1 2]; % apply attenuation (e.g. during thresholding) to these chans
+        h.Settings.stim(1).control='PsychPortAudio'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
+        h.Settings.stim(1).chan = [1 2]; 
+        h.Settings.stim(1).nrchannels = 2; % total number of channels, e.g. on sound card
+        h.Settings.stim(1).Tukey = 0.25; % Apply Tukey window?
+        h.Settings.stim(1).Tukeytype = 1; % 1 = apply to each tone within pattern; 2 = apply to whole pattern
+        h.Settings.stim(1).wavetype = 'sin';
+        h.Settings.stim(1).maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
+    end
+    
+    
+    % within-trial frequency (s)
+    h.Settings.wait=[0]; % one value per nstim 
+    
+    %% CHANGING STIMULUS INTENSITY EVERY X PULSES
+    % REFER TO "TIMER STOP": https://labjack.com/support/ud/df-lj-app-guide/10.5
+    
+    %% Condition-dependent stimulus parameters
+    % Condition method: intensity, pitch, channel
+    h.Settings.conditionmethod = {};
+    h.Settings.conditionvalue = [];% Rows: methods. Columns: each stimtype
+    % Oddball method: intensity, index, pitch, channel
+    h.Settings.PL.oddballmethod = 'index'; % can use same type for pattern only if oddball intensity is adaptive
+    h.Settings.PL.oddballvalue = {[1 2]}; % values to go into h.Seq.signal. One per oddprob row, or leave blank if determined from GUI
+    h.Settings.PL.nonoddballstimvalue = {0 0};
+    h.Settings.PL.oddballtype = 'classical'; % options: 'roving', 'classical'
+
+    %% SEQUENCE
+    % Change probablity (CP): each condition is in rows
+    h.Settings.PL.oddprob = [
+        1/2 1/2
+        ];
+   
+    % index of cols of oddprob that are standards and oddballs. Can be
+    % overridden by h.Settings.oddballvalue if using index
+    h.Settings.PL.standardind = 1; 
+    h.Settings.PL.oddind = 2; 
+    % keep oddball trials apart by at least sep_odd standards
+    h.Settings.PL.sep_odd = [0];%[0 2 0 2 0 2 0 2 0 2 0 2]; % for each CP condition
+    % for sep_odd, which indices of h.Settings.oddballvalue to consider
+    % each time? (each list will be considered separately)
+    h.Settings.PL.sep_odd_ind = {[1]};
+    h.Settings.PL.sep_odd_tol = [1]; % set these to be as high as possible (max 1)
+    % for each set, ensure a number of leading standards 
+    h.Settings.PL.std_lead = [0]; % for each CP condition
+    % number of sets to randomise together
+    h.Settings.PL.n_set = []; % Leave blank to calculate automatically; or one nunmber per CP condition
+    % min number of oddballs within each CP condition
+    h.Settings.PL.n_odd = [5]; % overrides h.Settings.totdur
+    % min number of oddballs per randomised set, per CP
+    h.Settings.PL.n_odd_set = [5]; % overrides h.Settings.totdur
+    % randomise sets?
+    h.Settings.PL.rand_set = [0]; 
+    % condition numbers
+    h.Settings.PL.condnum = [
+        1 2;
+        ]; 
+
+    %% RESPONSE PARAMETERS
+    % record responses during experiment? 0 or 1
+    h.Settings.record_response = 1;
+    % how to record responses?
+    h.Settings.record_response_type = {'all'}; %options: 'all','thistrial','previoustrial'
+    %intensity difference
+    % buttonpress options: key: keyboard inputs. Blank for no button press
+    h.Settings.buttontype='key';
+    % range of keyboard presses indicating a recordable response
+    h.Settings.buttonopt = {'0)','1!','2@','3#','4$','5%','6^','7&','8*','9('};%strsplit(num2str([0:9])); 
+    % how early after start of trial can button press trigger the next trial? Empty if programmed
+    % ISI
+    h.Settings.response_nexttrialmin = 2;
+    % when does next trial starts after button press? Empty if programmed
+    % ISI
+    h.Settings.response_nexttrialwait = 0.6:0.2:1.6;
+    
     
     case 'temporal_discrim'
     %in which an initial stimulus-pair (separated by approx. 100-500ms) will be compared by 

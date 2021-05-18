@@ -565,6 +565,13 @@ switch h.Settings.stim(h.sn).control
                 if strcmp(h.Settings.stim(1).durtype,'oddballvalue')
                     h.pattern = h.Settings.stim(h.sn).patternvalue{h.Seq.signal(h.sn,h.tr)};
                     h.dur = h.Settings.stim(h.sn).dur{h.Seq.signal(h.sn,h.tr)};
+                else
+                    if iscell(h.Settings.stim(h.sn).patternvalue) && length(h.Settings.stim(h.sn).patternvalue)==1
+                        h.pattern = h.Settings.stim(h.sn).patternvalue{1};
+                    end
+                    if iscell(h.Settings.stim(h.sn).dur) && length(h.Settings.stim(h.sn).dur)==1
+                        h.dur = h.Settings.stim(h.sn).dur{1};
+                    end
                 end
             end
             if strcmp(h.Settings.PL.oddballmethod,'duration')
@@ -602,6 +609,8 @@ switch h.Settings.stim(h.sn).control
                     h.dur(stimrandind_oddball) = h.dur(stimrandind_oddball(h.dur_new_order));
 
                 end
+            elseif strcmp(h.Settings.PL.oddballmethod,'index')
+                h.freq = h.Settings.stim(h.sn).f0{h.Seq.signal(h.sn,h.tr)};
             end
         end
         

@@ -150,7 +150,7 @@ for i = 1:length(h.dur)
         temp_sin{i} = mwav{i};
     elseif strcmp(h.Settings.stim(h.sn).wavetype,'digital')
         useinten = usepattern(i); % digital: 5V TTL or 0V
-        nPulse = round(h.dur(i)*usefreq);
+        nPulse = floor(h.dur(i)*usefreq);
         mwav{i} = useinten*(ones(1,nPulse));
         temp_sin{i} = mwav{i};
     end
