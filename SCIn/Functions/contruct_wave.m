@@ -406,7 +406,7 @@ end
 
 % write to disk (optional)
 %  audiowrite(['C:\Matlab\toolboxes_custom\SCIn\Outputs\stim' num2str(h.tr) '.ogg'],h.mwav',h.Fs,'Quality',100)
-audiowrite(['C:\Matlab\toolboxes_custom\SCIn\Outputs\stim' num2str(h.tr) '.wav'],h.mwav',h.Fs)
+% audiowrite(['C:\Matlab\toolboxes_custom\SCIn\Outputs\stim' num2str(h.tr) '.wav'],h.mwav',h.Fs)
 % audiowrite(['C:\Matlab\toolboxes_custom\SCIn\Outputs\stim' num2str(length(h.dur)/2) 'Hz.wav'],h.mwav',h.Fs)
 
 if strcmp(h.Settings.design,'continuous')

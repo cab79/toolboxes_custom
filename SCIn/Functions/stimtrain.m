@@ -234,7 +234,12 @@ switch h.Settings.stim(h.sn).control
                         aAddressesOut, aTypesOut);
 
                     % Allocate memory for the stream-out buffer
+                    max_buffer = 16384;
                     buffer_size = max(32,pow2(ceil(log2(length(h.mwav))))*2); % min of 32
+                    if buffer_size>max_buffer
+                        buffer_size=max_buffer;
+                        warning('stimtrain.m: T7 buffer exceeds maximum - truncating')
+                    end
                     LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_ENABLE', 0);
                     LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_TARGET', aAddressesOut(1));
                     LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_BUFFER_SIZE', buffer_size);
@@ -243,7 +248,7 @@ switch h.Settings.stim(h.sn).control
                     LabJack.LJM.eWriteName(h.ljHandle, 'STREAM_OUT0_SET_LOOP', 1);
 
                     % Load the waveform data points
-                    LabJack.LJM.eWriteNameArray(h.ljHandle, 'STREAM_OUT0_BUFFER_F32', length(h.mwav), h.mwav, 0);
+                    LabJack.LJM.eWriteNameArray(h.ljHandle, 'STREAM_OUT0_BUFFER_F32', min(length(h.mwav),max_buffer/2), h.mwav(1:min(length(h.mwav),max_buffer)), 0);
                     
                     % Setup stream-out
                     numAddressesOut = 1;
@@ -256,7 +261,7 @@ switch h.Settings.stim(h.sn).control
 
                     % Configure and start stream
                     aScanList = aAddressesOut(1); % FIO0
-                    scanRate = h.Settings.stim(h.sn).f0; % Hz
+                    scanRate = h.freq; % Hz
                     scansPerRead = scanRate/2; % eStreamRead frequency = ScanRate / ScansPerRead
                     numAddresses = length(aScanList);
 
@@ -265,13 +270,13 @@ switch h.Settings.stim(h.sn).control
                     disp(['Stream started with a scan rate of ' num2str(scanRate) ...
                                   ' Hz.'])
 
-                    % optional plotting
-                    if isfield(h,'fig'); close(h.fig); end
-                    incr=1/(length(h.mwav));
-                    x = (incr:incr:length(h.mwav)*incr)*(length(h.mwav)/scanRate);
-                    h.fig=figure; plot(x,h.mwav);
-                    xlabel('seconds')
-                    title('stimulus train waveform')
+%                     % optional plotting
+%                     if isfield(h,'fig'); close(h.fig); end
+%                     incr=1/(length(h.mwav));
+%                     x = (incr:incr:length(h.mwav)*incr)*(length(h.mwav)/scanRate);
+%                     h.fig=figure; plot(x,h.mwav);
+%                     xlabel('seconds')
+%                     title('stimulus train waveform')
                     
                     WaitSecs(length(h.mwav)/scanRate)
 

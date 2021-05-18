@@ -63,7 +63,7 @@ switch opt
     
     %% first stimulus
     nstim=20; % minimum frequency of duration changes. Must divide by 2 to produce integer.
-    train_dur = 5;
+    train_dur = 1;
     % don't change these
     min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. Use 0.001 for DS8R.
     min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
