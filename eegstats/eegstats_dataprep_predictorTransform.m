@@ -22,6 +22,13 @@ cmp=cbrewer('div', 'RdBu', 100, 'pchip');
 for d = 1:length(D)
     disp(['data transformations: ' num2str(d) '/' num2str(length(D))])
     
+    if ~isempty(S.prep.calc.pred.sqrt) 
+        col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.sqrt));
+        for pr = 1:length(col_idx)
+            temp = (table2array(D(d).prep.dtab(:,col_idx(pr)))).^(1/2);
+            D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
+        end
+    end
     if ~isempty(S.prep.calc.pred.log) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.log));
         for pr = 1:length(col_idx)
@@ -48,7 +55,11 @@ for d = 1:length(D)
     if ~isempty(S.prep.calc.pred.newvarmult) 
         for pr = 1:size(S.prep.calc.pred.newvarmult)
             try
-                temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2}).*D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+                if strcmp(S.prep.calc.pred.newvarmult{pr,4},'*')
+                    temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1}).*D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+                elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'/')
+                    temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})./D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+                end
                 D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,3}) = temp;
             end
         end
@@ -245,70 +256,83 @@ for d = 1:length(D)
             
         D(d).prep.pred_PCA = predictor_PCA(D(d).prep.dtab,S);
         
-        pattern = D(d).prep.pred_PCA.Ypattern{1};
-        pattern_thresh = D(d).prep.pred_PCA.Ypattern{1}.*double(D(d).prep.pred_PCA.Ypattern{1}>=S.prep.calc.pred.PCA_model_minloading | D(d).prep.pred_PCA.Ypattern{1}<=-S.prep.calc.pred.PCA_model_minloading);
-        structure = D(d).prep.pred_PCA.Ystruct{1};
-        plot_names = D.prep.pred_PCA.col_names{1};
-        figure;
-        ax=subplot(1,3,1);
-        imagesc(pattern);colorbar;colormap(cmp); caxis([-1 1])
-        xticks(1:size(pattern,2)); 
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('pattern matrix (unique var - regress coeffs)')
-        set(ax, 'XAxisLocation', 'top');
-        ax=subplot(1,3,2);
-        imagesc(pattern_thresh);colorbar;colormap(cmp); caxis([-1 1])
-        xticks(1:size(pattern,2)); 
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('pattern matrix, thresholded')
-        set(ax, 'XAxisLocation', 'top');
-        ax=subplot(1,3,3);
-        imagesc(structure);colorbar;colormap(cmp); caxis([-1 1])
-        xticks(1:size(pattern,2)); 
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('structure matrix (corr between vars and facs)')
-        set(ax, 'XAxisLocation', 'top');
-        
-        idx = eye(size(D.prep.pred_PCA.Ycorr{1}));
-        avg_btw_fac_corr = mean(abs(D.prep.pred_PCA.Ycorr{1}(~idx)));
-        avg_wth_fac_corr = mean(abs(structure),[1 2]);
-        prop_wth_btw = (avg_wth_fac_corr/(avg_btw_fac_corr+avg_wth_fac_corr))*100;
-        
-        % Cronbach
-        vardata=table2array(D(d).prep.dtab(:,contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1})));
-        for nf = 1:size(D(d).prep.pred_PCA.Yscore{1},2)
-            if sum(pattern_thresh(:,nf)~=0)>1
-                crona(nf)=cronbach(vardata(:,pattern_thresh(:,nf)~=0));
-            else
-                crona(nf)=NaN;
-            end
-        end
-        
-        dim = [0 .7 .3 .3];
-        str = {
-            ['TotVar = ' num2str(D.prep.pred_PCA.Yfacvartotal{1})],...
-            ['FacVar = ' num2str(D.prep.pred_PCA.Yfacvar{1})],...
-            ['FacVarUniq = ' num2str(D.prep.pred_PCA.Yfacvaruniq{1})],...
-            ['prop_wth_var = ' num2str(prop_wth_btw) '%'],...
-            ['cronbach = ' num2str(crona)]
-            };
-        annotation('textbox',dim,'String',str,'FitBoxToText','on');
+        if strcmp(S.prep.calc.pred.PCA_type,'FA')
+            pattern = D(d).prep.pred_PCA.Ypattern{1};
+            pattern_thresh = D(d).prep.pred_PCA.Ypattern{1}.*double(D(d).prep.pred_PCA.Ypattern{1}>=S.prep.calc.pred.PCA_model_minloading | D(d).prep.pred_PCA.Ypattern{1}<=-S.prep.calc.pred.PCA_model_minloading);
+            structure = D(d).prep.pred_PCA.Ystruct{1};
+            plot_names = D.prep.pred_PCA.col_names{1};
+            figure;
+            ax=subplot(1,3,1);
+            imagesc(pattern);colorbar;colormap(cmp); caxis([-1 1])
+            xticks(1:size(pattern,2)); 
+            yticks(1:length(plot_names)); yticklabels(plot_names);
+            title('pattern matrix (unique var - regress coeffs)')
+            set(ax, 'XAxisLocation', 'top');
+            ax=subplot(1,3,2);
+            imagesc(pattern_thresh);colorbar;colormap(cmp); caxis([-1 1])
+            xticks(1:size(pattern,2)); 
+            yticks(1:length(plot_names)); yticklabels(plot_names);
+            title('pattern matrix, thresholded')
+            set(ax, 'XAxisLocation', 'top');
+            ax=subplot(1,3,3);
+            imagesc(structure);colorbar;colormap(cmp); caxis([-1 1])
+            xticks(1:size(pattern,2)); 
+            yticks(1:length(plot_names)); yticklabels(plot_names);
+            title('structure matrix (corr between vars and facs)')
+            set(ax, 'XAxisLocation', 'top');
 
-        % add PCA components to data table
-        if S.prep.calc.pred.PCA_model_add2dtab
-            ym=S.prep.calc.pred.PCA_model_add2dtab;
-            for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
-                pcname=[S.prep.calc.pred.PCA_type num2str(k)];
-                D(d).prep.dtab.(pcname) = (transpose(pattern_thresh(:,k))*transpose(vardata))';
+            idx = eye(size(D.prep.pred_PCA.Ycorr{1}));
+            avg_btw_fac_corr = mean(abs(D.prep.pred_PCA.Ycorr{1}(~idx)));
+            avg_wth_fac_corr = mean(abs(structure),[1 2]);
+            prop_wth_btw = (avg_wth_fac_corr/(avg_btw_fac_corr+avg_wth_fac_corr))*100;
+
+            % Cronbach
+            vardata=table2array(D(d).prep.dtab(:,contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1})));
+            for nf = 1:size(D(d).prep.pred_PCA.Yscore{1},2)
+                if sum(pattern_thresh(:,nf)~=0)>1
+                    crona(nf)=cronbach(vardata(:,pattern_thresh(:,nf)~=0));
+                else
+                    crona(nf)=NaN;
+                end
+            end
+
+            dim = [0 .7 .3 .3];
+            str = {
+                ['TotVar = ' num2str(D.prep.pred_PCA.Yfacvartotal{1})],...
+                ['FacVar = ' num2str(D.prep.pred_PCA.Yfacvar{1})],...
+                ['FacVarUniq = ' num2str(D.prep.pred_PCA.Yfacvaruniq{1})],...
+                ['prop_wth_var = ' num2str(prop_wth_btw) '%'],...
+                ['cronbach = ' num2str(crona)]
+                };
+            annotation('textbox',dim,'String',str,'FitBoxToText','on');
+            
+            % add FA components to data table
+            if S.prep.calc.pred.PCA_model_add2dtab
+                ym=S.prep.calc.pred.PCA_model_add2dtab;
+                for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                    pcname=[S.prep.calc.pred.PCA_type num2str(k)];
+                    D(d).prep.dtab.(pcname) = (transpose(pattern_thresh(:,k))*transpose(vardata))';
+                end
+
+                % trialback data
+    %             if ~isempty(D(d).prep.pred_PCA.Yscore_tb)
+    %                 for k = 1:size(D(d).prep.pred_PCA.Yscore_tb{ym},2)
+    %                     pcname=[S.prep.calc.pred.PCA_type '_trialback_' num2str(k)];
+    %                     D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore_tb{ym}(:,k);
+    %                 end
+    %             end
             end
             
-            % trialback data
-%             if ~isempty(D(d).prep.pred_PCA.Yscore_tb)
-%                 for k = 1:size(D(d).prep.pred_PCA.Yscore_tb{ym},2)
-%                     pcname=[S.prep.calc.pred.PCA_type '_trialback_' num2str(k)];
-%                     D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore_tb{ym}(:,k);
-%                 end
-%             end
+        else
+            
+            % add PCA components to data table
+            if S.prep.calc.pred.PCA_model_add2dtab
+                ym=S.prep.calc.pred.PCA_model_add2dtab;
+                for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                    pcname=[S.prep.calc.pred.PCA_type num2str(k)];
+                    D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore{ym}(:,k);
+                end
+            end
         end
     end
     
@@ -522,7 +546,7 @@ switch S.prep.calc.pred.PCA_type
                 if isempty(nfac_temp)
                     nfac_temp = ncomp;
                 end
-                nfac = nfac_exp(1);
+                nfac = nfac_temp(1);
             else
                 [~,~,~,~,explainedrand] = pca(randn(size(Y{ym})),'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
                 nfac_temp = find(explained<explainedrand);
