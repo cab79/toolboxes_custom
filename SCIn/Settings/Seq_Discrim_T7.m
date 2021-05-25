@@ -196,7 +196,7 @@ switch opt
         h.Settings.stim(1).p_freq=[]; % Tactile: within-train frequency (Hz). only needed if not specifying using stimdur
         h.Settings.stim(1).labjack_timer=1; % Use timer to control frequency of labjack outputs? Otherwise uses software timing. must use if there are a large number of pulses (e.g. >4)
         h.Settings.stim(1).wavetype = 'digital'; % sin, square, step or digital.
-        h.Settings.stim(1).f0 = 16384/(2*sum(h.Settings.stim(1).dur{1})); % frequency of output (1 / min duration). 16384 bytes is the max buffer size, and each output requires 2 bytes.
+        h.Settings.stim(1).f0 = {16384/(2*sum(h.Settings.stim(1).dur{1})),16384/(2*sum(h.Settings.stim(1).dur{1}))}; % frequency of output (1 / min duration). 16384 bytes is the max buffer size, and each output requires 2 bytes.
         h.Settings.stim(1).maxinten = 200; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     else
         % use audio
@@ -544,10 +544,9 @@ switch opt
     
     %% first stimulus
     % Needs adaptive turned on for stim 1.
-    train_dur = 0.5; % in seconds
-    min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. Use 0.001 for DS8R.
-    min_trigger = max(0.0001,1/(16384/(2*train_dur)));
-    h.Settings.stim(1).dur{1} = [min_trigger, train_dur-2*min_trigger, min_trigger]; 
+    train_dur = 0.5; % in seconds - each stimulus must be at least 0.5s
+    min_trigger = max(0.001,1/(16384/(2*train_dur)));
+    h.Settings.stim(1).dur{1} = [min_trigger, train_dur-2*min_trigger, min_trigger, train_dur]; % added on train_dur at the end to ensure stimulus is long enough
     h.Settings.stim(1).stimrandind = [];% index of stimdur to randomise/adapt. 
     h.Settings.stim(1).durtype = 'oddballvalue';%'oddballvalue','sequence_rand'; 
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
@@ -556,7 +555,7 @@ switch opt
     h.Settings.stim(1).maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     if h.Settings.labjack
         % use labjack T7
-        h.Settings.stim(1).patternvalue = {[5 0 5]}; % one per stimdur in each cell; one cell per oddball value
+        h.Settings.stim(1).patternvalue = {[5 0 5 0]}; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
         h.Settings.stim(1).inten_type = 'abs'; % either 'dB' or 'abs'
@@ -570,7 +569,7 @@ switch opt
         h.Settings.stim(1).maxinten = 200; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     else
         % use audio
-        h.Settings.stim(1).patternvalue = {[300 0 300]}; % one per stimdur in each cell; one cell per oddball value
+        h.Settings.stim(1).patternvalue = {[300 0 300 0]}; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).f0 = 300; % pitch
         h.Settings.stim(1).inten_type = 'dB'; % either 'dB' or 'abs'
@@ -600,28 +599,28 @@ switch opt
             h.Settings.stim(s).f0{i*2} = f0{i};
         end
     end
-    %% first stimulus: audio pip
-    pip.patternmethod = '';% Pattern type method: intensity, pitch. Not supported: channel, duration
-    % play with these:
-    pip.dur = 0.05; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
-    pip.stimrandind = [];% index of stimdur to randomise/adapt. 
-    pip.patternvalue = []; % one per stimdur in each cell; one cell per oddball value
-    pip.durtype = ''; 
-    pip.inten = 0; % value between 2 and 1000mA for Digitimer DS8R
-    pip.inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
-    pip.inten_diff_max = []; % value between 0 and 1000mA for Digitimer DS8R
-    pip.maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
-    pip.f0 = 600; % pitch
-    pip.inten_type = 'dB'; % either 'dB' or 'abs'
-    pip.df = 0;
-    pip.atten = 0; % attenuation level in decibels
-    pip.attenchan = [1 2]; % apply attenuation (e.g. during thresholding) to these chans
-    pip.control='PsychPortAudio'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt
-    pip.chan = [1 2]; 
-    pip.nrchannels = 2; % total number of channels, e.g. on sound card
-    pip.Tukey = 0.25; % Apply Tukey window?
-    pip.Tukeytype = 1; % 1 = apply to each tone within pattern; 2 = apply to whole pattern
-    
+%     %% first stimulus: audio pip
+%     pip.patternmethod = '';% Pattern type method: intensity, pitch. Not supported: channel, duration
+%     % play with these:
+%     pip.dur = 0.05; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
+%     pip.stimrandind = [];% index of stimdur to randomise/adapt. 
+%     pip.patternvalue = []; % one per stimdur in each cell; one cell per oddball value
+%     pip.durtype = ''; 
+%     pip.inten = 0; % value between 2 and 1000mA for Digitimer DS8R
+%     pip.inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
+%     pip.inten_diff_max = []; % value between 0 and 1000mA for Digitimer DS8R
+%     pip.maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
+%     pip.f0 = 600; % pitch
+%     pip.inten_type = 'dB'; % either 'dB' or 'abs'
+%     pip.df = 0;
+%     pip.atten = 0; % attenuation level in decibels
+%     pip.attenchan = [1 2]; % apply attenuation (e.g. during thresholding) to these chans
+%     pip.control='PsychPortAudio'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt
+%     pip.chan = [1 2]; 
+%     pip.nrchannels = 2; % total number of channels, e.g. on sound card
+%     pip.Tukey = 0.25; % Apply Tukey window?
+%     pip.Tukeytype = 1; % 1 = apply to each tone within pattern; 2 = apply to whole pattern
+%     
     % duplicate
     for ns=[1 2]
         h.Settings.stim(ns) = h.Settings.stim(1);
@@ -629,7 +628,7 @@ switch opt
     %h.Settings.stim(2) = pip;
     
     % within-trial frequency (s)
-    h.Settings.wait=[2 0]; % one value per nstim 
+    h.Settings.wait=[1 0]; % one value per nstim 
     
     %% CHANGING STIMULUS INTENSITY EVERY X PULSES
     % REFER TO "TIMER STOP": https://labjack.com/support/ud/df-lj-app-guide/10.5
@@ -652,7 +651,7 @@ switch opt
         ];
    
     h.Settings.block_index = [1 1]; % which condition belongs in which block?
-    h.Settings.ntrials = [20 20]; % determines probability of each freq pair. Must be an even number.
+    h.Settings.ntrials = [50 50]; % determines probability of each freq pair. Must be an even number.
 
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1
@@ -683,7 +682,7 @@ switch opt
     h.Settings.adaptive_general.selectcond.cp = [2]; % which CP condition to run adaptive on?
     h.Settings.adaptive_general.stim = h.Settings.target_stims; % which stims to apply changes to?
     h.Settings.adaptive_general.stim_judge = h.Settings.target_stims; % which stims do participants judge?
-    h.Settings.adaptive_general.terminate = ''; % terminate within each block only
+    h.Settings.adaptive_general.terminate = 'block'; % terminate within each block only
     h.Settings.adaptive_general.reestimate = ''; % 'block' to re-estimate with wider prior each block
     
     %% ADAPTIVE 2
@@ -708,11 +707,11 @@ switch opt
     h.Settings.adaptive(1).stepsize = [2;sqrt(2);sqrt(sqrt(2))];
     h.Settings.adaptive(1).steptype = 0;
     h.Settings.adaptive(1).stepdir = -1;
-    h.Settings.adaptive(1).startinglevel = 1/25 * 1/(25*2); % 1/25th of 25Hz = 1Hz difference. Should be a DIFFERENCE value. Keep small as it will increase naturally over time. 
+    h.Settings.adaptive(1).startinglevel = 0.05; % sec difference in gaps between stimulus pairs. Should be a DIFFERENCE value. Keep small as it will increase naturally over time. 
     h.Settings.adaptive(1).omit = 0; % 1 = omission is incorrect; 2 = omission is correct
     h.Settings.adaptive(1).startomit = 0;
     h.Settings.adaptive(1).reversalForthresh = 6;
-    h.Settings.adaptive(1).levelmax = 0.05; % should be a DIFFERENCE value.
+    h.Settings.adaptive(1).levelmax = 0.25; % should be a DIFFERENCE value.
     h.Settings.adaptive(1).levelmin = 0;
     h.Settings.adaptive(1).maxtrial = inf;
     h.Settings.adaptive(1).ignoretrials = 0;
@@ -764,7 +763,7 @@ switch opt
     train_dur = 1;
     % don't change these
     min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. Use 0.001 for DS8R.
-    min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
+    min_trigger = max(0.001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
     for n = 1:length(nstim)
         % inital settings/calculation to create gap series
         stimsum = nstim(n) * min_trigger; % duration all the stimuli add up to in a train
@@ -871,7 +870,7 @@ switch opt
     %h.Settings.stim(2) = pip;
     
     % within-trial frequency (s)
-    h.Settings.wait=[2 0]; % one value per nstim 
+    h.Settings.wait=[1 0]; % one value per nstim 
     
     %% CHANGING STIMULUS INTENSITY EVERY X PULSES
     % REFER TO "TIMER STOP": https://labjack.com/support/ud/df-lj-app-guide/10.5
@@ -894,7 +893,7 @@ switch opt
         ];
    
     h.Settings.block_index = [1 1]; % which condition belongs in which block?
-    h.Settings.ntrials = [20 20]; % determines probability of each freq pair. Must be an even number.
+    h.Settings.ntrials = [50 50]; % determines probability of each freq pair. Must be an even number.
 
     %% RESPONSE PARAMETERS
     % record responses during experiment? 0 or 1
@@ -925,7 +924,7 @@ switch opt
     h.Settings.adaptive_general.selectcond.cp = [2]; % which CP condition to run adaptive on?
     h.Settings.adaptive_general.stim = h.Settings.target_stims; % which stims to apply changes to?
     h.Settings.adaptive_general.stim_judge = h.Settings.target_stims; % which stims do participants judge?
-    h.Settings.adaptive_general.terminate = ''; % terminate within each block only
+    h.Settings.adaptive_general.terminate = 'block'; % terminate within each block only
     h.Settings.adaptive_general.reestimate = ''; % 'block' to re-estimate with wider prior each block
     
     %% ADAPTIVE 2
@@ -950,7 +949,7 @@ switch opt
     h.Settings.adaptive(1).stepsize = [2;sqrt(2);sqrt(sqrt(2))];
     h.Settings.adaptive(1).steptype = 0;
     h.Settings.adaptive(1).stepdir = -1;
-    h.Settings.adaptive(1).startinglevel = 1/25 * 1/(25*2); % 1/25th of 25Hz = 1Hz difference. Should be a DIFFERENCE value. Keep small as it will increase naturally over time. 
+    h.Settings.adaptive(1).startinglevel = 4/22 * 1/(22*2); % 4/22th of 22Hz = 2Hz difference. Should be a DIFFERENCE value. Keep small as it will increase naturally over time. 
     h.Settings.adaptive(1).omit = 0; % 1 = omission is incorrect; 2 = omission is correct
     h.Settings.adaptive(1).startomit = 0;
     h.Settings.adaptive(1).reversalForthresh = 6;
@@ -1016,7 +1015,7 @@ switch opt
     train_dur = 1;
     % don't change these
     min_gap = 0.001; % minimum gap in ms. standard DS8R cannot be triggered more frequently than every 1ms. Use 0.001 for DS8R.
-    min_trigger = max(0.0001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
+    min_trigger = max(0.001,1/(16384/(2*train_dur))); % DS8R can detect down to 0.01ms but 0.1ms is sufficient for most purposes. Also need to take the sampling frequency into account.
     for n = 1:length(nstim)
         % inital settings/calculation to create gap series
         stimsum = nstim(n) * min_trigger; % duration all the stimuli add up to in a train
@@ -1125,7 +1124,7 @@ switch opt
     %h.Settings.stim(2) = pip;
     
     % within-trial frequency (s)
-    h.Settings.wait=[2 0]; % one value per nstim 
+    h.Settings.wait=[1 0]; % one value per nstim 
     
     %% CHANGING STIMULUS INTENSITY EVERY X PULSES
     % REFER TO "TIMER STOP": https://labjack.com/support/ud/df-lj-app-guide/10.5
@@ -1231,7 +1230,7 @@ switch opt
     % stepdir -1 = level decreases intensity; stepdir 1 = level increases intensity
     h.Settings.adaptive(1).stepdir = -1;
     % starting level of adaptive staircase
-    h.Settings.adaptive(1).startinglevel = 1/25 * 1/(25*2); % 1/25th of 25Hz = 1Hz difference. Should be a DIFFERENCE value. Keep small as it will increase naturally over time. 
+    h.Settings.adaptive(1).startinglevel = 4/22 * 1/(22*2); % 1/25th of 25Hz = 1Hz difference. Should be a DIFFERENCE value. Keep small as it will increase naturally over time. 
     % adapt to omissions of response (not suitable for 2AFC tasks, so set to 0)
     h.Settings.adaptive(1).omit = 0; % 1 = omission is incorrect; 2 = omission is correct
     % which trials (or oddballs if oddonly selected) to start adaptive procedure if there is an omission?

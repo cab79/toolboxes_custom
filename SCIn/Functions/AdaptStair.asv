@@ -646,7 +646,7 @@ if ~isempty(ind)
         end
         if strcmp(h.Settings.adaptive(atype).type,'discrim')
             yyaxis right
-            scatter(h.i,h.out.adaptive(end,14),'y','filled');
+            scatter(h.i,h.out.adaptive(end,12),'y','filled');
             ylim([0 100]);
         end
         hold off

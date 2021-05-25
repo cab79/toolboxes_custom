@@ -95,7 +95,7 @@ if strcmp(h.Settings.stim(h.sn).control,'PsychPortAudio') || strcmp(h.Settings.s
     end
     s.actStimulusLevel = min(h.Settings.threshold.maxinten,inten_atten+s.StimulusLevel);
 end
-if strcmp(h.Settings.stim(h.sn).control,'labjack') || strcmp(h.Settings.stim(h.sn).control,'LJTick-DAQ')
+if strcmp(h.Settings.stim(h.sn).control,'labjack') || strcmp(h.Settings.stim(h.sn).control,'LJTick-DAQ') || strcmp(h.Settings.stim(h.sn).control,'T7')
     % additional intensity (e.g. GUI control of base tactile intensity)
     if isfield(h,'baseinten')
         baseinten = h.baseinten(1);
