@@ -824,3 +824,28 @@ function DutyCycle_CreateFcn(hObject, eventdata, h)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+
+function DurationDiff_Callback(hObject, eventdata, h)
+% hObject    handle to DurationDiff (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of DurationDiff as text
+%        str2double(get(hObject,'String')) returns contents of DurationDiff as a double
+h.dur_diff_gui = get(hObject,'String');
+guidata(hObject, h)
+
+% --- Executes during object creation, after setting all properties.
+function DurationDiff_CreateFcn(hObject, eventdata, h)
+% hObject    handle to DurationDiff (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+

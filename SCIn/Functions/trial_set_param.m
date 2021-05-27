@@ -527,6 +527,20 @@ switch h.Settings.stim(h.sn).control
             end
         end
         
+        % duration difference from GUI
+        set_dur_diff = 0;
+        if ~isfield(h.stim,'dur_diff') || length(h.stim)<h.sn
+            set_dur_diff = 1;
+        elseif isempty(h.stim(h.sn).dur_diff)
+            set_dur_diff = 1;
+        end
+        if set_dur_diff
+            if ~isfield(h,'dur_diff_gui')
+                h.stim(h.sn).dur_diff=0;
+            else
+                h.stim(h.sn).dur_diff = str2double(h.dur_diff_gui);
+            end
+        end
        
         % oddball method - get varlevel for duration shuffle
         if h.seqtype.oddball 
@@ -545,6 +559,10 @@ switch h.Settings.stim(h.sn).control
                     else
                         dur_diff = 0;
                         if h.seqtype.adapt
+                            if find(strcmp(h.atypes,'discrim')) && isfield(h.stim,'dur_diff') && h.stim(h.sn).dur_diff>0
+                                % use GUI value
+                                h.Settings.adaptive.startinglevel = h.stim(h.sn).dur_diff;
+                            end
                             h.varlevel = h.Settings.adaptive.startinglevel;
                         else
                             h.varlevel = h.Settings.threshold.startinglevel;
