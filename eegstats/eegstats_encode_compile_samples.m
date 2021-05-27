@@ -172,7 +172,7 @@ for d = 1:nD % subject
                 cd(pthData)
                 
                 input = nan([prod(ddim(1:end-1)') ddim(end)]);
-                input(sinz,:) = vertcat([M.model(i).samples(:).resid]');
+                input(sinz,:) = vertcat([M.model(i).samples(:).input]');
                 input = reshape(input,[ddim(1:end-1)' ddim(end)]);
                 
                 disp([save_pref ' saving input from model ' num2str(i) '/' num2str(LM)]);
@@ -184,7 +184,7 @@ for d = 1:nD % subject
                 cd(pthData)
                 
                 fitted = nan([prod(ddim(1:end-1)') ddim(end)]);
-                fitted(sinz,:) = vertcat([M.model(i).samples(:).resid]');
+                fitted(sinz,:) = vertcat([M.model(i).samples(:).fitted]');
                 fitted = reshape(fitted,[ddim(1:end-1)' ddim(end)]);
                 
                 disp([save_pref ' saving fitted from model ' num2str(i) '/' num2str(LM)]);
@@ -192,23 +192,51 @@ for d = 1:nD % subject
                 cd(pth)
             end
         elseif iscondor
-            resid = nan(ddim(end),length(M.model(i).samples));
-            for s = 1:length(M.model(i).samples)
-                temp = M.model(i).samples(s).resid;
-                
-                % z-score
-                resid_mean=nanmean(temp);
-                resid_std=nanstd(temp);
-                resid(:,s)=(temp-resid_mean)/resid_std;
-                
-                % clear memory            
-                M.model(i).samples(s).resid = []; 
+            if S.encode.save_residuals
+                resid = nan(ddim(end),length(M.model(i).samples));
+                for s = 1:length(M.model(i).samples)
+                    temp = M.model(i).samples(s).resid;
+
+                    % z-score
+                    resid_mean=nanmean(temp);
+                    resid_std=nanstd(temp);
+                    resid(:,s)=(temp-resid_mean)/resid_std;
+
+                    % clear memory            
+                    M.model(i).samples(s).resid = []; 
+                end
+                disp([save_pref ' saving residuals from model ' num2str(i) '/' num2str(LM)]);
+                cd(pthData)
+                save(D(d).model(i).resid_file,'resid','-v7.3');
+                %zip('resid.zip', D(d).model(i).resid_file); 
+                cd(pth)
             end
-            disp([save_pref ' saving residuals from model ' num2str(i) '/' num2str(LM)]);
-            cd(pthData)
-            save(D(d).model(i).resid_file,'resid','-v7.3');
-            %zip('resid.zip', D(d).model(i).resid_file); 
-            cd(pth)
+            if S.encode.save_input
+                input = nan(ddim(end),length(M.model(i).samples));
+                for s = 1:length(M.model(i).samples)
+                    input(:,s) = M.model(i).samples(s).input;
+                    % clear memory            
+                    M.model(i).samples(s).input = []; 
+                end
+                disp([save_pref ' saving inputs from model ' num2str(i) '/' num2str(LM)]);
+                cd(pthData)
+                save(D(d).model(i).input_file,'input','-v7.3');
+                cd(pth)
+            end
+            if S.encode.save_fitted
+                fitted = nan(ddim(end),length(M.model(i).samples));
+                for s = 1:length(M.model(i).samples)
+                    fitted(:,s) = M.model(i).samples(s).fitted;
+                    % clear memory            
+                    M.model(i).samples(s).fitted = []; 
+                end
+                disp([save_pref ' saving fitted from model ' num2str(i) '/' num2str(LM)]);
+                cd(pthData)
+                save(D(d).model(i).fitted_file,'fitted','-v7.3');
+                cd(pth)
+            end
+            
+            
 %             if S.encode.save_residuals
 %                 disp([save_pref num2str(C(c).chunk_info.d) ' saving residuals from chunk ' num2str(c) ' model ' num2str(i)]);
 %                 resid = vertcat([M.model(i).samples(:).resid]');
@@ -352,10 +380,10 @@ for d = 1:nD % subject
             C(fileout.chunk_info.c).M = fileout.M;
             C(fileout.chunk_info.c).chunk_info = fileout.chunk_info;
 
-            if S.encode.save_input
-                filein = load(['input' num2str(c-1) '.mat']);
-                C(filein.chunk_info.c).Y = filein.Y;
-            end
+%             if S.encode.save_input
+%                 filein = load(['input' num2str(c-1) '.mat']);
+%                 C(filein.chunk_info.c).Y = filein.Y;
+%             end
         else
             disp(['output file ' num2str(c) ' does not exist'])
         end

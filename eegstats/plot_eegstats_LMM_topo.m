@@ -71,9 +71,10 @@ cmp=1-cmp; % make darker
 cmp2=cbrewer('div', 'PiYG', 100, 'pchip');
 % cmp2 = 1-cmp2;
 cmp2 = rescale(exp(cmp2),0,0.9);
+cmp2 = 1-cmp2;
 % cmp2=cmp2.*colmod; % make darker
 cmp3=cbrewer('div', 'Spectral', 100, 'pchip');
-% cmp3 = 1-cmp3;
+cmp3 = 1-cmp3;
 cmp3 = rescale(exp(cmp3),0,0.9);
 % cmp3=cmp3.*colmod; % make darker
 % add in white for -1 values

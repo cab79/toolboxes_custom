@@ -21,7 +21,11 @@ for s = 1:size(Y,2)
     N=size(X,1);
     K=S.brr.folds;
     if K
-        CVsample = cvpartition(N,'KFold',K);
+        if N>K
+            CVsample = cvpartition(N,'KFold',K);
+        elseif N==K
+            CVsample = cvpartition(N,'LeaveOut');
+        end
 %         x_val_in  = crossvalind('Kfold', N, K);
 
     else
@@ -71,7 +75,11 @@ for s = 1:size(Y,2)
 %             else
 %                 [beta, beta0, stt(i)] = bayesreg(X(es_in,:),y(es_in),S.brr.model,S.brr.prior,'nsamples',S.brr.nsamples,'burnin',S.brr.burnin,'thin',S.brr.thin,'display',false,'waic', S.brr.waic,'catvars',catvars);
 %             end
-            [pred, predstt(i)] = br_predict(X(val_in,:), beta, beta0, stt(i), 'ytest', y(val_in), 'CI', [2.5, 97.5], 'display', false);
+            try
+                [pred, predstt(i)] = br_predict(X(val_in,:), beta, beta0, stt(i), 'ytest', y(val_in), 'CI', [2.5, 97.5], 'display', false);
+            catch
+                [pred, predstt(i)] = br_predict(X(val_in,:), beta, beta0, stt(i), 'ytest', y(val_in), 'display', false);
+            end
 
             logl(i) = stt(i).modelstats.logl; 
             waic(i) = stt(i).modelstats.waic; 

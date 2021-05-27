@@ -15,11 +15,7 @@ if isempty(varargin)
 else
     D= varargin{1};
 end
-%% Chunking
-% chunk the data - ideal run time is
-% about 10 mins for Condor. runs at about 250 samples per
-% minutes, per processor, so 2500 sample is
-% ideal.
+
 C=struct;
 if isfield(S.encode,'nprep')
     np = S.encode.nprep;
@@ -28,15 +24,8 @@ else
 end
 for d = 1:length(D)
     
-    % NEW select whether to load the data Y from D or from a separate file
-    % containing Y (if Y is too large to keep in memory entirely)
-    if ~isempty(S.encode.path.inputsY)
-        matY = matfile(S.encode.path.inputsY);
-        [~,lenY] = size(matY,'Y');
-    else
-        Yin = D(d).prep(np).Y;
-        lenY = length(Yin);
-    end
+    Yin = D(d).prep(np).Y;
+    lenY = length(Yin);
     
     n_chunks_d = max(1,ceil(lenY/S.encode.parallel.chunksize));
     chunksize = ceil(lenY/n_chunks_d);

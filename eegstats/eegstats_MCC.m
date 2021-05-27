@@ -368,7 +368,8 @@ for d=1:length(D)
             xlab = 'contrast';
             ylab = 'Z values';
             try
-                jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl)
+                f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl);
+                saveas(f,fullfile(S.MCC.path.inputs,'Z_values.png'))
             catch
                 disp(['no significant effects for model ' num2str(i)])
             end
@@ -474,10 +475,10 @@ for p = 1:size(S.path.code,1)
     end
 end
 
-function jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl)
+function f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl)
 plotdatX=-plotdatX;
 plotdatX(plotdatX==0)=NaN;
-figure('name',figname)
+f=figure('name',figname);
 minmax = -[size(plotdatX,2)+0.5,0.5];
 hold on
 s=scatter(plotdatX(:), plotdatY(:),10,'k','filled', 'jitter','on', 'jitterAmount',0.3);
