@@ -1,4 +1,4 @@
-function eegstats_encode_source(S,varargin)
+function eegstats_encode_new(S,varargin)
 % Wrapper function; calls subfunctions for different decoding methods, or
 % generates input files and job submission file for condor.
 % Compiles all samples from the outputs and saves them.
@@ -127,7 +127,7 @@ for d = 1:length(D)
             Yy = Yin(si);
             tempY=zeros(height(Yy(1).dtab),length(si));
             for s = 1:length(si)
-                tempY(:,s) = Yy(s).dtab;
+                tempY(:,s) = Yy(s).dtab.data;
             end
         end
             
@@ -144,7 +144,7 @@ for d = 1:length(D)
             for s = 1:size(tempY,2)
                 temp = array2table(tempY(:,s),'VariableNames',{'data'});
                 Y(s).dtab = horzcat(D(d).prep(np).dtab,temp);
-                Y(s).dtab = Y(s).dtab(:,ismember(Y(s).dtab.Properties.VariableNames,S.encode.variables));
+                Y(s).dtab = Y(s).dtab(:,ismember(Y(s).dtab.Properties.VariableNames,vertcat(S.encode.variables,{'data'})));
             end
         else
             dtab = D(d).prep(np).dtab(:,ismember(D(d).prep(np).dtab.Properties.VariableNames,S.encode.variables));
@@ -169,7 +169,8 @@ for d = 1:length(D)
             C(c).chunk_info=chunk_info;
         end
         
-        if ~isempty(S.encode.path.inputsY)
+        %if ~isempty(S.encode.path.inputsY)
+            model_run = 1;
             cum_nc=cum_nc+1;
             % run on a certain number of chunks and clear memory
             if cum_nc==NumWorkers
@@ -178,7 +179,7 @@ for d = 1:length(D)
                 C(cvalid(end-NumWorkers+1:end)) = run_model(Csub,S,NumWorkers,save_pref);
                 cum_nc=0;
             end
-        end
+        %end
         
     end
     
@@ -191,7 +192,7 @@ if strcmp(S.encode.parallel.option,'condor')
 elseif strcmp(S.encode.parallel.option,'local') || strcmp(S.encode.parallel.option,'none')
     
     % run all samples if not run within previous loop
-    if isempty(S.encode.path.inputsY)
+    if isempty(S.encode.path.inputsY && model_run==0)
         C = run_model(C,S,NumWorkers);
     end
     

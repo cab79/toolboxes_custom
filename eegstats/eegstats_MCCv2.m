@@ -1,4 +1,4 @@
-function D=eegstats_MCC(S,varargin)
+function D=eegstats_MCCv2(S,varargin)
 dbstop if error
 
 %% find D saved from createimages function
@@ -94,7 +94,11 @@ for d=1:length(D)
                         % of channels x timepoints x samples
                         if ~exist('resid_vol','var') && ~isempty(S.img.file.coord) && ~isempty(vr) && ndims(vr.resid)>2
                             % chunk it to reduce memory load
-                            chunksize = 2000;
+                            if S.MCC.save_vols_chunksize
+                                chunksize = S.clus.save_vols_chunksize;
+                            else 
+                                chunksize = size(vr.resid,3);
+                            end
                             n_chunks = max(1,ceil(size(vr.resid,3)/chunksize));
                             resid_vol=nan(S.img.imgsize,S.img.imgsize,size(vr.resid,2),size(vr.resid,3));
                             D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
@@ -204,6 +208,11 @@ for d=1:length(D)
                             end
                             resid(sidx) = vr.resid(tr,:); % 
                             
+                            % if topotime data
+                            if ndims(resid) == 2
+                                resid = topotime_3D(resid,S);
+                            end
+                            
                             resid = resid.*double(mask_img); % mask it
                             resid(isnan(resid))= 0; % must be no NaN for smoothness function
                             
@@ -234,6 +243,11 @@ for d=1:length(D)
                             end
                                 
                             resid(sidx) = tempmat(tr-tr_sub,:); % 
+                            
+                            % if topotime data
+                            if ndims(resid) == 2
+                                resid = topotime_3D(resid,S);
+                            end
                             
                             resid = resid.*double(mask_img); % mask it
                             resid(isnan(resid))= 0; % must be no NaN for smoothness function
@@ -414,11 +428,11 @@ for d=1:length(D)
             ylab = 'Z values';
             try
                 f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl);
-                saveas(f,fullfile(S.MCC.path.inputs,'Z_values.png'))
+                saveas(f,fullfile(S.MCC.path.inputs,['Z_values_model' num2str(i) '.png']))
             catch
                 disp(['no significant effects for model ' num2str(i)])
             end
-            clear plotdatX plotdatY xtl
+            clear plotdatX plotdatY xtl resid_vol
         end
     end
 

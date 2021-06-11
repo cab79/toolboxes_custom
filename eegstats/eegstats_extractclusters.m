@@ -74,7 +74,11 @@ for d=1:length(D)
         input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
 
         % chunk it to reduce memory load
-        chunksize = 2000;
+        if S.clus.save_vols_chunksize
+            chunksize = S.clus.save_vols_chunksize;
+        else 
+            chunksize = size(input_scaled_mat,3);
+        end
         n_chunks = max(1,ceil(size(input_scaled_mat,3)/chunksize));
         input_vol=nan(S.img.imgsize,S.img.imgsize,size(input_scaled_mat,2),size(input_scaled_mat,3));
         D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
@@ -548,8 +552,9 @@ for d=1:length(D)
                 if ismember('coeffs',S.clus.summary_data)
                         
                     for co = 1:length(D(d).model(i).coeff)
-                        inp_ind = find(strcmp(S.clus.summary_coeffs(:,2),D(d).model.coeff(co).name)); % input index
-                        c = find(strcmp({D(d).model.con(:).term},S.clus.summary_coeffs(inp_ind,1)));
+                        inp_ind = find(strcmp(S.clus.summary_coeffs(:,2),D(d).model(i).coeff(co).name)); % input index
+                        if isempty(inp_ind); continue; end
+                        c = find(strcmp({D(d).model(i).con(:).term},S.clus.summary_coeffs(inp_ind,1)));
                         nc=numel(D(d).model(i).con(c).vox);
                         for ci=1:nc
                             cii = D(d).model(i).con(c).vox{ci};
@@ -575,18 +580,59 @@ for d=1:length(D)
                 if ismember('fitted',S.clus.summary_data)
                     
                     clear input_vol
-                    for i=1:length(S.clus.model.index)
-                        D(d).model(i).fitted_vol_file = strrep(D(d).model(i).fitted_file,'.mat','_vol.mat');
-                        if exist(D(d).model(i).fitted_vol_file,'file')
-                            disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
-                            load(D(d).model(i).fitted_vol_file);
-                        else
-                            disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
-                            load(D(d).model(i).fitted_file);
-                            if ~exist('fitted_vol','var')
+                    D(d).model(i).fitted_vol_file = strrep(D(d).model(i).fitted_file,'.mat','_vol.mat');
+                    if exist(D(d).model(i).fitted_vol_file,'file')
+                        disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
+                        load(D(d).model(i).fitted_vol_file);
+                    else
+                        disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
+                        load(D(d).model(i).fitted_file);
+                        if ~exist('fitted_vol','var')
+
+                            if ndims(fitted)==2
+                                % non-sparse data from condor
+                                data_size = size(D(d).model(i).s);
 
                                 % chunk it to reduce memory load
-                                chunksize = 2000;
+                                if S.clus.save_vols_chunksize
+                                    chunksize = S.clus.save_vols_chunksize;
+                                else 
+                                    chunksize = size(fitted,1);
+                                end
+                                n_chunks = max(1,ceil(size(fitted,1)/chunksize));
+                                fitted_vol=nan(S.img.imgsize,S.img.imgsize,data_size(2),size(fitted,1));
+                                D(d).model(i).fitted_vol_file = strrep(D(d).model(i).fitted_file,'.mat','_vol.mat');
+                                save(D(d).model(i).fitted_vol_file,'fitted_vol','-v7.3');
+                                clear fitted_vol;
+
+                                sidx = find(~isnan(D(d).model(i).s(:)))'; % sample indices within image
+                                if length(sidx)~= size(fitted,2) % check
+                                    error('wrong number of samples in fitted data');
+                                end
+
+                                m = matfile(D(d).model(i).fitted_vol_file,'Writable',true);
+                                for nc = 1:n_chunks
+                                    si = chunksize*(nc-1)+1 : min(chunksize*nc,size(fitted,1));
+                                    disp(['Cluster: for model ' num2str(i) ', creating fitted vol, chunk ' (num2str(nc))])
+
+                                    fitted_chunk = nan([size(D(d).model(i).s), length(si)]);
+                                    temp = nan(size(D(d).model(i).s));
+                                    for tr = 1:length(si)
+                                        temp(sidx) = fitted(si(tr),sidx); 
+                                        fitted_chunk(:,:,tr) = temp;
+                                    end
+
+                                    m.fitted_vol(1:S.img.imgsize,1:S.img.imgsize,1:data_size(2),si)=topotime_3D(fitted_chunk,S);
+                                end
+                                load(D(d).model(i).fitted_vol_file);
+                                clear fitted fitted_chunk
+                                if ~S.clus.save_vols
+                                    delete(D(d).model(i).fitted_vol_file,'fitted_vol','-v7.3');
+                                end
+
+
+                            else
+
                                 n_chunks = max(1,ceil(size(fitted,3)/chunksize));
                                 fitted_vol=nan(S.img.imgsize,S.img.imgsize,size(fitted,2),size(fitted,3));
                                 D(d).model(i).fitted_vol_file = strrep(D(d).model(i).fitted_file,'.mat','_vol.mat');
@@ -613,9 +659,9 @@ for d=1:length(D)
         %                         clear fitted
                             end
                         end
-                        fitted_voli{i}=reshape(fitted_vol,[],size(fitted_vol,4));
-                        clear fitted_vol
                     end
+                    fitted_voli{i}=reshape(fitted_vol,[],size(fitted_vol,4));
+                    clear fitted_vol
                     
                     for c = S.clus.model.contrast{i}
                         nc=numel(D(d).model(i).con(c).vox);
