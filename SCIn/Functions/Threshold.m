@@ -62,6 +62,8 @@ disp('Running Threshold')
 if resi && resfun==1
 %s.SubjectAccuracy(s.adaptive.trial)= EvaluateAnswer(CorrectAnswer,s.feedback,Question);   %evaluing the subject answer (right or wrong)
     s.change= -1;
+elseif resi && resfun==2
+    s.change = 0;
 else
     s.change= 1;
 end
@@ -78,7 +80,7 @@ if s.change == 1
     else
         s.StimulusLevel = s.StimulusLevel * s.actualstep;
     end
-else
+elseif s.change == -1
     s.StimulusLevel = h.Settings.threshold.startinglevel;
 end
 
@@ -112,26 +114,47 @@ s.trial = s.trial + 1;
 %disp(['Next trial level = ' num2str(s.actStimulusLevel)]);
 
 % threshold calculation
-s.expthresholds=0;
+s.sensthresholds=0;
+s.painthresholds=0;
 if ~isempty(s.out.threshold)
+    
+    % sensory threshold
+    presstrialsall = find(s.out.threshold(:,4)==0);
+    if any(presstrialsall)
+        s.sensthresholds = s.out.threshold(presstrialsall(end)-1,3);
+        fprintf('Sensory threshold on this trial equal to %1.3f\n', s.sensthresholds);
+    end
+    
+    % pain threshold
     presstrialsall = find(s.out.threshold(:,4)==-1);
     if any(presstrialsall)
-        s.expthresholds = s.out.threshold(presstrialsall(end)-1,3);
-        fprintf('Threshold on this trial equal to %1.3f\n', s.expthresholds);
+        s.painthresholds = s.out.threshold(presstrialsall(end)-1,3);
+        fprintf('Pain threshold on this trial equal to %1.3f\n', s.painthresholds);
     end
 end
-s.rowofoutput (1, 5) = s.expthresholds;
+s.rowofoutput (1, 5) = s.sensthresholds;
+s.rowofoutput (1, 6) = s.painthresholds;
 
 % UPDATE THE GLOBAL OUTPUT VARIABLE
 s.out.threshold = [s.out.threshold; s.rowofoutput];
+
+presstrialsall = find(s.out.threshold(:,4)==0);
+if length(presstrialsall)>2 && presstrialsall(end)<s.trial-2
+    try
+        fprintf('Sensory Threshold over last 3 trials equal to %1.3f\n', nanmean(s.out.threshold(presstrialsall(end-2:end)+1,5)));
+    catch
+        fprintf('Sensory Threshold over last 3 trials equal to %1.3f\n', mean(s.out.threshold(presstrialsall(end-2:end)+1,5)));
+    end
+end
 presstrialsall = find(s.out.threshold(:,4)==-1);
 if length(presstrialsall)>2 && presstrialsall(end)<s.trial-2
     try
-        fprintf('Threshold over last 3 trials equal to %1.3f\n', nanmean(s.out.threshold(presstrialsall(end-2:end)+1,5)));
+        fprintf('Pain Threshold over last 3 trials equal to %1.3f\n', nanmean(s.out.threshold(presstrialsall(end-2:end)+1,5)));
     catch
-        fprintf('Threshold over last 3 trials equal to %1.3f\n', mean(s.out.threshold(presstrialsall(end-2:end)+1,5)));
+        fprintf('Pain Threshold over last 3 trials equal to %1.3f\n', mean(s.out.threshold(presstrialsall(end-2:end)+1,5)));
     end
 end
+
 h.s =s;
 h.out.threshold = s.out.threshold;
 %fprintf('Press return to continue\n');
