@@ -49,14 +49,14 @@ switch opt
     h.Settings.wait=0; % within-trial frequency (Hz); one value per nstim 
     
     %% stimulus
-    min_trigger=0.0001;
-    h.Settings.stim(1).dur{1} = [min_trigger 0.5-min_trigger]; % must be at least 0.5s in total due to f0 calculation below
     h.Settings.stim(1).durtype = '';%'oddballvalue','sequence_rand'; 
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff = []; % value between 0 and 1000mA for Digitimer DS8R
     h.Settings.stim(1).inten_diff_max = []; % value between 0 and 1000mA for Digitimer DS8R
     if h.Settings.labjack
         % use labjack T7
+        min_trigger=0.0001;
+        h.Settings.stim(1).dur{1} = [min_trigger 0.5-min_trigger]; % must be at least 0.5s in total due to f0 calculation below
         h.Settings.stim(1).patternvalue = {[5 0]}; %{[repmat([5 0],1,n) 0]}; %{[0 5 0]};  %% one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
@@ -71,6 +71,7 @@ switch opt
         h.Settings.stim(1).maxinten = 200; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     else
         % use audio
+        h.Settings.stim(1).dur{1} = 0.5;
         h.Settings.stim(1).patternvalue = {[300]}; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).f0 = 300; % pitch
@@ -396,8 +397,6 @@ switch opt
     h.Settings.target_stims = [1 2];
     
     %% first stimulus
-    min_trigger=0.001; % made this larger to avoid a problem in constructing hwav later
-    h.Settings.stim(1).dur = {[min_trigger 0.5-min_trigger], repmat([min_trigger 0.5-min_trigger],1,5)}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
     h.Settings.stim(1).stimrandind = [];% index of stimdur to randomise/adapt. 
     h.Settings.stim(1).durtype = 'oddballvalue';%'oddballvalue','sequence_rand'; 
     h.Settings.stim(1).inten = 0; % value between 2 and 1000mA for Digitimer DS8R
@@ -406,6 +405,8 @@ switch opt
     h.Settings.stim(1).maxinten = 0; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     if h.Settings.labjack
         % use labjack T7
+        min_trigger=0.001; % made this larger to avoid a problem in constructing hwav later
+        h.Settings.stim(1).dur = {[min_trigger 0.5-min_trigger], repmat([min_trigger 0.5-min_trigger],1,5)}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
         h.Settings.stim(1).patternvalue = {[5 0], repmat([5 0],1,5)}; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'duration';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).control='T7'; % How to control stimulator? Options: PsychPortAudio, audioplayer, labjack, spt, LJTick-DAQ, T7
@@ -420,6 +421,7 @@ switch opt
         h.Settings.stim(1).maxinten = 200; % max output value for safety purposes. Value between 2 and 1000mA for Digitimer DS8R
     else
         % use audio
+        h.Settings.stim(1).dur = {[0.2 0.5-0.2], repmat([0.2 0.5-0.2],1,5)}; % duration of stimulus in seconds; modified by oddball settings. Value set to zero
         h.Settings.stim(1).patternvalue = {[300 0],[repmat([300 0],1,5)]}; % one per stimdur in each cell; one cell per oddball value
         h.Settings.stim(1).patternmethod = 'pitch';% Pattern type method: intensity, pitch, duration. 
         h.Settings.stim(1).f0 = 300; % pitch
@@ -1188,72 +1190,72 @@ switch opt
     % ISI
     h.Settings.response_nexttrialwait = 0.6:0.2:1.6;
     
-    
-    %% ADAPTIVE: General
-    % which ones to run? (i.e. indices of h.Settings.adaptive)
-    h.Settings.adaptive_general.adapttypes = [1];
-    % alternate or randomise runs over types? Alt must have equal number of
-    % runs for each adapttype. Cond = one type per CP block
-    h.Settings.adaptive_general.seqtype = 'rand'; % 'alt', 'rand', 'cond' 
-    h.Settings.adaptive_general.seqtypecond = [1 1]; %if 'cond', associate each CP with an adaptive type
-    h.Settings.adaptive_general.seqrandblocksize = 12; % should divide the number of trials in a set
-    h.Settings.adaptive_general.selectcond.cp = [2]; % which CP condition to run adaptive on?
-    h.Settings.adaptive_general.stim = h.Settings.target_stims; % which stims to apply changes to?
-    h.Settings.adaptive_general.stim_judge = h.Settings.target_stims; % which stims do participants judge?
-    h.Settings.adaptive_general.terminate = ''; % terminate within each block only
-    h.Settings.adaptive_general.reestimate = ''; % 'block' to re-estimate with wider prior each block
-    
-    %% ADAPTIVE 2
-    h.Settings.adaptive(1).type = 'discrim';
-    h.Settings.adaptive(1).updown = [1 2];
-    % how many of each to run?
-    h.Settings.adaptive(1).nRuns = 100*12;
-    % max number of thresh estimates to average over to get overall estimate
-    h.Settings.adaptive(1).av_thresh = [];
-    h.Settings.adaptive(1).ci_thresh = 20;
-    % number of trials each run
-    h.Settings.adaptive(1).trialsperrun = 1;
-    % adaptive staircase: meanings of the buttonopt
-    h.Settings.adaptive(1).buttonfun = {'LeftArrow','RightArrow'}; 
-    % adaptive staircase: corresponding signal values that would signify a
-    % correct answer
-    h.Settings.adaptive(1).signalval = [1 2]; 
-    h.Settings.adaptive(1).signalcorrect = 2; % correct response
-    h.Settings.adaptive(1).signaltarget = {[1 2 3 4],[1 2 1 2]}; % translate actual signal values to signalval indices
-    h.Settings.adaptive(1).response_type = '2AFC';%'samediff'; % discrimination is same/difference
-    % reversals
-    h.Settings.adaptive(1).reversals = [4;8;12];
-    % stepsize
-    h.Settings.adaptive(1).stepsize = [2;sqrt(2);sqrt(sqrt(2))];
-    % steptype 0 = multiple/divide by stepsize; steptype 1 = add/subtract
-    h.Settings.adaptive(1).steptype = 0;
-    % stepdir -1 = level decreases intensity; stepdir 1 = level increases intensity
-    h.Settings.adaptive(1).stepdir = -1;
-    % starting level of adaptive staircase
-    h.Settings.adaptive(1).startinglevel = 4/22 * 1/(22*2); % 1/25th of 25Hz = 1Hz difference. Should be a DIFFERENCE value. Keep small as it will increase naturally over time. 
-    % adapt to omissions of response (not suitable for 2AFC tasks, so set to 0)
-    h.Settings.adaptive(1).omit = 0; % 1 = omission is incorrect; 2 = omission is correct
-    % which trials (or oddballs if oddonly selected) to start adaptive procedure if there is an omission?
-    h.Settings.adaptive(1).startomit = 0;
-    % adapt on every trial or only just before an oddball?
-    %h.Settings.adaptive.oddonly = 1;
-    % max number of trials after oddball that subject must respond (otherwise counts as omitted response)
-    %h.Settings.adaptive.resptrials = 4;
-    % number of reversals to average over to calculate threshold.
-    h.Settings.adaptive(1).reversalForthresh = 6;
-    % use mean from the first X responses of each type (high and low)
-    %h.Settings.adaptive(1).getmeanfromresponses = 6;
-    % maximum amount to adjust the mean if their responses are very
-    % incorrect (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
-    %h.Settings.adaptive(1).meanadjustmax = 10;
-    % maximum amount of the difference value (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
-    h.Settings.adaptive(1).levelmax = 0.05; % should be a DIFFERENCE value.
-    h.Settings.adaptive(1).levelmin = 0;
-    h.Settings.adaptive(1).maxtrial = inf;
-    %h.Settings.adaptive(1).expected_change = 5; % smaller value increases the precision of the prior for ZEST and reduces step size of changes in estimates
-    h.Settings.adaptive(1).ignoretrials = 0;
-    h.Settings.adaptive(1).eta_divide = 2;
-    h.Settings.adaptive(1).slope_stimratio = 1; % number to divide stimulus level by, to calculate slope of ZEST. Should be smaller for thresholding, larger for adjustments during an expt
+%     
+%     %% ADAPTIVE: General
+%     % which ones to run? (i.e. indices of h.Settings.adaptive)
+%     h.Settings.adaptive_general.adapttypes = [1];
+%     % alternate or randomise runs over types? Alt must have equal number of
+%     % runs for each adapttype. Cond = one type per CP block
+%     h.Settings.adaptive_general.seqtype = 'rand'; % 'alt', 'rand', 'cond' 
+%     h.Settings.adaptive_general.seqtypecond = [1 1]; %if 'cond', associate each CP with an adaptive type
+%     h.Settings.adaptive_general.seqrandblocksize = 12; % should divide the number of trials in a set
+%     h.Settings.adaptive_general.selectcond.cp = [2]; % which CP condition to run adaptive on?
+%     h.Settings.adaptive_general.stim = h.Settings.target_stims; % which stims to apply changes to?
+%     h.Settings.adaptive_general.stim_judge = h.Settings.target_stims; % which stims do participants judge?
+%     h.Settings.adaptive_general.terminate = ''; % terminate within each block only
+%     h.Settings.adaptive_general.reestimate = ''; % 'block' to re-estimate with wider prior each block
+%     
+%     %% ADAPTIVE 2
+%     h.Settings.adaptive(1).type = 'discrim';
+%     h.Settings.adaptive(1).updown = [1 2];
+%     % how many of each to run?
+%     h.Settings.adaptive(1).nRuns = 100*12;
+%     % max number of thresh estimates to average over to get overall estimate
+%     h.Settings.adaptive(1).av_thresh = [];
+%     h.Settings.adaptive(1).ci_thresh = 20;
+%     % number of trials each run
+%     h.Settings.adaptive(1).trialsperrun = 1;
+%     % adaptive staircase: meanings of the buttonopt
+%     h.Settings.adaptive(1).buttonfun = {'LeftArrow','RightArrow'}; 
+%     % adaptive staircase: corresponding signal values that would signify a
+%     % correct answer
+%     h.Settings.adaptive(1).signalval = [1 2]; 
+%     h.Settings.adaptive(1).signalcorrect = 2; % correct response
+%     h.Settings.adaptive(1).signaltarget = {[1 2 3 4],[1 2 1 2]}; % translate actual signal values to signalval indices
+%     h.Settings.adaptive(1).response_type = '2AFC';%'samediff'; % discrimination is same/difference
+%     % reversals
+%     h.Settings.adaptive(1).reversals = [4;8;12];
+%     % stepsize
+%     h.Settings.adaptive(1).stepsize = [2;sqrt(2);sqrt(sqrt(2))];
+%     % steptype 0 = multiple/divide by stepsize; steptype 1 = add/subtract
+%     h.Settings.adaptive(1).steptype = 0;
+%     % stepdir -1 = level decreases intensity; stepdir 1 = level increases intensity
+%     h.Settings.adaptive(1).stepdir = -1;
+%     % starting level of adaptive staircase
+%     h.Settings.adaptive(1).startinglevel = 4/22 * 1/(22*2); % 1/25th of 25Hz = 1Hz difference. Should be a DIFFERENCE value. Keep small as it will increase naturally over time. 
+%     % adapt to omissions of response (not suitable for 2AFC tasks, so set to 0)
+%     h.Settings.adaptive(1).omit = 0; % 1 = omission is incorrect; 2 = omission is correct
+%     % which trials (or oddballs if oddonly selected) to start adaptive procedure if there is an omission?
+%     h.Settings.adaptive(1).startomit = 0;
+%     % adapt on every trial or only just before an oddball?
+%     %h.Settings.adaptive.oddonly = 1;
+%     % max number of trials after oddball that subject must respond (otherwise counts as omitted response)
+%     %h.Settings.adaptive.resptrials = 4;
+%     % number of reversals to average over to calculate threshold.
+%     h.Settings.adaptive(1).reversalForthresh = 6;
+%     % use mean from the first X responses of each type (high and low)
+%     %h.Settings.adaptive(1).getmeanfromresponses = 6;
+%     % maximum amount to adjust the mean if their responses are very
+%     % incorrect (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
+%     %h.Settings.adaptive(1).meanadjustmax = 10;
+%     % maximum amount of the difference value (should be a small fraction, e.g. 1/5th, of the stimulus intensity)
+%     h.Settings.adaptive(1).levelmax = 0.05; % should be a DIFFERENCE value.
+%     h.Settings.adaptive(1).levelmin = 0;
+%     h.Settings.adaptive(1).maxtrial = inf;
+%     %h.Settings.adaptive(1).expected_change = 5; % smaller value increases the precision of the prior for ZEST and reduces step size of changes in estimates
+%     h.Settings.adaptive(1).ignoretrials = 0;
+%     h.Settings.adaptive(1).eta_divide = 2;
+%     h.Settings.adaptive(1).slope_stimratio = 1; % number to divide stimulus level by, to calculate slope of ZEST. Should be smaller for thresholding, larger for adjustments during an expt
 end
 
 function h = setgeneral(h)

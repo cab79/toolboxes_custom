@@ -192,7 +192,7 @@ tic
 
 h.i=0;
 
-while h.i<size(h.Seq.signal,2)
+while h.i<=size(h.Seq.signal,2)
     
     % new trial
     h.i=h.i+1;
@@ -200,8 +200,8 @@ while h.i<size(h.Seq.signal,2)
     % if running Adaptive, should this trial be run?
     if isfield(h.Settings,'adaptive')
         if ~isempty(h.Settings.adaptive)
-            if h.i<length(h.Seq.adapttype)
-                if ~isnan(h.Seq.adapttype(h.i+1))
+            if h.i<=length(h.Seq.adapttype)
+                if ~isnan(h.Seq.adapttype(h.i))
                     if isfield(h,'s') 
                         % clear h.s.terminate if new block
                         if isfield(h.Settings.adaptive_general,'terminate')
@@ -688,7 +688,7 @@ while (h.ct-h.st)<h.trialdur
         end
     end
 
-    if h.i~=size(h.Seq.signal,2) 
+    if h.i<size(h.Seq.signal,2) 
         % next trial is in a new block, pause here
         if h.Seq.blocks(h.i+1)>h.Seq.blocks(h.i) && h.Settings.pauseeachblock
             
@@ -724,6 +724,8 @@ while (h.ct-h.st)<h.trialdur
             end
             tic
         end
+    elseif h.i==size(h.Seq.signal,2) 
+        continue;
     else
         ShowCursor;
         sca;
