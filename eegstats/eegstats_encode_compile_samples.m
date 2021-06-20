@@ -34,14 +34,27 @@ else
 end
 
 % loop through chunks of samples
-si = [];sinz = [];
+
 for d = 1:nD % subject
     M=struct; % temporary structure
+    si = [];sinz = [];
+    
     %% compile samples from chunks
+    
     % assume same number of chunks per subject
-    %n_chunks_d=C(cidx(1)).chunk_info.n_chunks_d;
-    % chunks per subject
-    for c = cidx
+    n_chunks_d=C(cidx(1)).chunk_info.n_chunks_d;
+    
+    % chunks for all subjects - THIS VERSION WORKS FOR LMMs, BUT NOT FOR
+    % BRRS
+    %for c = cidx
+        
+    % chunks per subject - THIS VERSION WORKS FOR BRRs, UNSURE IF WORKS FOR
+    % LMMs
+    for nc = 1:n_chunks_d 
+        
+        % chunk index, c
+        c = (d-1)*n_chunks_d +nc;
+        
         if c>length(C); continue; end
         
         disp(['compiling output from file ' num2str(c)])
@@ -67,8 +80,9 @@ for d = 1:nD % subject
                 end
             end
         end
-        C(c).M=[]; % save memory
+        if d==nD; C(c).M=[]; end % save memory
     end
+    
 
     %% reshape to EEG data dimensions
     % loop through chunks of samples

@@ -22,37 +22,59 @@ cmp=cbrewer('div', 'RdBu', 100, 'pchip');
 for d = 1:length(D)
     disp(['data transformations: ' num2str(d) '/' num2str(length(D))])
     
-    if ~isempty(S.prep.calc.pred.sqrt) 
-        col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.sqrt));
-        for pr = 1:length(col_idx)
-            temp = (table2array(D(d).prep.dtab(:,col_idx(pr)))).^(1/2);
-            D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
-        end
-    end
-    if ~isempty(S.prep.calc.pred.log) 
+%     if isfield(S.prep.calc.pred,'cubert') && ~isempty(S.prep.calc.pred.cubert) 
+%         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.cubert));
+%         for pr = 1:length(col_idx)
+%             tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+%             if any(tempdat<0)
+%                 temp = (abs(tempdat).^(1/3)).*sign(tempdat); 
+%             else
+%                 temp = (tempdat).^(1/3);
+%             end
+%             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
+%         end
+%     end
+    if isfield(S.prep.calc.pred,'log') && ~isempty(S.prep.calc.pred.log) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.log));
         for pr = 1:length(col_idx)
             tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+            if any(tempdat<0); tempdat = tempdat-min(tempdat); end
             tempdat(tempdat==0) = min(tempdat(tempdat~=0));
             temp = log(tempdat);
             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
         end
     end
-    if ~isempty(S.prep.calc.pred.exp) 
+    if isfield(S.prep.calc.pred,'rootn') && ~isempty(S.prep.calc.pred.rootn)
+        for ri = 1:size(S.prep.calc.pred.rootn,1)
+            col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.rootn{ri,1}));
+            val=S.prep.calc.pred.rootn{ri,2};
+            val=val{:};
+            for pr = 1:length(col_idx)
+                tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+                if any(tempdat<0)
+                    temp = (abs(tempdat).^(1/val)).*sign(tempdat); 
+                else
+                    temp = (tempdat).^(1/val);
+                end
+                D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
+            end
+        end
+    end
+    if isfield(S.prep.calc.pred,'exp') && ~isempty(S.prep.calc.pred.exp) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.exp));
         for pr = 1:length(col_idx)
             temp = exp(table2array(D(d).prep.dtab(:,col_idx(pr))));
             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
         end
     end
-    if ~isempty(S.prep.calc.pred.power10) 
+    if isfield(S.prep.calc.pred,'power10') && ~isempty(S.prep.calc.pred.power10) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.power10));
         for pr = 1:length(col_idx)
             temp = 10.^(table2array(D(d).prep.dtab(:,col_idx(pr))));
             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
         end
     end
-    if ~isempty(S.prep.calc.pred.newvarmult) 
+    if isfield(S.prep.calc.pred,'newvarmult') && ~isempty(S.prep.calc.pred.newvarmult) 
         for pr = 1:size(S.prep.calc.pred.newvarmult)
             try
                 if strcmp(S.prep.calc.pred.newvarmult{pr,4},'*')
@@ -64,7 +86,7 @@ for d = 1:length(D)
             end
         end
     end
-    if ~isempty(S.prep.calc.pred.log_2nd) 
+    if isfield(S.prep.calc.pred,'log_2nd') && ~isempty(S.prep.calc.pred.log_2nd) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.log_2nd));
         for pr = 1:length(col_idx)
             temp = log(table2array(D(d).prep.dtab(:,col_idx(pr))));
@@ -72,6 +94,22 @@ for d = 1:length(D)
         end
     end
     
+    if isfield(S.prep.calc.pred,'rootn_2nd') && ~isempty(S.prep.calc.pred.rootn_2nd)
+        for ri = 1:size(S.prep.calc.pred.rootn_2nd,1)
+            col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.rootn_2nd{ri,1}));
+            val=S.prep.calc.pred.rootn_2nd{ri,2};
+            val=val{:};
+            for pr = 1:length(col_idx)
+                tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+                if any(tempdat<0)
+                    temp = (abs(tempdat).^(1/val)).*sign(tempdat); 
+                else
+                    temp = (tempdat).^(1/val);
+                end
+                D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
+            end
+        end
+    end
     % z-scoring on continuous predictors, but not if doing PLS on EEG data
     if S.prep.calc.pred.zscore
         %if S.prep.calc.eeg.pca.on == 1 && any(strcmp(S.prep.calc.eeg.pca.PCAmethod,'PLS'))
@@ -81,7 +119,12 @@ for d = 1:length(D)
             numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
             for pr = 1:length(numericvar_names)
                 if ismember(numericvar_names{pr}, S.prep.calc.pred.zscore_exclude); continue; end
-                [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(table2array(D(d).prep.dtab(:,numericvar_names{pr})));
+                % remove inf values
+                dat=table2array(D(d).prep.dtab(:,numericvar_names{pr}));
+                if any(isinf(dat))
+                    dat(isinf(dat))= max(dat(~isinf(dat)));
+                end
+                [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(dat);
                 D(d).prep.dtab(:,numericvar_names{pr}) = array2table(zdata);
             end
             
@@ -161,10 +204,10 @@ for d = 1:length(D)
         save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
         
         % multicollinaerity
-        coli=find(corrmat>S.prep.calc.pred.test_collinearity);
+        coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
         [row,col] = ind2sub(size(corrmat),coli);
         ax2=subplot(1,2,2);
-        imagesc(corrmat>S.prep.calc.pred.test_collinearity); caxis([0 1])
+        imagesc(abs(corrmat)>S.prep.calc.pred.test_collinearity); caxis([0 1])
         xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
         yticks(1:length(plot_names)); yticklabels(plot_names);
         title('multicollinearity of predictors (LMM)')
@@ -213,10 +256,10 @@ for d = 1:length(D)
         %save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
         
         % multicollinaerity
-        coli=find(corrmat>S.prep.calc.pred.test_collinearity);
+        coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
         [row,col] = ind2sub(size(corrmat),coli);
         ax2=subplot(1,2,2);
-        imagesc(corrmat>S.prep.calc.pred.test_collinearity); caxis([0 1])
+        imagesc(abs(corrmat)>S.prep.calc.pred.test_collinearity); caxis([0 1])
         xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
         yticks(1:length(plot_names)); yticklabels(plot_names);
         title('multicollinearity of predictors (concat)')
