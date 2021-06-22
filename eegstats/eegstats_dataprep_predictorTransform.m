@@ -115,17 +115,24 @@ for d = 1:length(D)
         %if S.prep.calc.eeg.pca.on == 1 && any(strcmp(S.prep.calc.eeg.pca.PCAmethod,'PLS'))
         %    disp('no z-scoring to properly rescale Y variables for PLS')
         %else
+        if S.prep.calc.pred.zscore_perID
+            [U,~,iU]=unique(D.prep.dtab.ID,'stable');
+        else
+            U={'all'}; iU=ones(height(D.prep.dtab),1);
+        end
+
+        for u=1:length(U)
             vt = vartype('numeric');
             numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
             for pr = 1:length(numericvar_names)
                 if ismember(numericvar_names{pr}, S.prep.calc.pred.zscore_exclude); continue; end
                 % remove inf values
-                dat=table2array(D(d).prep.dtab(:,numericvar_names{pr}));
+                dat=table2array(D(d).prep.dtab(iU==u,numericvar_names{pr}));
                 if any(isinf(dat))
                     dat(isinf(dat))= max(dat(~isinf(dat)));
                 end
-                [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(dat);
-                D(d).prep.dtab(:,numericvar_names{pr}) = array2table(zdata);
+                [zdata, D(d).prep.pred_means(pr,u), D(d).prep.pred_stds(pr,u)] = zscore(dat);
+                D(d).prep.dtab(iU==u,numericvar_names{pr}) = array2table(zdata);
             end
             
             % additionally, convert any categorical variables that are due
@@ -137,163 +144,21 @@ for d = 1:length(D)
                 if numel(catvar_pca_idx)>0
                     for pr = 1:length(catvar_pca_idx)
                         if ismember(catvar_names{catvar_pca_idx(pr)}, S.prep.calc.pred.zscore_exclude); continue; end
-                        [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(double(table2array(D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}))));
-                        D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}) = [];
-                        D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}) = array2table(zdata);
+                        [zdata, D(d).prep.pred_means(pr,u), D(d).prep.pred_stds(pr,u)] = zscore(double(table2array(D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}))));
+                        D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}) = [];
+                        D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}) = array2table(zdata);
                     end
                 end
             end
+        end
+            
+            
         %end
     %elseif S.prep.calc.pred.PCA_on == 1
     %    error('must z-score data prior to PCA')
     end
     
     
-    if S.prep.calc.pred.test_collinearity
-        
-        % variables
-        var_names = D(d).prep.dtab.Properties.VariableNames;
-        var_names = setdiff(var_names,{'ID','group','test','train','eventTypes'},'stable');
-        vt = vartype('numeric');
-        numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
-        numericvar_ind = find(ismember(var_names,numericvar_names));
-        nonnumericvar_ind = find(~ismember(var_names,numericvar_names));
-        all_ind = [numericvar_ind,nonnumericvar_ind]; % must be in this order
-        
-        % combinations
-        comb = nchoosek(all_ind,2);   
-        comb = comb(ismember(comb(:,1),numericvar_ind),:); 
-        corrmat = diag(zeros(1,length(var_names)));
-        pmat = diag(zeros(1,length(var_names)));
-        for ci = 1:length(comb)
-            formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
-            lme = fitlme(D(d).prep.dtab,formula);
-            if strcmp(S.prep.calc.pred.output_metric,'r')
-                corrmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,2);
-            elseif strcmp(S.prep.calc.pred.output_metric,'r2')
-                corrmat(comb(ci,1),comb(ci,2)) = sign(double(lme.Coefficients(2,2)))*lme.Rsquared.Ordinary;
-            end
-            pmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,6);
-        end
-        corrmat = tril(corrmat + corrmat',-1);
-        pmat = tril(pmat + pmat',-1);
-        corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
-        if strcmp(S.prep.calc.pred.output_metric,'r')
-            corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
-        elseif strcmp(S.prep.calc.pred.output_metric,'r2')
-            corrmat = corrmat.*double(corrmat>=(S.prep.calc.pred.R_min)^2 | corrmat<-(S.prep.calc.pred.R_min)^2);
-        end
-        figure;
-        ax=subplot(1,2,1);
-        imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
-        plot_names = var_names;
-        if ~isempty(S.prep.calc.pred.varname_parts_plot)
-            for pn = 1:length(plot_names)
-                nparts = strsplit(plot_names{pn},'_');
-                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
-                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
-                    plot_names{pn} = strjoin(nparts,'_');
-                end
-            end
-            S.prep.calc.pred.varname_parts_plot;
-        end
-        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('collinearity of predictors (LMM)')
-        set(ax, 'XAxisLocation', 'top');
-        save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
-        
-        % multicollinaerity
-        coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
-        [row,col] = ind2sub(size(corrmat),coli);
-        ax2=subplot(1,2,2);
-        imagesc(abs(corrmat)>S.prep.calc.pred.test_collinearity); caxis([0 1])
-        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('multicollinearity of predictors (LMM)')
-        set(ax2, 'XAxisLocation', 'top');
-        for ci = 1:length(coli)
-            var1=var_names{row(ci)};
-            var2=var_names{col(ci)};
-            disp(['collinear predictors (LMM): ' var1 ', ' var2])
-        end
-        if S.prep.calc.pred.allow_collinearity==false && ~isempty(coli)
-            error('collinear predictors - see above')
-        end
-        
-        
-        % correlations on concatenated data
-        [corrmat,pmat] = corr(table2array(D(d).prep.dtab(:,var_names(numericvar_ind))));
-        if strcmp(S.prep.calc.pred.output_metric,'r2')
-            corrmat=corrmat.^2;
-        end
-        corrmat = tril(corrmat + corrmat',-1);
-        pmat = tril(pmat + pmat',-1);
-        corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
-        if strcmp(S.prep.calc.pred.output_metric,'r')
-            corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
-        elseif strcmp(S.prep.calc.pred.output_metric,'r2')
-            corrmat = corrmat.*double(corrmat>=(S.prep.calc.pred.R_min)^2 | corrmat<-(S.prep.calc.pred.R_min)^2);
-        end
-        figure;
-        ax=subplot(1,2,1);
-        imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
-        plot_names = var_names(numericvar_ind);
-        if ~isempty(S.prep.calc.pred.varname_parts_plot)
-            for pn = 1:length(plot_names)
-                nparts = strsplit(plot_names{pn},'_');
-                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
-                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
-                    plot_names{pn} = strjoin(nparts,'_');
-                end
-            end
-            S.prep.calc.pred.varname_parts_plot;
-        end
-        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('collinearity of predictors (concat)')
-        set(ax, 'XAxisLocation', 'top');
-        %save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
-        
-        % multicollinaerity
-        coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
-        [row,col] = ind2sub(size(corrmat),coli);
-        ax2=subplot(1,2,2);
-        imagesc(abs(corrmat)>S.prep.calc.pred.test_collinearity); caxis([0 1])
-        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('multicollinearity of predictors (concat)')
-        set(ax2, 'XAxisLocation', 'top');
-        
-        % scatterplot matrix - observe linearity
-        figure
-        plot_names = var_names(numericvar_ind);
-        [~,axpm] = plotmatrix(table2array(D(d).prep.dtab(:,plot_names)));
-        for pn = 1:length(plot_names)
-            ylabel(axpm(pn,1),plot_names{pn},'Rotation',0,'HorizontalAlignment','right')
-            xlabel(axpm(end,pn),plot_names{pn},'Rotation',90,'HorizontalAlignment','right')
-        end
-        title('linearity of predictors')
-
-        if 0 % old version: continuous predictors only
-            vt = vartype('numeric');
-            numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
-
-            rs=corr(table2array(D(d).prep.dtab(:,numericvar_names)),'type','Pearson');
-            rs=abs(triu(rs,1));
-            save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'rs','col_names');
-            coli=find(rs>S.prep.calc.pred.test_collinearity);
-            [row,col] = ind2sub(size(rs),coli);
-            for ci = 1:length(coli)
-                var1=numericvar_names{row(ci)};
-                var2=numericvar_names{col(ci)};
-                disp(['collinear predictors: ' var1 ', ' var2])
-            end
-            if ~isempty(coli)
-                error('collinear predictors - see above')
-            end
-        end
-    end
     
     if S.prep.calc.pred.PCA_on
             
@@ -329,9 +194,12 @@ for d = 1:length(D)
             avg_wth_fac_corr = mean(abs(structure),[1 2]);
             prop_wth_btw = (avg_wth_fac_corr/(avg_btw_fac_corr+avg_wth_fac_corr))*100;
 
-            % Cronbach
             vardata=table2array(D(d).prep.dtab(:,contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1})));
-            for nf = 1:size(D(d).prep.pred_PCA.Yscore{1},2)
+            varnames=D(d).prep.dtab.Properties.VariableNames(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1}));
+            
+            % Cronbach
+            ym=S.prep.calc.pred.PCA_model_add2dtab;
+            for nf = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
                 if sum(pattern_thresh(:,nf)~=0)>1
                     crona(nf)=cronbach(vardata(:,pattern_thresh(:,nf)~=0));
                 else
@@ -351,10 +219,9 @@ for d = 1:length(D)
             
             % add FA components to data table
             if S.prep.calc.pred.PCA_model_add2dtab
-                ym=S.prep.calc.pred.PCA_model_add2dtab;
                 for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
                     pcname=[S.prep.calc.pred.PCA_type num2str(k)];
-                    D(d).prep.dtab.(pcname) = (transpose(pattern_thresh(:,k))*transpose(vardata))';
+                    D(d).prep.dtab.(pcname) = zscore((transpose(pattern_thresh(:,k))*transpose(vardata))');
                 end
 
                 % trialback data
@@ -364,7 +231,72 @@ for d = 1:length(D)
     %                     D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore_tb{ym}(:,k);
     %                 end
     %             end
+    
+                % remove factor variance from original predictors
+                if S.prep.calc.pred.PCA_model_rmFacVar && S.prep.calc.pred.PCA_model_rmPredVar == 0
+                    for nf = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                        vnme = varnames(pattern_thresh(:,nf)~=0);
+                        pcname=[S.prep.calc.pred.PCA_type num2str(nf)];
+                        for v = 1:length(vnme)
+                            formula = [vnme{v} '~' pcname '+(1|ID)'];
+                            lme = fitlme(D(d).prep.dtab,formula);
+                            D(d).prep.dtab.(vnme{v}) = residuals(lme);
+                        end
+                    end
+                end
+                
+                % remove other predictor variance
+                if S.prep.calc.pred.PCA_model_rmPredVar == 1 % grouped by factor
+                    dtab = D(d).prep.dtab;
+                    for nf = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                        vnme = varnames(pattern_thresh(:,nf)~=0);
+                        pcname=[S.prep.calc.pred.PCA_type num2str(nf)];
+                        for v = 1:length(vnme)
+                            formula = [vnme{v} '~'];
+                            for v2 = 1:length(vnme)
+                                if v2==v; continue; end
+                                formula = [formula vnme{v2} '+'];
+                            end
+                            if S.prep.calc.pred.PCA_model_rmFacVar
+                                formula = [formula pcname '+'];
+                            end
+                            formula = [formula '(1|ID)'];
+                            lme = fitlme(D(d).prep.dtab,formula);
+                            dtab.(vnme{v}) = residuals(lme);
+                        end
+                    end
+                    D(d).prep.dtab = dtab;
+                elseif S.prep.calc.pred.PCA_model_rmPredVar == 2 % all predictors
+                    dtab = D(d).prep.dtab;
+                    vnme = varnames;
+                    for v = 1:length(vnme)
+                        formula = [vnme{v} '~'];
+                        for v2 = 1:length(vnme)
+                            if v2==v; continue; end
+                            formula = [formula vnme{v2} '+'];
+                        end
+                        if S.prep.calc.pred.PCA_model_rmFacVar
+                            for nf = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                                pcname=[S.prep.calc.pred.PCA_type num2str(nf)];
+                                formula = [formula pcname '+'];
+                            end
+                        end
+                        formula = [formula '(1|ID)'];
+                        lme = fitlme(D(d).prep.dtab,formula);
+                        dtab.(vnme{v}) = residuals(lme);
+                    end
+                    D(d).prep.dtab = dtab;
+                end
+                
+                % zscore again
+                vnme = varnames;
+                for v = 1:length(vnme)
+                    dat=table2array(D(d).prep.dtab(:,vnme{v}));
+                    [zdata, D(d).prep.pred_means(v), D(d).prep.pred_stds(v)] = zscore(dat);
+                    D(d).prep.dtab(:,vnme{v}) = array2table(zdata);
+                end
             end
+            
             
         else
             
@@ -514,6 +446,135 @@ for d = 1:length(D)
             error('collinear predictors - see above')
         end
         
+    end
+    
+    
+    if S.prep.calc.pred.test_collinearity
+        
+        % variables
+        var_names = D(d).prep.dtab.Properties.VariableNames;
+        var_names = setdiff(var_names,{'ID','group','test','train','eventTypes'},'stable');
+        vt = vartype('numeric');
+        numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
+        numericvar_ind = find(ismember(var_names,numericvar_names));
+        nonnumericvar_ind = find(~ismember(var_names,numericvar_names));
+        all_ind = [numericvar_ind,nonnumericvar_ind]; % must be in this order
+        
+        % combinations
+        comb = nchoosek(all_ind,2);   
+        comb = comb(ismember(comb(:,1),numericvar_ind),:); 
+        corrmat = diag(zeros(1,length(var_names)));
+        pmat = diag(zeros(1,length(var_names)));
+        for ci = 1:length(comb)
+            formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
+            lme = fitlme(D(d).prep.dtab,formula);
+            if strcmp(S.prep.calc.pred.output_metric,'r')
+                corrmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,2);
+            elseif strcmp(S.prep.calc.pred.output_metric,'r2')
+                corrmat(comb(ci,1),comb(ci,2)) = sign(double(lme.Coefficients(2,2)))*lme.Rsquared.Ordinary;
+            end
+            pmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,6);
+        end
+        corrmat = tril(corrmat + corrmat',-1);
+        pmat = tril(pmat + pmat',-1);
+        corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
+        if strcmp(S.prep.calc.pred.output_metric,'r')
+            corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
+        elseif strcmp(S.prep.calc.pred.output_metric,'r2')
+            corrmat = corrmat.*double(corrmat>=(S.prep.calc.pred.R_min)^2 | corrmat<-(S.prep.calc.pred.R_min)^2);
+        end
+        figure;
+        ax=subplot(1,2,1);
+        imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
+        plot_names = var_names;
+        if ~isempty(S.prep.calc.pred.varname_parts_plot)
+            for pn = 1:length(plot_names)
+                nparts = strsplit(plot_names{pn},'_');
+                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
+                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
+                    plot_names{pn} = strjoin(nparts,'_');
+                end
+            end
+            S.prep.calc.pred.varname_parts_plot;
+        end
+        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(plot_names)); yticklabels(plot_names);
+        title('collinearity of predictors (LMM)')
+        set(ax, 'XAxisLocation', 'top');
+        save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
+        
+        % multicollinaerity
+        coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
+        [row,col] = ind2sub(size(corrmat),coli);
+        ax2=subplot(1,2,2);
+        imagesc(abs(corrmat)>S.prep.calc.pred.test_collinearity); caxis([0 1])
+        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(plot_names)); yticklabels(plot_names);
+        title('multicollinearity of predictors (LMM)')
+        set(ax2, 'XAxisLocation', 'top');
+        for ci = 1:length(coli)
+            var1=var_names{row(ci)};
+            var2=var_names{col(ci)};
+            disp(['collinear predictors (LMM): ' var1 ', ' var2])
+        end
+        if S.prep.calc.pred.allow_collinearity==false && ~isempty(coli)
+            error('collinear predictors - see above')
+        end
+        
+        
+        % correlations on concatenated data
+        [corrmat,pmat] = corr(table2array(D(d).prep.dtab(:,var_names(numericvar_ind))));
+        if strcmp(S.prep.calc.pred.output_metric,'r2')
+            corrmat=corrmat.^2;
+        end
+        corrmat = tril(corrmat + corrmat',-1);
+        pmat = tril(pmat + pmat',-1);
+        corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
+        if strcmp(S.prep.calc.pred.output_metric,'r')
+            corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
+        elseif strcmp(S.prep.calc.pred.output_metric,'r2')
+            corrmat = corrmat.*double(corrmat>=(S.prep.calc.pred.R_min)^2 | corrmat<-(S.prep.calc.pred.R_min)^2);
+        end
+        figure;
+        ax=subplot(1,2,1);
+        imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
+        plot_names = var_names(numericvar_ind);
+        if ~isempty(S.prep.calc.pred.varname_parts_plot)
+            for pn = 1:length(plot_names)
+                nparts = strsplit(plot_names{pn},'_');
+                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
+                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
+                    plot_names{pn} = strjoin(nparts,'_');
+                end
+            end
+            S.prep.calc.pred.varname_parts_plot;
+        end
+        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(plot_names)); yticklabels(plot_names);
+        title('collinearity of predictors (concat)')
+        set(ax, 'XAxisLocation', 'top');
+        %save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
+        
+        % multicollinaerity
+        coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
+        [row,col] = ind2sub(size(corrmat),coli);
+        ax2=subplot(1,2,2);
+        imagesc(abs(corrmat)>S.prep.calc.pred.test_collinearity); caxis([0 1])
+        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(plot_names)); yticklabels(plot_names);
+        title('multicollinearity of predictors (concat)')
+        set(ax2, 'XAxisLocation', 'top');
+        
+        % scatterplot matrix - observe linearity
+        figure
+        plot_names = var_names(numericvar_ind);
+        [~,axpm] = plotmatrix(table2array(D(d).prep.dtab(:,plot_names)));
+        for pn = 1:length(plot_names)
+            ylabel(axpm(pn,1),plot_names{pn},'Rotation',0,'HorizontalAlignment','right')
+            xlabel(axpm(end,pn),plot_names{pn},'Rotation',90,'HorizontalAlignment','right')
+        end
+        title('linearity of predictors')
+
         if 0 % old version: continuous predictors only
             vt = vartype('numeric');
             numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
