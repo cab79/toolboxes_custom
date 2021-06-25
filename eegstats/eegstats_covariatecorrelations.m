@@ -88,10 +88,10 @@ for d=1:length(D)
             if ismember('coeffs',S.covcorr.summary_data)
                 
                 for co = 1:length(D(d).model(i).coeff)
-                    inp_ind = find(strcmp(S.covcorr.summary_coeffs(:,2),D(d).model.coeff(co).name)); % input index
+                    inp_ind = find(strcmp(S.covcorr.summary_coeffs(:,2),D(d).model(i).coeff(co).name)); % input index
                     if isempty(inp_ind); continue; end
                     con_name = S.covcorr.summary_coeffs{inp_ind,1};
-                    c = find(strcmp({D(d).model.con(:).term},con_name));
+                    c = find(strcmp({D(d).model(i).con(:).term},con_name));
                     nc=numel(D(d).model(i).con(c).vox);
                     
                     for ci=1:nc
@@ -137,7 +137,7 @@ else
     title('predictor correlations - p values')
 end
 
-if 1
+if 0
     %% multiple regression / lasso
     lm_results = table2array(results);
     lm_var = lm_results(:,npred+1:end);

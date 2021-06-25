@@ -140,13 +140,15 @@ for d = 1:length(D)
             if S.prep.calc.pred.PCA_on
                 ct = vartype('categorical');
                 catvar_names=D(d).prep.dtab(:,ct).Properties.VariableNames;
-                catvar_pca_idx = find(ismember(catvar_names,S.prep.calc.pred.PCA_cov{S.prep.calc.pred.PCA_model_add2dtab}));
-                if numel(catvar_pca_idx)>0
-                    for pr = 1:length(catvar_pca_idx)
-                        if ismember(catvar_names{catvar_pca_idx(pr)}, S.prep.calc.pred.zscore_exclude); continue; end
-                        [zdata, D(d).prep.pred_means(pr,u), D(d).prep.pred_stds(pr,u)] = zscore(double(table2array(D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}))));
-                        D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}) = [];
-                        D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}) = array2table(zdata);
+                for a2t = S.prep.calc.pred.PCA_model_add2dtab
+                    catvar_pca_idx = find(ismember(catvar_names,S.prep.calc.pred.PCA_cov{a2t}));
+                    if numel(catvar_pca_idx)>0
+                        for pr = 1:length(catvar_pca_idx)
+                            if ismember(catvar_names{catvar_pca_idx(pr)}, S.prep.calc.pred.zscore_exclude); continue; end
+                            [zdata, D(d).prep.pred_means(pr,u), D(d).prep.pred_stds(pr,u)] = zscore(double(table2array(D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}))));
+                            D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}) = [];
+                            D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}) = array2table(zdata);
+                        end
                     end
                 end
             end
@@ -302,10 +304,11 @@ for d = 1:length(D)
             
             % add PCA components to data table
             if S.prep.calc.pred.PCA_model_add2dtab
-                ym=S.prep.calc.pred.PCA_model_add2dtab;
-                for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
-                    pcname=[S.prep.calc.pred.PCA_type num2str(k)];
-                    D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore{ym}(:,k);
+                for ym=S.prep.calc.pred.PCA_model_add2dtab
+                    for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                        pcname=[S.prep.calc.pred.PCA_type num2str(ym) '_' num2str(k)];
+                        D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore{ym}(:,k);
+                    end
                 end
             end
         end
@@ -629,8 +632,6 @@ for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
 end
 out.Y = Y;
 
-% KMO test
-[A,B] = kmo(Y{ym});
 
 % select PCA method
 switch S.prep.calc.pred.PCA_type
@@ -700,6 +701,10 @@ switch S.prep.calc.pred.PCA_type
         
         for ym = 1:length(Y) % for each Y model
            
+            % KMO test
+            disp('model 1, KMO test')
+            [A,B] = kmo(Y{ym});
+            
             % inital num components
             ncomp=size(Y{ym},2); 
             
