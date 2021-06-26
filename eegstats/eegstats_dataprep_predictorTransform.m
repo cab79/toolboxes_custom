@@ -135,25 +135,25 @@ for d = 1:length(D)
                 D(d).prep.dtab(iU==u,numericvar_names{pr}) = array2table(zdata);
             end
             
-            % additionally, convert any categorical variables that are due
-            % for PCA to numeric and z-score them
-            if S.prep.calc.pred.PCA_on
-                ct = vartype('categorical');
-                catvar_names=D(d).prep.dtab(:,ct).Properties.VariableNames;
-                for a2t = S.prep.calc.pred.PCA_model_add2dtab
-                    catvar_pca_idx = find(ismember(catvar_names,S.prep.calc.pred.PCA_cov{a2t}));
-                    if numel(catvar_pca_idx)>0
-                        for pr = 1:length(catvar_pca_idx)
-                            if ismember(catvar_names{catvar_pca_idx(pr)}, S.prep.calc.pred.zscore_exclude); continue; end
-                            [zdata, D(d).prep.pred_means(pr,u), D(d).prep.pred_stds(pr,u)] = zscore(double(table2array(D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}))));
-                            D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}) = [];
-                            D(d).prep.dtab(iU==u,catvar_names{catvar_pca_idx(pr)}) = array2table(zdata);
-                        end
+        end
+        
+        % additionally, convert any categorical variables that are due
+        % for PCA to numeric and z-score them
+        if S.prep.calc.pred.PCA_on
+            ct = vartype('categorical');
+            catvar_names=D(d).prep.dtab(:,ct).Properties.VariableNames;
+            for a2t = S.prep.calc.pred.PCA_model_add2dtab
+                catvar_pca_idx = find(ismember(catvar_names,S.prep.calc.pred.PCA_cov{a2t}));
+                if numel(catvar_pca_idx)>0
+                    for pr = 1:length(catvar_pca_idx)
+                        if ismember(catvar_names{catvar_pca_idx(pr)}, S.prep.calc.pred.zscore_exclude); continue; end
+                        [zdata, D(d).prep.pred_means(pr,1), D(d).prep.pred_stds(pr,1)] = zscore(double(table2array(D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}))));
+                        D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}) = [];
+                        D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}) = array2table(zdata);
                     end
                 end
             end
-        end
-            
+        end    
             
         %end
     %elseif S.prep.calc.pred.PCA_on == 1

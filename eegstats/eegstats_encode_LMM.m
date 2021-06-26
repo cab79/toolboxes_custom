@@ -35,10 +35,17 @@ for s = 1:length(Y)
             else
                 train_data = Y(s).dtab;
             end
-            data_mean = nanmean(train_data.data);
-            data_std = nanstd(train_data.data);
-            if data_std>0
-                train_data.data = (train_data.data - data_mean) / data_std;
+            if S.encode.zscore
+                try
+                    mustBeNumericOrLogical(train_data.data)
+                    data_mean = nanmean(train_data.data);
+data_std = nanstd(train_data.data);
+if data_std>0
+    train_data.data= (train_data.data - data_mean) / data_std;
+end
+                catch
+                    disp(['EEG data not numeric or logical for LM ' num2str(LM) ', sample ' num2str(s)])
+                end
             end
             lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
             last_s_worked=s;
@@ -49,10 +56,17 @@ for s = 1:length(Y)
             else
                 train_data = Y(last_s_worked).dtab;
             end
-            data_mean = nanmean(train_data.data);
-            data_std = nanstd(train_data.data);
-            if data_std>0
-                train_data.data = (train_data.data - data_mean) / data_std;
+            if S.encode.zscore
+                try
+                    mustBeNumericOrLogical(train_data.data)
+                    data_mean = nanmean(train_data.data);
+data_std = nanstd(train_data.data);
+if data_std>0
+    train_data.data= (train_data.data - data_mean) / data_std;
+end
+                catch
+                    disp(['EEG data not numeric or logical for LM ' num2str(LM) ', sample ' num2str(s)])
+                end
             end
             lmm=fitlme(train_data,S.encode.model{i},'FitMethod',S.encode.lmm.fitmethod,'DummyVarCoding', S.encode.lmm.coding);
         end

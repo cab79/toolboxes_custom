@@ -205,7 +205,7 @@ if ~isempty(rm_dat)
 end
 % remove data with almost no variance
 dat = std(table2array(pred));
-rm_dat = dat<0.00001;
+rm_dat = dat<0.000001;
 if any(rm_dat)
     pred(:,rm_dat) = [];
 end 
