@@ -45,7 +45,7 @@ for d = 1:length(D)
                 case 'eegfile'
                     pred_out = eegfile_covariate(...
                         CVs(ci),...
-                        D(d).prep.(fename{1})(1).dat,...
+                        D(d).prep.other,...
                         D(d).prep.dtab.tnums');
             end
             repl=find(ismember(pred_out.Properties.VariableNames,D(d).prep.dtab.Properties.VariableNames));
@@ -156,8 +156,8 @@ for ci = 1:length(cv.def)
     elseif strcmp(cv.def{ci}{1},'traj')
         % for each traj group... reformat into predictor matrix
         D.HGF = dat;
-        S.traj = {cv.def{ci}(2:end)}; 
-        [Stemp] = HGF_traj2mat(S,D);
+        S.traj = {cv.def{ci}(2:5)}; 
+        [Stemp] = HGF_traj2mat(S,D,cv.def{ci}{6});
         predtemp=Stemp.pred;
         pred_label=Stemp.pred_label;
     end

@@ -64,17 +64,17 @@ if ~isempty(S.model_comp_mask.index)
     maskimg = spm_read_vols(spm_vol(D.model_comp(i).MCC.([S.model_comp_mask.img '_img_file'])));
 end
 
-cmp=cbrewer('seq', 'Reds', 100, 'pchip');
+cmp=cbrewer('seq', 'Purples', 100, 'pchip');
 % colmod = repmat(linspace(0.9,1,100),3,1)';
 % cmp=cmp.*colmod; % make darker
-cmp=1-cmp; % make darker
-cmp2=cbrewer('div', 'PiYG', 100, 'pchip');
+% cmp=1-cmp; % make darker
+cmp2=cbrewer('div', 'Spectral', 100, 'pchip');
 % cmp2 = 1-cmp2;
 cmp2 = rescale(exp(cmp2),0,0.9);
-cmp2 = 1-cmp2;
+% cmp2 = 1-cmp2;
 % cmp2=cmp2.*colmod; % make darker
 cmp3=cbrewer('div', 'Spectral', 100, 'pchip');
-cmp3 = 1-cmp3;
+% cmp3 = 1-cmp3;
 cmp3 = rescale(exp(cmp3),0,0.9);
 % cmp3=cmp3.*colmod; % make darker
 % add in white for -1 values
@@ -238,7 +238,18 @@ if ~isempty(S.model.index)
                 plot([0 0],[0.5,1.5],'k')
                 title('Cluster Z-values over time (ms)')
                 % add peak highlights
-                [peaks,locs]=findpeaks(cimg_avgmask,S.time,'MinPeakDistance',S.MinPeakDistance);
+                [~,locs]=findpeaks(cimg_avgmask,S.time,'MinPeakDistance',S.MinPeakDistance);
+                
+                if S.order_locs_by_extent
+                    % sort by cluster extent
+                    ext=[];
+                    for pk=1:length(locs)
+                        ext(pk) = sum(maskimg(:,:,S.time==locs(pk)).*cimgmask0(:,:,S.time==locs(pk))>0,'all');
+                    end
+                    [~,si] = sort(ext,'descend');
+                    locs = locs(si);
+                end
+                
                 D.model(i).con(c).clus(cl).peaks = locs;
                 D.model(i).con(c).clus(cl).extent = cimg_extent_ms{cl};
                 
@@ -418,6 +429,8 @@ if ~isempty(S.model.index)
                 end
                 disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
                 disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
+                drawnow
+                pause(1)
             end
             
         end

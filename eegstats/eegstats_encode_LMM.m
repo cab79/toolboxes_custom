@@ -38,11 +38,7 @@ for s = 1:length(Y)
             if S.encode.zscore
                 try
                     mustBeNumericOrLogical(train_data.data)
-                    data_mean = nanmean(train_data.data);
-data_std = nanstd(train_data.data);
-if data_std>0
-    train_data.data= (train_data.data - data_mean) / data_std;
-end
+                    train_data.data = applyz(train_data.data);
                 catch
                     disp(['EEG data not numeric or logical for LM ' num2str(LM) ', sample ' num2str(s)])
                 end
@@ -59,11 +55,7 @@ end
             if S.encode.zscore
                 try
                     mustBeNumericOrLogical(train_data.data)
-                    data_mean = nanmean(train_data.data);
-data_std = nanstd(train_data.data);
-if data_std>0
-    train_data.data= (train_data.data - data_mean) / data_std;
-end
+                    train_data.data = applyz(train_data.data);
                 catch
                     disp(['EEG data not numeric or logical for LM ' num2str(LM) ', sample ' num2str(s)])
                 end
