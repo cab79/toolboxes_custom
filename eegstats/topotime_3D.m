@@ -5,6 +5,15 @@ function [YI,YI_mask]=topotime_3D(Y,S)
 % Y = chan x time x trials/contrasts (3D), chan x time (2D), or chan (1D) in rows.
 % Or, Y can be a structure of directory/filenames, in which case output is
 % also filenames after saving them to disk.
+% S is a structure than contains settings, e.g. 
+    % S.img.file.coord = 'path/filename'; % path and filename of channel coordinates
+    % S.img.file.coord_struct = 'c2d'; % name of structure within file that has coordinates
+    % S.img.chansel = [120,1,125,121,122,123,124,117,118, 111, 110, 112, 106,31,7,129, 55, 80, 79, 86, 92, 87, 93, 98, 97, 101, 102, 103, 104, 105, 108, 109,116, 115, 114, 96, 100,  99, 107, 113]; % which channels to include
+    % S.img.chanswap = {[129,55]}; % swap over pairs of channels if needed, or leave empty
+    % S.img.bbox  = [0.48 0.5; 0.59 0.70; 0.70 0.70; 0.73 0.79; 0.82 0.79; 0.88 0.7; 0.94 0.56; 0.94 0.45; 0.86 0.25; 0.79 0.13; 0.74 0.28; 0.68 0.25; 0.63 0.35; 0.48 0.44; 0.48 0.5];
+    % S.img.bbox_inner   = [0.77 0.42; 0.77 0.47; 0.78 0.5; 0.8 0.52; 0.88 0.5; 0.88 0.38;0.80 0.36; 0.78 0.38; 0.77 0.42];
+    % S.img.imgsize = 32;
+    % S.img.interp_method = 'gdatav4';
 
 if isstruct(Y)
     try

@@ -54,7 +54,7 @@ switch opt
     % wait time between scanner triggers (s)
     h.Settings.waittime_scanner_trig = 1;
     % key corresponding to scanner trigger
-    h.Settings.triggeropt = '7&';
+    h.Settings.triggeropt = 's'; % used to be '7&'
     
     %% Condition-independent stimulus parameters - can be superceded by condition-dependent parameters
     % duration of stimulus sequence in seconds
@@ -147,7 +147,7 @@ switch opt
     % buttonpress options: key: keyboard inputs. Blank for no button press
     h.Settings.buttontype='key';
     % range of keyboard presses indicating a recordable response
-    h.Settings.buttonopt = {'1!','2@','3#','4$','7&'}; 
+    h.Settings.buttonopt = {'1!','2@','3#','4$','7&'}; % must have updated these for the LiMRIC scanner?
     % how early after start of trial can button press trigger the next trial? Empty if programmed
     % ISI
     h.Settings.response_nexttrialmin = 0;
