@@ -257,8 +257,37 @@ for g = 1:length(grps)
                         %    error('no files with this name')
                         %end
                     elseif length(file)>1
-                        disp(['More than one file named: ' genname '. Please adjust the file name or remove the duplicate file'])
-                        continue
+                        % use duplicates rule? First listed is preferred if there is a conflict.
+                        if isfield(S,'duplicates') && ~isempty(S.duplicates)
+                            largest=0;latest=0;
+                            if ismember('largest',S.duplicates)
+                                [~,largest]=max([file(:).bytes]);
+                            end
+                            if ismember('latest',S.duplicates)
+                                [~,latest]=max(datenum({file(:).date}));
+                            end
+                            if largest>0 && latest>0
+                                if largest==latest
+                                    fidx = largest;
+                                elseif strcmp(S.duplicates{1},'largest') % preferred?
+                                    fidx = largest;
+                                elseif strcmp(S.duplicates{1},'latest') % preferred?
+                                    fidx = latest;
+                                else 
+                                    error('largest file is not the latest and there is a preference conflict')
+                                end
+                            elseif largest>0
+                                fidx = largest;
+                            elseif latest>0
+                                fidx = latest;
+                            else
+                                error("duplicates rule failed")
+                            end
+                            fname = file(fidx).name;
+                        else
+                            disp(['More than one file named: ' genname '. Please adjust the file name or remove the duplicate file'])
+                            continue
+                        end
                     else
                         fname = file.name;
                     end
