@@ -67,6 +67,9 @@ for s = 1:length(S.select.subjects)
             D(s).(S.load.prefix)(f) = outstruct;
         end
 
+        % filename
+        D(s).(S.load.prefix)(f).filename = filename;
+
         % get other filetypes with same name
         for fn = 1:length(S.load.prefixes)-1
             S.load.prefix = S.load.prefixes{fn+1};

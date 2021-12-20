@@ -17,8 +17,17 @@ if ~isfield(S,'meansim')
     S.meansim = 0; 
 end
 
+missing_data = {};
+
 for d = 1:length(D)
+
+    % missing data
+    if isempty(D(d).Output)
+        missing_data = [missing_data, D(d).subname];
+        continue; 
+    end
     
+    % process
     for op = 1:length(D(d).Output)
 
         % get settings if not in D already
@@ -96,6 +105,7 @@ for d = 1:length(D)
             logRT_SD_cutoffs = [nanmedian(logRT)-nanstd(logRT)*S.RT.SDreject, nanmedian(logRT)+nanstd(logRT)*S.RT.SDreject];
             logRT(logRT<logRT_SD_cutoffs(1) | logRT>logRT_SD_cutoffs(2))=nan;
             D(d).Processed(op).logrt(D(d).Output.presstrial(resp_index)) = logRT;
+            D(d).Processed(op).mean_logrt = nanmean(logRT);
             
             % moving average RT over time
             ma=S.movingavg;
@@ -211,6 +221,17 @@ for d = 1:length(D)
                     end
                 end
             end
+
+            % overall statistics (over all conditions)
+            D(d).Processed(op).totalnumtrials = sum(~isnan(D(d).Processed(op).correct));
+            D(d).Processed(op).totaltrialsfract = D(d).Processed(op).totalnumtrials/length(D(d).Processed(op).correct);
+            D(d).Processed(op).totalcorrectfract = nansum(D(d).Processed(op).correct)/D(d).Processed(op).totalnumtrials;
+            % fraction of response option 1 vs 2 (only works for experiments with two response options)
+            options = unique(D(d).Processed(op).presssignal(~isnan(D(d).Processed(op).presssignal)));
+            for oi = options
+                D(d).Processed(op).totaloptionfract(oi) = sum(D(d).Processed(op).presssignal(incl_stimtypes)==oi)/sum(~isnan(D(d).Processed(op).presssignal(incl_stimtypes)));
+            end
+            
             
             % for each version of condnum (diff number of trials in each),
             % get perc correct for each condition and block
@@ -226,9 +247,16 @@ for d = 1:length(D)
                 
                 for i = 1:length(condsuni)
                     D(d).Processed(op).condcorrect{cn}{condsuni(i)} = D(d).Processed(op).correct(condnum{cn}==condsuni(i) & incl_stimtypes); 
-                    D(d).Processed(op).numtrials{cn}{condsuni(i)} = sum(~isnan(D(d).Processed(op).condcorrect{cn}{condsuni(i)}));
+                    D(d).Processed(op).condnumtrials{cn}{condsuni(i)} = sum(~isnan(D(d).Processed(op).condcorrect{cn}{condsuni(i)}));
                     D(d).Processed(op).condtrialsfract{cn}{condsuni(i)} = sum(~isnan(D(d).Processed(op).condcorrect{cn}{condsuni(i)}))/length(D(d).Processed(op).condcorrect{cn}{condsuni(i)});
-                    D(d).Processed(op).condcorrectfract{cn}(condsuni(i)) = nansum(D(d).Processed(op).condcorrect{cn}{condsuni(i)})/D(d).Processed(op).numtrials{cn}{condsuni(i)};
+                    D(d).Processed(op).condcorrectfract{cn}(condsuni(i)) = nansum(D(d).Processed(op).condcorrect{cn}{condsuni(i)})/D(d).Processed(op).condnumtrials{cn}{condsuni(i)};
+                    
+                    % fraction of response option 1 vs 2 (only works for experiments with two response options)
+                    options = unique(D(d).Processed(op).presssignal(~isnan(D(d).Processed(op).presssignal)));
+                    options = unique(D(d).Processed(op).presssignal(~isnan(D(d).Processed(op).presssignal)));
+                    for oi = options
+                        D(d).Processed(op).condoptionfract{cn}(condsuni(i),oi) = sum(D(d).Processed(op).presssignal(condnum{cn}==condsuni(i) & incl_stimtypes)==oi)/sum(~isnan(D(d).Processed(op).presssignal(condnum{cn}==condsuni(i) & incl_stimtypes)));
+                    end
                 end
 
                 % split into blocks
@@ -236,8 +264,8 @@ for d = 1:length(D)
                 for i = 1:length(condsuni)
                     for b = 1:length(blocks)
                         D(d).Processed(op).blockcondcorrect{cn}{condsuni(i)}{b} = D(d).Processed(op).correct(condnum{cn}==condsuni(i) & D(d).Sequence.blocks==blocks(b) & ismember(D(d).Sequence.signal(S.signal.target,:),S.accuracy.cond_stimtype)); 
-                        D(d).Processed(op).blocknumtrials{cn}{condsuni(i)}{b} = sum(~isnan(D(d).Processed(op).blockcondcorrect{cn}{condsuni(i)}{b}));
-                        D(d).Processed(op).blockcondcorrectfract{cn}{condsuni(i)}(b) = nansum(D(d).Processed(op).blockcondcorrect{cn}{condsuni(i)}{b})/D(d).Processed(op).blocknumtrials{cn}{condsuni(i)}{b};
+                        D(d).Processed(op).blockcondnumtrials{cn}{condsuni(i)}{b} = sum(~isnan(D(d).Processed(op).blockcondcorrect{cn}{condsuni(i)}{b}));
+                        D(d).Processed(op).blockcondcorrectfract{cn}{condsuni(i)}(b) = nansum(D(d).Processed(op).blockcondcorrect{cn}{condsuni(i)}{b})/D(d).Processed(op).blockcondnumtrials{cn}{condsuni(i)}{b};
                         for ii = 1:length(D(d).Processed(op).blockcondcorrect{cn}{condsuni(i)}{b})
                             D(d).Processed(op).blockcondcorrectmovavg{cn}{condsuni(i)}{b}(ii) = 100*sum(D(d).Processed(op).blockcondcorrect{cn}{condsuni(i)}{b}(max(1,ii-ma+1):ii))/length(max(1,ii-ma+1):ii);;
                         end
@@ -280,21 +308,23 @@ for d = 1:length(D)
                     for i = 1:length(condsuni)
                         for s = 1:length(stims)
                             D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s} = D(d).Processed(op).correct(condnum{cn}==condsuni(i) & D(d).Sequence.signal(S.signal.target,:)==stims(s)); 
-                            D(d).Processed(op).stimnumtrials{cn}{condsuni(i)}{s} = sum(~isnan(D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s}));
-                            D(d).Processed(op).stimcondcorrectfract{cn}{condsuni(i)}(s) = nansum(D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s})/D(d).Processed(op).stimnumtrials{cn}{condsuni(i)}{s};
+                            D(d).Processed(op).stimcondnumtrials{cn}{condsuni(i)}{s} = sum(~isnan(D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s}));
+                            D(d).Processed(op).stimcondcorrectfract{cn}{condsuni(i)}(s) = nansum(D(d).Processed(op).stimcondcorrect{cn}{condsuni(i)}{s})/D(d).Processed(op).stimcondnumtrials{cn}{condsuni(i)}{s};
                         end
                     end
                 end
                 
-                % split into stim intensity per cue
-                if S.signal.cue
-                    cues = unique(D(d).Sequence.signal(S.signal.cue,:));
-                    for i = 1:length(cues)
-                        for s = 1:length(stims)
-                            D(d).Processed(op).stimcuecorrect{cn}{cues(i)}{s} = D(d).Processed(op).correct(D(d).Sequence.signal(S.signal.cue,:)==cues(i) & D(d).Sequence.signal(S.signal.target,:)==stims(s)); 
-                            D(d).Processed(op).stimcuenumtrials{cn}{cues(i)}{s} = sum(~isnan(D(d).Processed(op).stimcuecorrect{cn}{cues(i)}{s}));
-                            D(d).Processed(op).stimcuecorrectfract{cn}{cues(i)}(s) = nansum(D(d).Processed(op).stimcuecorrect{cn}{cues(i)}{s})/D(d).Processed(op).stimcuenumtrials{cn}{cues(i)}{s};
-                        end
+                
+            end
+
+            % split into stim intensity per cue (not split by condition)
+            if S.signal.cue
+                cues = unique(D(d).Sequence.signal(S.signal.cue,:));
+                for i = 1:length(cues)
+                    for s = 1:length(stims)
+                        D(d).Processed(op).stimcuecorrect{cn}{cues(i)}{s} = D(d).Processed(op).correct(D(d).Sequence.signal(S.signal.cue,:)==cues(i) & D(d).Sequence.signal(S.signal.target,:)==stims(s)); 
+                        D(d).Processed(op).stimcuenumtrials{cn}{cues(i)}{s} = sum(~isnan(D(d).Processed(op).stimcuecorrect{cn}{cues(i)}{s}));
+                        D(d).Processed(op).stimcuecorrectfract{cn}{cues(i)}(s) = nansum(D(d).Processed(op).stimcuecorrect{cn}{cues(i)}{s})/D(d).Processed(op).stimcuenumtrials{cn}{cues(i)}{s};
                     end
                 end
             end
@@ -348,6 +378,7 @@ for d = 1:length(D)
             trial_data_table.block_number = D(d).Sequence.blocks(D(d).Output(1).presstrial(resp_index))';
             trial_data_table.condition_number = condind(D(d).Output(1).presstrial(resp_index))';
             trial_data_table.response = D(d).Output(1).pressbutton(resp_index)';
+            trial_data_table.response_signal = D(d).Processed(1).presssignal(1:length(resp_index))';
             trial_data_table.correct_response = D(d).Processed(1).correct_resp(D(d).Output(1).presstrial(resp_index))';
             trial_data_table.correct = D(d).Processed(1).correct(D(d).Output(1).presstrial(resp_index))';
             trial_data_table.accuracy_moving_average = D(d).Processed(1).macorrect(D(d).Output(1).presstrial(resp_index))';
@@ -360,26 +391,112 @@ for d = 1:length(D)
     
 end
 
-% save a single table for all subjects' condition-mean data
+% display missing data
+missing_data
+
+% calculate correlation between group mean and subject accuracy over
+% conditions
+all_Acc = [];
+for c = 1:length(conds)
+    for d = 1:length(D)
+        try
+            all_Acc(c,d) = D(d).Processed(1).condcorrectfract{1}(c);
+        catch
+            all_Acc(c,d) = nan;
+        end
+    end
+end
+mean_Acc_cond = nanmean(all_Acc,2);
+for d = 1:length(D)
+    if isempty(D(d).Processed)
+        continue; 
+    end
+    % correlation between subject and group
+    idx = ~isnan(D(d).Processed.condcorrectfract{1});
+    D(d).Processed.cond_Acc_groupcorr = corr(mean_Acc_cond(idx),D(d).Processed.condcorrectfract{1}(idx)', 'type', 'Spearman');
+end
+
+% calculate correlation between group mean and subject logRT over
+% conditions
+all_logRT = [];
+for c = 1:length(conds)
+    for d = 1:length(D)
+        try
+            all_logRT(c,d) = D(d).Processed(1).cond_logrt{1}(c);
+        catch
+            all_logRT(c,d) = nan;
+        end
+    end
+end
+mean_logRT_cond = nanmean(all_logRT,2);
+for d = 1:length(D)
+    if isempty(D(d).Processed)
+        continue; 
+    end
+    % correlation between subject and group
+    idx = ~isnan(D(d).Processed.cond_logrt{1});
+    D(d).Processed.cond_logrt_groupcorr = corr(mean_logRT_cond(idx),D(d).Processed.cond_logrt{1}(idx)', 'type', 'Spearman');
+end
+
+% save a single table for all subjects' total and also condition-mean data
 if S.save.tables
+
     % add data to group condition table
     for d = 1:length(D)
+        fraction_options_table.subject{d,1} = D(d).subname;
         fraction_correct_table.subject{d,1} = D(d).subname;
         log_response_time_table.subject{d,1} = D(d).subname;
         fraction_trials_retained_table.subject{d,1} = D(d).subname;
+        total_summary_table.subject{d,1} = D(d).subname;
+
+%         % missing data
+%         if isempty(D(d).Processed)
+%             continue; 
+%         end
+
+        try
+            fraction_options_table.('total')(d,1) = D(d).Processed(1).totaloptionfract(2);
+            fraction_correct_table.('total')(d,1) = D(d).Processed(1).totalcorrectfract;
+            log_response_time_table.('total')(d,1) = D(d).Processed(1).mean_logrt;
+            fraction_trials_retained_table.('total')(d,1) = D(d).Processed(1).totaltrialsfract;
+            total_summary_table.fraction_options(d,1) = fraction_options_table.('total')(d,1);
+            total_summary_table.fraction_correct(d,1) = fraction_correct_table.('total')(d,1);
+            total_summary_table.log_response_time(d,1) = log_response_time_table.('total')(d,1);
+            total_summary_table.fraction_trials_retained(d,1) = fraction_trials_retained_table.('total')(d,1);
+            total_summary_table.cond_Acc_groupcorr(d,1) = D(d).Processed.cond_Acc_groupcorr;
+            total_summary_table.cond_logrt_groupcorr(d,1) = D(d).Processed.cond_logrt_groupcorr;
+        catch
+            fraction_options_table.('total')(d,1) = nan;
+            fraction_correct_table.('total')(d,1) = nan;
+            log_response_time_table.('total')(d,1) = nan;
+            fraction_trials_retained_table.('total')(d,1) = nan;
+            total_summary_table.fraction_options(d,1) = nan;
+            total_summary_table.fraction_correct(d,1) = nan;
+            total_summary_table.log_response_time(d,1) = nan;
+            total_summary_table.fraction_trials_retained(d,1) = nan;
+            total_summary_table.cond_Acc_groupcorr(d,1) = nan;
+            total_summary_table.cond_logrt_groupcorr(d,1) = nan;
+        end
+
         for c = 1:length(conds)
             try
+                fraction_options_table.(['condition_' num2str(conds(c))])(d,1) = D(d).Processed(1).condoptionfract{1}(c,2);
                 fraction_correct_table.(['condition_' num2str(conds(c))])(d,1) = D(d).Processed(1).condcorrectfract{1}(c);
                 log_response_time_table.(['condition_' num2str(conds(c))])(d,1) = D(d).Processed(1).cond_logrt{1}(c);
                 fraction_trials_retained_table.(['condition_' num2str(conds(c))])(d,1) = D(d).Processed(1).condtrialsfract{1}(c);
             catch
+                fraction_options_table.(['condition_' num2str(conds(c))])(d,1) = nan;
                 fraction_correct_table.(['condition_' num2str(conds(c))])(d,1) = nan;
                 log_response_time_table.(['condition_' num2str(conds(c))])(d,1) = nan;
-                fraction_trials_retained_table.(['condition_' num2str(conds(c))])(d,1) = nan;
+                fraction_trials_retained_table.(['condition_' num2str(conds(c))])(d,1) = {nan};
             end
         end
+
+
     end
-    writetable(struct2table(fraction_correct_table),fullfile(S.path.prep,[S.expt '_fraction_correct_' datestr(now,30) '.xlsx']));
-    writetable(struct2table(log_response_time_table),fullfile(S.path.prep,[S.expt '_log_response_time_' datestr(now,30) '.xlsx']));
-    writetable(struct2table(fraction_trials_retained_table),fullfile(S.path.prep,[S.expt '_fraction_trials_retained_' datestr(now,30) '.xlsx']));
+    writetable(struct2table(fraction_options_table),fullfile(S.path.prep,[S.expt '_GROUP_fraction_response_painful.xlsx']));
+    writetable(struct2table(fraction_correct_table),fullfile(S.path.prep,[S.expt '_GROUP_fraction_correct.xlsx']));
+    writetable(struct2table(log_response_time_table),fullfile(S.path.prep,[S.expt '_GROUP_log_response_time.xlsx']));
+    writetable(struct2table(fraction_trials_retained_table),fullfile(S.path.prep,[S.expt '_GROUP_fraction_trials_retained.xlsx']));
+    writetable(struct2table(total_summary_table),fullfile(S.path.prep,[S.expt '_GROUP_total_summary_table.xlsx']));
 end

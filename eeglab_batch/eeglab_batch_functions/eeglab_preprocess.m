@@ -184,17 +184,26 @@ switch part
     if S.prep.combinefiles.on
         clear OUTEEG
 
-        % update last filenameparts
-        for fnp = 1:length(S.prep.fname.parts)
-            try
-                for i = 1:length(S.prep.select.([S.prep.fname.parts{fnp} 's']))
-
-                    S.prep.select.([S.prep.fname.parts{fnp} 's']){i} = strrep(S.prep.select.([S.prep.fname.parts{fnp} 's']){i},'.','_');
-
-                    %S.prep.([S.prep.fname.parts{end} 's']){i} = [S.prep.([S.prep.fname.parts{end} 's']){i} '_' sname_ext];
-                end
-            end
-        end
+%         S.prep.select.suffix = S.prep.load.suffix;
+% 
+%         % update last filenameparts
+%         for fnp = 1:length(S.prep.fname.parts)
+%             if strcmp(S.prep.fname.parts{fnp},'ext'); continue; end
+%             try 
+%                 partsubs = S.prep.select.([S.prep.fname.parts{fnp} 's']);
+%                 partname = [S.prep.fname.parts{fnp} 's'];
+%             catch
+%                 partsubs = S.prep.select.([S.prep.fname.parts{fnp}]);
+%                 partname = [S.prep.fname.parts{fnp}];
+%             end
+%             for i = 1:length(partsubs)
+% 
+%                 S.prep.select.(partname){i} = strrep(S.prep.select.(partname){i},'.','_');
+% 
+%                 %S.prep.([S.prep.fname.parts{end} 's']){i} = [S.prep.([S.prep.fname.parts{end} 's']){i} '_' sname_ext];
+%             end
+%             
+%         end
 
         % GET FILE LIST
         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
@@ -214,6 +223,7 @@ switch part
                     subfiles = S.prep.filelist(find(not(cellfun('isempty', strfind(S.prep.filelist,S.prep.select.subjects{s})))));
                 end
 
+                if isempty(subfiles); continue; end
 
                 % CYCLE THROUGH EACH FILE FOR THIS SUBJECT
                 for f = 1:length(subfiles)
@@ -280,11 +290,11 @@ switch part
 
         % GET FILE LIST
         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-        if strcmp(S.prep.load.suffix{:},'combined')
-            S.prep.fname.parts = {'study','subject','session','suffix','ext'};
-            S.prep.select.conds = {};
-            S.prep.select.blocks = {};
-        end
+%         if strcmp(S.prep.load.suffix{:},'combined')
+%             S.prep.fname.parts = {'study','subject','session','suffix','ext'};
+%             S.prep.select.conds = {};
+%             S.prep.select.blocks = {};
+%         end
         S = getfilelist(S,S.prep.load.suffix);
 
         loadpath = S.path.file;
