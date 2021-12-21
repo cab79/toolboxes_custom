@@ -2,17 +2,17 @@ function S=eeglab_import(S)
 
 S.func = 'import';
 
-% previoulsy imported files
+% previously imported files
 if isfield(S.(S.func),'filelist')
     if S.(S.func).overwrite==0
         prev_filelist = S.(S.func).filelist;
         prev_dirlist = S.(S.func).dirlist;
         prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-        prev_designmat = S.(S.func).designmat;
+        prev_designtab = S.(S.func).designtab;
     end
     S.(S.func) = rmfield(S.(S.func),'dirlist');
     S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-    S.(S.func) = rmfield(S.(S.func),'designmat');
+    S.(S.func) = rmfield(S.(S.func),'designtab');
 end
 
 % GET FILE LIST
@@ -25,7 +25,7 @@ if S.(S.func).overwrite==0 && exist('prev_filelist','var')
     S.(S.func).filelist(idx_remove)=[];
     S.(S.func).dirlist(idx_remove)=[];
     S.(S.func).subj_pdat_idx(idx_remove)=[];
-    S.(S.func).designmat(find([0 idx_remove]),:)=[];
+    S.(S.func).designtab(idx_remove,:)=[];
 end
 
 % change to the input directory
@@ -37,8 +37,8 @@ if isempty(S.(S.func).filelist)
 end
 
 % indices of S.filelist for each subject
-col_ind = find(ismember(S.(S.func).designmat(1,:),{'subjects'}));
-designtab = cell2table(S.(S.func).designmat(2:end,col_ind)); % convert to table because unique with rows does not work on cell arrays!
+col_ind = find(ismember(S.(S.func).designtab(1,:),{'subjects'}));
+designtab = cell2table(S.(S.func).designtab(2:end,col_ind)); % convert to table because unique with rows does not work on cell arrays!
 [~,first_ind,file_ind]=unique(designtab,'rows','stable');
 uni_ind = unique(file_ind);
 
@@ -119,7 +119,7 @@ if exist('prev_filelist','var')
     S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
     S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
     S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-    S.(S.func).designmat = [S.(S.func).designmat; prev_designmat(2:end,:)];
+    S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
 end
 
 

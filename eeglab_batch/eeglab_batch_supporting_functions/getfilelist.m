@@ -306,6 +306,9 @@ for g = 1:length(grps)
     end
 end
 S.(S.func).select.subjects = S.(S.func).subjects_in;
+S.(S.func).designtab = array2table(S.(S.func).designmat(2:end,:),...
+    'VariableNames',S.(S.func).designmat(1,:));
+S.(S.func) = rmfield(S.(S.func),'designmat'); 
 
 if isfield(S,'T')
     S=S.T;
