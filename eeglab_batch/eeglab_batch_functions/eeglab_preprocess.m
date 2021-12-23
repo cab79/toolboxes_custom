@@ -3,6 +3,7 @@ function S=eeglab_preprocess(S,part)
 S.func = 'prep';
 
 switch part
+
     case 'epoch'
         
     % load directory
@@ -107,7 +108,12 @@ switch part
             % cleaning could introduce artefact to otherwise clean channels.
             % Robust averaging as done here gets around this.
             params = struct();
-            params.lineFrequencies = [];
+            params.lineFrequencies = [50, 100, 150, 200, 250];
+            params.referenceChannels = 1:length(EEG.chanlocs);
+            params.evaluationChannels = 1:length(EEG.chanlocs);
+            params.rereferencedChannels = 1:length(EEG.chanlocs);
+            params.detrendChannels = 1:length(EEG.chanlocs);
+            params.lineNoiseChannels = 1:length(EEG.chanlocs);
             params.detrendType = 'high pass';
             params.detrendCutoff = 1;
             params.referenceType = 'robust';
@@ -115,7 +121,13 @@ switch part
             params.interpolationOrder = 'post-reference';
             params.keepFiltered = false;
             params.ignoreBoundaryEvents = true;
-            [EEG, computationTimes] = prepPipeline(EEG, params); 
+            params.removeInterpolatedChannels = true;
+            [EEG, params, computationTimes] = prepPipeline(EEG, params); 
+            fprintf('Computation times (seconds):\n   %s\n', ...
+                getStructureString(computationTimes));
+%             fprintf('Post-process\n')
+%             EEG = prepPostProcess(EEG, params);
+%             save(fname, 'EEG', '-mat', '-v7.3'); 
         end
 
         % NOTCH FILTER
@@ -457,7 +469,7 @@ switch part
                 waitfor(h) 
             end
             
-            if isfield(S.prep.clean,'man') && S.prep.clean.man
+            if isfield(S.prep.clean,'man') && S.prep.clean.man.on
                 close all
                 % initial arrays
                 rejchan = [];
@@ -483,6 +495,39 @@ switch part
                 EEG = pop_select(EEG, 'notrial', unique(rejtrial));
             end
             
+            % REMOVE AUTOCORR CHANNELS
+            if isfield(S.prep.clean,'autochan')
+                S = autocorr_channel_reject(S,EEG);
+                rejchan = S.prep.clean.autochan.rejchan;
+                %rejtrial = S.prep.clean.autochan.rejtrial;
+
+                %S.prep.clean.reject.autocorr_trials(fn+f) = numel(rejtrial);
+                S.prep.clean.reject.autocorr_chans(fn+f) = numel(rejchan);
+                S.prep.clean.reject.autocorr_chans_labels(fn+f) = {S.prep.clean.autochan.chans_reject_labels_ordered};
+                S.prep.clean.reject.autocorr_median_frac_trials(fn+f) = S.prep.clean.autochan.median_frac_trials;
+
+                % reject bad channels
+                EEG = reject_channels(EEG,rejchan);
+                % reject bad trials
+                %EEG = pop_select(EEG, 'notrial', unique(rejtrial));
+            end
+
+            % REMOVE NOISY CHANNELS using var
+            if isfield(S.prep.clean,'noisychan')
+                S = noisy_channel_reject(S,EEG);
+                rejchan = S.prep.clean.noisychan.rejchan;
+                rejtrial = S.prep.clean.noisychan.rejtrial;
+
+                %S.prep.clean.reject.noisy_trials(fn+f) = numel(rejtrial);
+                S.prep.clean.reject.noisy_chans(fn+f) = numel(rejchan);
+                S.prep.clean.reject.noisy_chans_labels(fn+f) = {{EEG.chanlocs(rejchan).labels}};
+                S.prep.clean.reject.noisy_chans_median_frac_trials(fn+f) = S.prep.clean.noisychan.median_frac_trials;
+
+                % reject bad channels
+                EEG = reject_channels(EEG,rejchan);
+                % reject bad trials
+                EEG = pop_select(EEG, 'notrial', unique(rejtrial));
+            end
 
             % REMOVE FLAT CHANNELS using 1/var
             % Only do this after removing very bad noisy channels!
@@ -494,6 +539,7 @@ switch part
 
                 S.prep.clean.reject.flat_trials(fn+f) = numel(rejtrial);
                 S.prep.clean.reject.flat_chans(fn+f) = numel(rejchan);
+                S.prep.clean.reject.flat_chans_labels(fn+f) = {{EEG.chanlocs(rejchan).labels}};
 
                 % reject bad channels
                 EEG = reject_channels(EEG,rejchan);
@@ -501,6 +547,22 @@ switch part
                 EEG = pop_select(EEG, 'notrial', unique(rejtrial));
             end
 
+
+            % strategy - only remove a very small number of very bad trials / chans
+            % before ICA - do further cleaning after ICA
+            if isfield(S.(S.func).clean,'FTrej') && ~isempty(S.(S.func).clean.FTrej.freq)
+                S = FTrejman(EEG,S);%S.(S.func).clean.FTrej.freq{i},S.(S.func).inclchan); 
+                rejchan = S.(S.func).clean.FTrej.rejchan;
+                rejtrial = S.(S.func).clean.FTrej.rejtrial;
+
+                S.prep.clean.reject.FTrejman_trials(fn+f) = numel(rejtrial);
+                S.prep.clean.reject.FTrejman_chans(fn+f) = numel(rejchan);
+
+                % reject bad channels
+                EEG = reject_channels(EEG,rejchan);
+                % reject bad trials
+                EEG = pop_select(EEG, 'notrial', unique(rejtrial));
+            end
 
             
             % Auto trial rejection
@@ -534,22 +596,6 @@ switch part
             end
             
     
-
-            % strategy - only remove a very small number of very bad trials / chans
-            % before ICA - do further cleaning after ICA
-            if isfield(S.(S.func).clean,'FTrej') && ~isempty(S.(S.func).clean.FTrej.freq)
-                S = FTrejman(EEG,S);%S.(S.func).clean.FTrej.freq{i},S.(S.func).inclchan); 
-                rejchan = S.(S.func).clean.FTrej.rejchan;
-                rejtrial = S.(S.func).clean.FTrej.rejtrial;
-
-                S.prep.clean.reject.FTrejman_trials(fn+f) = numel(rejtrial);
-                S.prep.clean.reject.FTrejman_chans(fn+f) = numel(rejchan);
-
-                % reject bad channels
-                EEG = reject_channels(EEG,rejchan);
-                % reject bad trials
-                EEG = pop_select(EEG, 'notrial', unique(rejtrial));
-            end
 
 
 
@@ -627,8 +673,27 @@ switch part
                
     
                 %RUN ICA 
-                numcomp = numcompeig(EEG);
-                EEG = pop_runica(EEG, 'extended',1,'interupt','on','pca',numcomp);
+                if isfield(S.prep,'clean') && isfield(S.prep.clean,'ignore_stim_artefact') && ~isempty(S.prep.clean.ignore_stim_artefact)
+                    art_time = S.prep.clean.ignore_stim_artefact;
+                    art_dp = dsearchn(EEG.times', [S.prep.clean.ignore_stim_artefact*1000]');
+                    EEGcut = EEG;
+                    EEGcut.times(art_dp(1):art_dp(2))=[];
+                    EEGcut.data(:,art_dp(1):art_dp(2),:) = [];
+                    EEGcut.pnts = length(EEGcut.times);
+                
+                    numcomp = numcompeig(EEGcut);
+                    EEGcut = pop_runica(EEGcut, 'extended',1,'interupt','on','pca',numcomp);
+                
+                    EEG.icaact = EEGcut.icaact;
+                    EEG.icawinv = EEGcut.icawinv;
+                    EEG.icasphere = EEGcut.icasphere;
+                    EEG.icaweights = EEGcut.icaweights;
+                    EEG.icachansind = EEGcut.icachansind;
+                    EEG.icasplinefile = EEGcut.icasplinefile;
+                else
+                    numcomp = numcompeig(EEG);
+                    EEG = pop_runica(EEG, 'extended',1,'interupt','on','pca',numcomp);
+                end
     
                 % SAVE
                 %[pth nme ext] = fileparts(file);
@@ -706,6 +771,77 @@ switch part
             S.prep.clean.ICA.ncomp(fn+f) = size(EEG.icaweights,1);
             S.prep.clean.ICA.sasica_nreject(fn+f) = sum(EEG.reject.gcompreject);
             S.prep.clean.ICA.sasica_fracreject(fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
+
+            % SAVE
+            %[pth nme ext] = fileparts(file);
+            %sname = [nme '_' S.prep.save.suffix{:} '.' S.prep.fname.ext{:}];
+            sname = strrep(file,S.prep.load.suffix{:},S.prep.save.suffix{:});
+            if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
+                mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
+            end
+            EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:}));
+        end
+    
+        if exist('prev_filelist','var')
+            S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+            S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+            S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+            S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+        end
+
+    case 'IClabel'
+
+        % previously processed files
+        if isfield(S.(S.func),'filelist')
+            if S.(S.func).overwrite==0
+                prev_filelist = S.(S.func).filelist;
+                prev_dirlist = S.(S.func).dirlist;
+                prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+                prev_designtab = S.(S.func).designtab;
+            end
+            S.(S.func) = rmfield(S.(S.func),'dirlist');
+            S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+            S.(S.func) = rmfield(S.(S.func),'designtab');
+        end
+
+        % GET FILE LIST 
+        S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
+        S = getfilelist(S,S.prep.load.suffix);
+
+        % select which to process
+        if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+            idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+            S.(S.func).filelist(idx_remove)=[];
+            S.(S.func).dirlist(idx_remove)=[];
+            S.(S.func).subj_pdat_idx(idx_remove)=[];
+            S.(S.func).designtab(idx_remove,:)=[];
+        end
+
+        % setup summary table
+        if ~isfield(S.(S.func).clean,'ICA') || S.(S.func).overwrite==1
+            S.(S.func).clean.ICA = table;
+        end
+        fn = height(S.(S.func).clean.ICA);
+
+        loadpath = S.path.file;
+        for f = S.prep.startfile:length(S.prep.filelist)
+            file = S.(S.func).filelist{f};
+            EEG = pop_loadset('filename',file,'filepath',loadpath);
+           
+            EEG = iclabel(EEG);
+            getbrain = strcmp(EEG.etc.ic_classification.ICLabel.classes,'Brain');
+            brainvals = EEG.etc.ic_classification.ICLabel.classifications(:,getbrain);
+            EEG.reject.gcompreject = [brainvals<S.prep.clean.brain_threshold]';
+
+            if S.prep.clean.IClabel_plot
+                pop_viewprops(EEG, 0) % for component properties
+            end
+
+            % save info to a table
+            S.prep.clean.ICA.file{fn+f} = file;
+            S.prep.clean.ICA.ncomp(fn+f) = size(EEG.icaweights,1);
+            S.prep.clean.ICA.IClabel_nreject(fn+f) = sum(EEG.reject.gcompreject);
+            S.prep.clean.ICA.IClabel_fracreject(fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
 
             % SAVE
             %[pth nme ext] = fileparts(file);

@@ -13,7 +13,23 @@ results = [];
 idx={};
 
 % inverse variance over data points on each trial and channel
+% invvar = squeeze(std(EEG.data,[],2));
 invvar = 1./squeeze(std(EEG.data,[],2));
+
+% any need excluding?
+if sum(invvar>S.prep.clean.flatchan.varthresh, 'all')==0
+    S.prep.clean.flatchan.rejchan = [];
+    S.prep.clean.flatchan.rejtrial = [];
+    return
+end
+
+% plot
+f1=figure;
+tiledlayout(1,2)
+nexttile
+imagesc(invvar,[0 S.prep.clean.flatchan.varthresh]); title(['inv var up to ' num2str(S.prep.clean.flatchan.varthresh)])
+nexttile
+imagesc(invvar>S.prep.clean.flatchan.varthresh,[0 1]); title(['over threshold of ' num2str(S.prep.clean.flatchan.varthresh)])
 
 % order variance over trials: trialind is an index of which trials have the
 % least variance
@@ -37,7 +53,7 @@ for t = 1:length(trialind)
         rmchan(chanind(1:c),:) = []; 
         
         % if all low var removed, calculate area left
-        if sum(rmchan>1)==0
+        if sum(rmchan>S.prep.clean.flatchan.varthresh, 'all')==0
             row=row+1;
             results(row,:) = [t,c,length(rmchan(:))];
             idx{row} = {trialind(1:t),chanind(1:c)};
@@ -48,12 +64,13 @@ end
 
 trial_weight = S.prep.clean.flatchan.trial_weight;
 chan_weight = S.prep.clean.flatchan.chan_weights;
-% use area per lost channel/trial
+% for every combination of chan/trial rejection, calculate area per lost
+% channels+trials
 metric=[];
 for cw = 1:length(chan_weight)
     metric(:,cw) = results(:,3)./((results(:,2)*chan_weight(cw)) + (results(:,1)*trial_weight));
 end
-f=figure('units','normalized','outerposition',[0 0 1 1])
+f2=figure('units','normalized','outerposition',[0 0 1 1])
 for m = 1:size(metric,2)
     [~,order] = sort(metric(:,m),'descend');
     ordered_results = results(order,:);
@@ -69,19 +86,20 @@ for m = 1:size(metric,2)
 end
 
 if length(chan_weight)>1
-    answer = str2double(inputdlg('Choose plot number','',1,{'9'}));
+    answer = str2double(inputdlg('Choose plot number','',1,{'7'}));
 else
     answer = 1;
 end
 if isnan(answer) || ~answer
     S.prep.clean.flatchan.rejchan = [];
     S.prep.clean.flatchan.rejtrial = [];
-    close(f)
+    close(f2)
 else
     [~,order] = sort(metric(:,answer),'descend');
     ordered_results = results(order,:);
     ordered_idx=idx(order);
     S.prep.clean.flatchan.rejchan = sort(ordered_idx{1}{2});
     S.prep.clean.flatchan.rejtrial = sort(ordered_idx{1}{1})';
-    close(f)
+    close(f2)
 end
+close(f1)
