@@ -196,6 +196,13 @@ while h.i<=size(h.Seq.signal,2)
     
     % new trial
     h.i=h.i+1;
+    if h.i>size(h.Seq.signal,2)
+        [~,seqname,~] = fileparts(h.SeqName);
+        fname = ['Output_' h.subID '_' seqname '_startblock' num2str(h.startblock) '_' h.t_start '.mat'];
+        out = h.out;
+        save(fullfile(d.root,d.out,fname),'out');
+        break; 
+    end
     
     % if running Adaptive, should this trial be run?
     if isfield(h.Settings,'adaptive')

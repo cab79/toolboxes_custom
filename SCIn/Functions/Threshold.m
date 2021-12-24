@@ -149,9 +149,9 @@ end
 presstrialsall = find(s.out.threshold(:,4)==-1);
 if length(presstrialsall)>2 && presstrialsall(end)<s.trial-2
     try
-        fprintf('Pain Threshold over last 3 trials equal to %1.3f\n', nanmean(s.out.threshold(presstrialsall(end-2:end)+1,5)));
+        fprintf('Pain Threshold over last 3 trials equal to %1.3f\n', nanmean(s.out.threshold(presstrialsall(end-2:end)+1,6)));
     catch
-        fprintf('Pain Threshold over last 3 trials equal to %1.3f\n', mean(s.out.threshold(presstrialsall(end-2:end)+1,5)));
+        fprintf('Pain Threshold over last 3 trials equal to %1.3f\n', mean(s.out.threshold(presstrialsall(end-2:end)+1,6)));
     end
 end
 
