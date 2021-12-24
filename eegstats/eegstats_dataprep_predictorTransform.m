@@ -22,49 +22,73 @@ cmp=cbrewer('div', 'RdBu', 100, 'pchip');
 for d = 1:length(D)
     disp(['data transformations: ' num2str(d) '/' num2str(length(D))])
     
-    if ~isempty(S.prep.calc.pred.sqrt) 
-        col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.sqrt));
-        for pr = 1:length(col_idx)
-            temp = (table2array(D(d).prep.dtab(:,col_idx(pr)))).^(1/2);
-            D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
-        end
-    end
-    if ~isempty(S.prep.calc.pred.log) 
+%     if isfield(S.prep.calc.pred,'cubert') && ~isempty(S.prep.calc.pred.cubert) 
+%         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.cubert));
+%         for pr = 1:length(col_idx)
+%             tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+%             if any(tempdat<0)
+%                 temp = (abs(tempdat).^(1/3)).*sign(tempdat); 
+%             else
+%                 temp = (tempdat).^(1/3);
+%             end
+%             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
+%         end
+%     end
+    if isfield(S.prep.calc.pred,'log') && ~isempty(S.prep.calc.pred.log) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.log));
         for pr = 1:length(col_idx)
             tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+            if any(tempdat<0); tempdat = tempdat-min(tempdat); end
             tempdat(tempdat==0) = min(tempdat(tempdat~=0));
             temp = log(tempdat);
             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
         end
     end
-    if ~isempty(S.prep.calc.pred.exp) 
+    if isfield(S.prep.calc.pred,'rootn') && ~isempty(S.prep.calc.pred.rootn)
+        for ri = 1:size(S.prep.calc.pred.rootn,1)
+            col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.rootn{ri,1}));
+            val=S.prep.calc.pred.rootn{ri,2};
+            val=val{:};
+            for pr = 1:length(col_idx)
+                tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+                if any(tempdat<0)
+                    temp = (abs(tempdat).^(1/val)).*sign(tempdat); 
+                else
+                    temp = (tempdat).^(1/val);
+                end
+                D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
+            end
+        end
+    end
+    if isfield(S.prep.calc.pred,'exp') && ~isempty(S.prep.calc.pred.exp) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.exp));
         for pr = 1:length(col_idx)
             temp = exp(table2array(D(d).prep.dtab(:,col_idx(pr))));
             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
         end
     end
-    if ~isempty(S.prep.calc.pred.power10) 
+    if isfield(S.prep.calc.pred,'power10') && ~isempty(S.prep.calc.pred.power10) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.power10));
         for pr = 1:length(col_idx)
             temp = 10.^(table2array(D(d).prep.dtab(:,col_idx(pr))));
             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
         end
     end
-    if ~isempty(S.prep.calc.pred.newvarmult) 
+    if isfield(S.prep.calc.pred,'newvarmult') && ~isempty(S.prep.calc.pred.newvarmult) 
         for pr = 1:size(S.prep.calc.pred.newvarmult)
             try
                 if strcmp(S.prep.calc.pred.newvarmult{pr,4},'*')
                     temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1}).*D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
                 elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'/')
                     temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})./D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+                elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'-')
+                    temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})-D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
                 end
                 D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,3}) = temp;
             end
         end
     end
-    if ~isempty(S.prep.calc.pred.log_2nd) 
+    if isfield(S.prep.calc.pred,'log_2nd') && ~isempty(S.prep.calc.pred.log_2nd) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.log_2nd));
         for pr = 1:length(col_idx)
             temp = log(table2array(D(d).prep.dtab(:,col_idx(pr))));
@@ -72,191 +96,79 @@ for d = 1:length(D)
         end
     end
     
+    if isfield(S.prep.calc.pred,'rootn_2nd') && ~isempty(S.prep.calc.pred.rootn_2nd)
+        for ri = 1:size(S.prep.calc.pred.rootn_2nd,1)
+            col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.rootn_2nd{ri,1}));
+            val=S.prep.calc.pred.rootn_2nd{ri,2};
+            val=val{:};
+            for pr = 1:length(col_idx)
+                tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+                if any(tempdat<0)
+                    temp = (abs(tempdat).^(1/val)).*sign(tempdat); 
+                else
+                    temp = (tempdat).^(1/val);
+                end
+                D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
+            end
+        end
+    end
     % z-scoring on continuous predictors, but not if doing PLS on EEG data
     if S.prep.calc.pred.zscore
         %if S.prep.calc.eeg.pca.on == 1 && any(strcmp(S.prep.calc.eeg.pca.PCAmethod,'PLS'))
         %    disp('no z-scoring to properly rescale Y variables for PLS')
         %else
+        if S.prep.calc.pred.zscore_perID
+            [U,~,iU]=unique(D.prep.dtab.ID,'stable');
+        else
+            U={'all'}; iU=ones(height(D.prep.dtab),1);
+        end
+
+        for u=1:length(U)
             vt = vartype('numeric');
             numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
             for pr = 1:length(numericvar_names)
                 if ismember(numericvar_names{pr}, S.prep.calc.pred.zscore_exclude); continue; end
-                [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(table2array(D(d).prep.dtab(:,numericvar_names{pr})));
-                D(d).prep.dtab(:,numericvar_names{pr}) = array2table(zdata);
+                % remove inf values
+                dat=table2array(D(d).prep.dtab(iU==u,numericvar_names{pr}));
+                if any(isinf(dat))
+                    dat(isinf(dat))= max(dat(~isinf(dat)));
+                end
+                [zdata, D(d).prep.pred_means(pr,u), D(d).prep.pred_stds(pr,u)] = zscore(dat);
+                D(d).prep.dtab(iU==u,numericvar_names{pr}) = array2table(zdata);
             end
             
-            % additionally, convert any categorical variables that are due
-            % for PCA to numeric and z-score them
-            if S.prep.calc.pred.PCA_on
-                ct = vartype('categorical');
-                catvar_names=D(d).prep.dtab(:,ct).Properties.VariableNames;
-                catvar_pca_idx = find(ismember(catvar_names,S.prep.calc.pred.PCA_cov{S.prep.calc.pred.PCA_model_add2dtab}));
+        end
+        
+        % additionally, convert any categorical variables that are due
+        % for PCA to numeric and z-score them
+        if S.prep.calc.pred.PCA_on
+            ct = vartype('categorical');
+            catvar_names=D(d).prep.dtab(:,ct).Properties.VariableNames;
+            for a2t = S.prep.calc.pred.PCA_model_add2dtab
+                catvar_pca_idx = find(endsWith(catvar_names,S.prep.calc.pred.PCA_cov{a2t}));
                 if numel(catvar_pca_idx)>0
                     for pr = 1:length(catvar_pca_idx)
                         if ismember(catvar_names{catvar_pca_idx(pr)}, S.prep.calc.pred.zscore_exclude); continue; end
-                        [zdata, D(d).prep.pred_means(pr), D(d).prep.pred_stds(pr)] = zscore(double(table2array(D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}))));
+                        [zdata, D(d).prep.pred_means(pr,1), D(d).prep.pred_stds(pr,1)] = zscore(double(table2array(D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}))));
                         D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}) = [];
                         D(d).prep.dtab(:,catvar_names{catvar_pca_idx(pr)}) = array2table(zdata);
                     end
                 end
             end
+        end    
+            
         %end
     %elseif S.prep.calc.pred.PCA_on == 1
     %    error('must z-score data prior to PCA')
     end
     
     
-    if S.prep.calc.pred.test_collinearity
-        
-        % variables
-        var_names = D(d).prep.dtab.Properties.VariableNames;
-        var_names = setdiff(var_names,{'ID','group','test','train','eventTypes'},'stable');
-        vt = vartype('numeric');
-        numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
-        numericvar_ind = find(ismember(var_names,numericvar_names));
-        nonnumericvar_ind = find(~ismember(var_names,numericvar_names));
-        all_ind = [numericvar_ind,nonnumericvar_ind]; % must be in this order
-        
-        % combinations
-        comb = nchoosek(all_ind,2);   
-        comb = comb(ismember(comb(:,1),numericvar_ind),:); 
-        corrmat = diag(zeros(1,length(var_names)));
-        pmat = diag(zeros(1,length(var_names)));
-        for ci = 1:length(comb)
-            formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
-            lme = fitlme(D(d).prep.dtab,formula);
-            if strcmp(S.prep.calc.pred.output_metric,'r')
-                corrmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,2);
-            elseif strcmp(S.prep.calc.pred.output_metric,'r2')
-                corrmat(comb(ci,1),comb(ci,2)) = sign(double(lme.Coefficients(2,2)))*lme.Rsquared.Ordinary;
-            end
-            pmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,6);
-        end
-        corrmat = tril(corrmat + corrmat',-1);
-        pmat = tril(pmat + pmat',-1);
-        corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
-        if strcmp(S.prep.calc.pred.output_metric,'r')
-            corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
-        elseif strcmp(S.prep.calc.pred.output_metric,'r2')
-            corrmat = corrmat.*double(corrmat>=(S.prep.calc.pred.R_min)^2 | corrmat<-(S.prep.calc.pred.R_min)^2);
-        end
-        figure;
-        ax=subplot(1,2,1);
-        imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
-        plot_names = var_names;
-        if ~isempty(S.prep.calc.pred.varname_parts_plot)
-            for pn = 1:length(plot_names)
-                nparts = strsplit(plot_names{pn},'_');
-                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
-                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
-                    plot_names{pn} = strjoin(nparts,'_');
-                end
-            end
-            S.prep.calc.pred.varname_parts_plot;
-        end
-        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('collinearity of predictors (LMM)')
-        set(ax, 'XAxisLocation', 'top');
-        save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
-        
-        % multicollinaerity
-        coli=find(corrmat>S.prep.calc.pred.test_collinearity);
-        [row,col] = ind2sub(size(corrmat),coli);
-        ax2=subplot(1,2,2);
-        imagesc(corrmat>S.prep.calc.pred.test_collinearity); caxis([0 1])
-        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('multicollinearity of predictors (LMM)')
-        set(ax2, 'XAxisLocation', 'top');
-        for ci = 1:length(coli)
-            var1=var_names{row(ci)};
-            var2=var_names{col(ci)};
-            disp(['collinear predictors (LMM): ' var1 ', ' var2])
-        end
-        if S.prep.calc.pred.allow_collinearity==false && ~isempty(coli)
-            error('collinear predictors - see above')
-        end
-        
-        
-        % correlations on concatenated data
-        [corrmat,pmat] = corr(table2array(D(d).prep.dtab(:,var_names(numericvar_ind))));
-        if strcmp(S.prep.calc.pred.output_metric,'r2')
-            corrmat=corrmat.^2;
-        end
-        corrmat = tril(corrmat + corrmat',-1);
-        pmat = tril(pmat + pmat',-1);
-        corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
-        if strcmp(S.prep.calc.pred.output_metric,'r')
-            corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
-        elseif strcmp(S.prep.calc.pred.output_metric,'r2')
-            corrmat = corrmat.*double(corrmat>=(S.prep.calc.pred.R_min)^2 | corrmat<-(S.prep.calc.pred.R_min)^2);
-        end
-        figure;
-        ax=subplot(1,2,1);
-        imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
-        plot_names = var_names(numericvar_ind);
-        if ~isempty(S.prep.calc.pred.varname_parts_plot)
-            for pn = 1:length(plot_names)
-                nparts = strsplit(plot_names{pn},'_');
-                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
-                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
-                    plot_names{pn} = strjoin(nparts,'_');
-                end
-            end
-            S.prep.calc.pred.varname_parts_plot;
-        end
-        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('collinearity of predictors (concat)')
-        set(ax, 'XAxisLocation', 'top');
-        %save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
-        
-        % multicollinaerity
-        coli=find(corrmat>S.prep.calc.pred.test_collinearity);
-        [row,col] = ind2sub(size(corrmat),coli);
-        ax2=subplot(1,2,2);
-        imagesc(corrmat>S.prep.calc.pred.test_collinearity); caxis([0 1])
-        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
-        yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('multicollinearity of predictors (concat)')
-        set(ax2, 'XAxisLocation', 'top');
-        
-        % scatterplot matrix - observe linearity
-        figure
-        plot_names = var_names(numericvar_ind);
-        [~,axpm] = plotmatrix(table2array(D(d).prep.dtab(:,plot_names)));
-        for pn = 1:length(plot_names)
-            ylabel(axpm(pn,1),plot_names{pn},'Rotation',0,'HorizontalAlignment','right')
-            xlabel(axpm(end,pn),plot_names{pn},'Rotation',90,'HorizontalAlignment','right')
-        end
-        title('linearity of predictors')
-
-        if 0 % old version: continuous predictors only
-            vt = vartype('numeric');
-            numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
-
-            rs=corr(table2array(D(d).prep.dtab(:,numericvar_names)),'type','Pearson');
-            rs=abs(triu(rs,1));
-            save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'rs','col_names');
-            coli=find(rs>S.prep.calc.pred.test_collinearity);
-            [row,col] = ind2sub(size(rs),coli);
-            for ci = 1:length(coli)
-                var1=numericvar_names{row(ci)};
-                var2=numericvar_names{col(ci)};
-                disp(['collinear predictors: ' var1 ', ' var2])
-            end
-            if ~isempty(coli)
-                error('collinear predictors - see above')
-            end
-        end
-    end
     
     if S.prep.calc.pred.PCA_on
             
         D(d).prep.pred_PCA = predictor_PCA(D(d).prep.dtab,S);
         
-        if strcmp(S.prep.calc.pred.PCA_type,'FA')
+        if strcmp(S.prep.calc.pred.PCA_type,'FA') || (strcmp(S.prep.calc.pred.PCA_type,'PLS') && S.prep.calc.pred.pls.rotate_factors)
             pattern = D(d).prep.pred_PCA.Ypattern{1};
             pattern_thresh = D(d).prep.pred_PCA.Ypattern{1}.*double(D(d).prep.pred_PCA.Ypattern{1}>=S.prep.calc.pred.PCA_model_minloading | D(d).prep.pred_PCA.Ypattern{1}<=-S.prep.calc.pred.PCA_model_minloading);
             structure = D(d).prep.pred_PCA.Ystruct{1};
@@ -286,9 +198,12 @@ for d = 1:length(D)
             avg_wth_fac_corr = mean(abs(structure),[1 2]);
             prop_wth_btw = (avg_wth_fac_corr/(avg_btw_fac_corr+avg_wth_fac_corr))*100;
 
+            vardata=table2array(D(d).prep.dtab(:,endsWith(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1})));
+            varnames=D(d).prep.dtab.Properties.VariableNames(endsWith(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1}));
+            
             % Cronbach
-            vardata=table2array(D(d).prep.dtab(:,contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1})));
-            for nf = 1:size(D(d).prep.pred_PCA.Yscore{1},2)
+            ym=S.prep.calc.pred.PCA_model_add2dtab;
+            for nf = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
                 if sum(pattern_thresh(:,nf)~=0)>1
                     crona(nf)=cronbach(vardata(:,pattern_thresh(:,nf)~=0));
                 else
@@ -305,13 +220,14 @@ for d = 1:length(D)
                 ['cronbach = ' num2str(crona)]
                 };
             annotation('textbox',dim,'String',str,'FitBoxToText','on');
-            
+        end
+        
+        if strcmp(S.prep.calc.pred.PCA_type,'FA') || (strcmp(S.prep.calc.pred.PCA_type,'PLS') && S.prep.calc.pred.pls.rotate_factors)
             % add FA components to data table
             if S.prep.calc.pred.PCA_model_add2dtab
-                ym=S.prep.calc.pred.PCA_model_add2dtab;
                 for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
                     pcname=[S.prep.calc.pred.PCA_type num2str(k)];
-                    D(d).prep.dtab.(pcname) = (transpose(pattern_thresh(:,k))*transpose(vardata))';
+                    D(d).prep.dtab.(pcname) = zscore((transpose(pattern_thresh(:,k))*transpose(vardata))');
                 end
 
                 % trialback data
@@ -321,16 +237,82 @@ for d = 1:length(D)
     %                     D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore_tb{ym}(:,k);
     %                 end
     %             end
+    
+                % remove factor variance from original predictors
+                if S.prep.calc.pred.PCA_model_rmFacVar && S.prep.calc.pred.PCA_model_rmPredVar == 0
+                    for nf = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                        vnme = varnames(pattern_thresh(:,nf)~=0);
+                        pcname=[S.prep.calc.pred.PCA_type num2str(nf)];
+                        for v = 1:length(vnme)
+                            formula = [vnme{v} '~' pcname '+(1|ID)'];
+                            lme = fitlme(D(d).prep.dtab,formula);
+                            D(d).prep.dtab.(vnme{v}) = residuals(lme);
+                        end
+                    end
+                end
+                
+                % remove other predictor variance
+                if S.prep.calc.pred.PCA_model_rmPredVar == 1 % grouped by factor
+                    dtab = D(d).prep.dtab;
+                    for nf = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                        vnme = varnames(pattern_thresh(:,nf)~=0);
+                        pcname=[S.prep.calc.pred.PCA_type num2str(nf)];
+                        for v = 1:length(vnme)
+                            formula = [vnme{v} '~'];
+                            for v2 = 1:length(vnme)
+                                if v2==v; continue; end
+                                formula = [formula vnme{v2} '+'];
+                            end
+                            if S.prep.calc.pred.PCA_model_rmFacVar
+                                formula = [formula pcname '+'];
+                            end
+                            formula = [formula '(1|ID)'];
+                            lme = fitlme(D(d).prep.dtab,formula);
+                            dtab.(vnme{v}) = residuals(lme);
+                        end
+                    end
+                    D(d).prep.dtab = dtab;
+                elseif S.prep.calc.pred.PCA_model_rmPredVar == 2 % all predictors
+                    dtab = D(d).prep.dtab;
+                    vnme = varnames;
+                    for v = 1:length(vnme)
+                        formula = [vnme{v} '~'];
+                        for v2 = 1:length(vnme)
+                            if v2==v; continue; end
+                            formula = [formula vnme{v2} '+'];
+                        end
+                        if S.prep.calc.pred.PCA_model_rmFacVar
+                            for nf = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                                pcname=[S.prep.calc.pred.PCA_type num2str(nf)];
+                                formula = [formula pcname '+'];
+                            end
+                        end
+                        formula = [formula '(1|ID)'];
+                        lme = fitlme(D(d).prep.dtab,formula);
+                        dtab.(vnme{v}) = residuals(lme);
+                    end
+                    D(d).prep.dtab = dtab;
+                end
+                
+                % zscore again
+                vnme = varnames;
+                for v = 1:length(vnme)
+                    dat=table2array(D(d).prep.dtab(:,vnme{v}));
+                    [zdata, D(d).prep.pred_means(v), D(d).prep.pred_stds(v)] = zscore(dat);
+                    D(d).prep.dtab(:,vnme{v}) = array2table(zdata);
+                end
             end
+            
             
         else
             
             % add PCA components to data table
             if S.prep.calc.pred.PCA_model_add2dtab
-                ym=S.prep.calc.pred.PCA_model_add2dtab;
-                for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
-                    pcname=[S.prep.calc.pred.PCA_type num2str(k)];
-                    D(d).prep.dtab.(pcname) = D(d).prep.pred_PCA.Yscore{ym}(:,k);
+                for ym=S.prep.calc.pred.PCA_model_add2dtab
+                    for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
+                        pcname=[S.prep.calc.pred.PCA_type num2str(ym) '_' num2str(k)];
+                        D(d).prep.dtab.(pcname) = zscore(D(d).prep.pred_PCA.Yscore{ym}(:,k));
+                    end
                 end
             end
         end
@@ -456,21 +438,171 @@ for d = 1:length(D)
         end
         xticks(1:sum(xvar_index)); xticklabels(plot_names(xvar_index)); %xtickangle(90);
         yticks(1:length(plot_names)); yticklabels(plot_names);
-        title('factor regressions')
+        title('factor regressions (concat)')
         set(ax, 'XAxisLocation', 'top');
         
+%         save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
+%         coli=find(corrmat>S.prep.calc.pred.test_collinearity);
+%         [row,col] = ind2sub(size(corrmat),coli);
+%         for ci = 1:length(coli)
+%             var1=var_names{row(ci)};
+%             var2=var_names{col(ci)};
+%             disp(['collinear predictors: ' var1 ', ' var2])
+%         end
+%         if S.prep.calc.pred.allow_collinearity==false && ~isempty(coli)
+%             error('collinear predictors - see above')
+%         end
+        
+    end
+    
+    
+    if S.prep.calc.pred.test_collinearity
+        
+        % variables
+        if S.prep.calc.pred.test_collinearity_PCAcov_only
+            varnames=D(d).prep.dtab.Properties.VariableNames(endsWith(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1}));
+        else
+            var_names = D(d).prep.dtab.Properties.VariableNames;
+            var_names = setdiff(var_names,{'ID','group','test','train','eventTypes'},'stable');
+        end
+        vt = vartype('numeric');
+        numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
+        numericvar_ind = find(ismember(var_names,numericvar_names));
+        nonnumericvar_ind = find(~ismember(var_names,numericvar_names));
+        all_ind = [numericvar_ind,nonnumericvar_ind]; % must be in this order
+        
+        % combinations
+        comb = nchoosek(all_ind,2);   
+        comb = comb(ismember(comb(:,1),numericvar_ind),:); 
+        corrmat = diag(zeros(1,length(var_names)));
+        pmat = diag(zeros(1,length(var_names)));
+        for ci = 1:length(comb)
+            formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
+            lme = fitlme(D(d).prep.dtab,formula);
+            if strcmp(S.prep.calc.pred.output_metric,'r')
+                corrmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,2);
+            elseif strcmp(S.prep.calc.pred.output_metric,'r2')
+                corrmat(comb(ci,1),comb(ci,2)) = sign(double(lme.Coefficients(2,2)))*lme.Rsquared.Ordinary;
+            end
+            pmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,6);
+        end
+        corrmat = tril(corrmat + corrmat',-1);
+        pmat = tril(pmat + pmat',-1);
+        corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
+        if strcmp(S.prep.calc.pred.output_metric,'r')
+            corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
+        elseif strcmp(S.prep.calc.pred.output_metric,'r2')
+            corrmat = corrmat.*double(corrmat>=(S.prep.calc.pred.R_min)^2 | corrmat<-(S.prep.calc.pred.R_min)^2);
+        end
+        
+        % PLOT
+        figure;
+        ax=subplot(1,2,1);
+        imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
+        plot_names = var_names;
+        if ~isempty(S.prep.calc.pred.varname_parts_plot)
+            for pn = 1:length(plot_names)
+                nparts = strsplit(plot_names{pn},'_');
+                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
+                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
+                    plot_names{pn} = strjoin(nparts,'_');
+                end
+            end
+            S.prep.calc.pred.varname_parts_plot;
+        end
+        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(plot_names)); yticklabels(plot_names);
+        title('collinearity of predictors (LMM)')
+        set(ax, 'XAxisLocation', 'top');
         save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
-        coli=find(corrmat>S.prep.calc.pred.test_collinearity);
+        
+        % multicollinaerity
+        coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
         [row,col] = ind2sub(size(corrmat),coli);
+        ax2=subplot(1,2,2);
+        imagesc(abs(corrmat)>S.prep.calc.pred.test_collinearity); caxis([0 1])
+        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(plot_names)); yticklabels(plot_names);
+        title('multicollinearity of predictors (LMM)')
+        set(ax2, 'XAxisLocation', 'top');
         for ci = 1:length(coli)
             var1=var_names{row(ci)};
             var2=var_names{col(ci)};
-            disp(['collinear predictors: ' var1 ', ' var2])
+            disp(['collinear predictors (LMM): ' var1 ', ' var2])
         end
         if S.prep.calc.pred.allow_collinearity==false && ~isempty(coli)
             error('collinear predictors - see above')
         end
         
+        
+        % correlations on concatenated data
+        [corrmat,pmat] = corr(table2array(D(d).prep.dtab(:,var_names(numericvar_ind))));
+%         VIF = diag(inv(corrmat))'; % VIF
+        if strcmp(S.prep.calc.pred.output_metric,'r2')
+            corrmat=corrmat.^2;
+        end
+        corrmat = tril(corrmat + corrmat',-1);
+        pmat = tril(pmat + pmat',-1);
+        corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
+        if strcmp(S.prep.calc.pred.output_metric,'r')
+            corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
+        elseif strcmp(S.prep.calc.pred.output_metric,'r2')
+            corrmat = corrmat.*double(corrmat>=(S.prep.calc.pred.R_min)^2 | corrmat<-(S.prep.calc.pred.R_min)^2);
+        end
+        figure;
+        ax=subplot(1,2,1);
+        imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
+        plot_names = var_names(numericvar_ind);
+        if ~isempty(S.prep.calc.pred.varname_parts_plot)
+            for pn = 1:length(plot_names)
+                nparts = strsplit(plot_names{pn},'_');
+                if max(S.prep.calc.pred.varname_parts_plot) <= length(nparts)
+                    nparts = nparts(S.prep.calc.pred.varname_parts_plot);
+                    plot_names{pn} = strjoin(nparts,'_');
+                end
+            end
+            S.prep.calc.pred.varname_parts_plot;
+        end
+        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(plot_names)); yticklabels(plot_names);
+        title('collinearity of predictors (concat)')
+        set(ax, 'XAxisLocation', 'top');
+        %save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
+        
+        % multicollinaerity
+        coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
+        [row,col] = ind2sub(size(corrmat),coli);
+        ax2=subplot(1,2,2);
+        imagesc(abs(corrmat)>S.prep.calc.pred.test_collinearity); caxis([0 1])
+        xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+        yticks(1:length(plot_names)); yticklabels(plot_names);
+        title('multicollinearity of predictors (concat)')
+        set(ax2, 'XAxisLocation', 'top');
+        
+%         % multicollinaerity VIF
+%         figure
+%         ax3=subplot(1,1,1);
+%         if strcmp(S.prep.calc.pred.output_metric,'r2')
+%             VIF = 1./(1-corrmat);
+%         else
+%             VIF = 1./(1-corrmat^2);
+%         end
+%         imagesc(VIF); caxis([1 10]); colorbar;
+%         xticks(1:length(plot_names)); xticklabels(plot_names); xtickangle(90);
+%         yticks(1:length(plot_names)); yticklabels(plot_names);
+%         title('multicollinearity of predictors (concat - VIF)')
+%         set(ax3, 'XAxisLocation', 'top');
+        
+        % scatterplot matrix - observe linearity
+        figure
+        plot_names = var_names(numericvar_ind);
+        [~,axpm] = plotmatrix(table2array(D(d).prep.dtab(:,plot_names)));
+        for pn = 1:length(plot_names)
+            ylabel(axpm(pn,1),plot_names{pn},'Rotation',0,'HorizontalAlignment','right')
+            xlabel(axpm(end,pn),plot_names{pn},'Rotation',90,'HorizontalAlignment','right')
+        end
+        title('linearity of predictors')
+
         if 0 % old version: continuous predictors only
             vt = vartype('numeric');
             numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
@@ -509,7 +641,7 @@ function out = predictor_PCA(dtab,S)
 for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
 
     % find columns with relevant predictors
-    col_idx=contains(dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{ym});
+    col_idx=endsWith(dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{ym});
     
     % get an index of those colidx overlapping with trialback
     trialback_idx{ym}=contains(dtab.Properties.VariableNames,"trialback") & col_idx;
@@ -525,8 +657,6 @@ for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
 end
 out.Y = Y;
 
-% KMO test
-[A,B] = kmo(Y{ym});
 
 % select PCA method
 switch S.prep.calc.pred.PCA_type
@@ -596,10 +726,14 @@ switch S.prep.calc.pred.PCA_type
         
         for ym = 1:length(Y) % for each Y model
            
+            % KMO test
+            disp('model 1, KMO test')
+            [A,B] = kmo(Y{ym});
+            
             % inital num components
             ncomp=size(Y{ym},2); 
             
-            % sPCA
+            % PCA
             FactorResults = erp_pca(Y{ym}, ncomp, type);
             explained = FactorResults.scree;
             
@@ -632,14 +766,568 @@ switch S.prep.calc.pred.PCA_type
             out.Yfacvartotal{ym} = FactorResults.facVarTot;
             
         end
+    case 'PLS'
+        % here we consider Y as X, i.e. predictors
+        Xall=Y;
+        clear Y;
+        % and the data to be predicted is some EEG data components,
+        % centered (e.g. CCA components). cdata{i} is one subject's data
+        % consisting of trials (rows) by components (cols)
+        if isfield(S.prep.calc.pred.pls,'eeg_data') && ~isempty(S.prep.calc.pred.pls.eeg_data)
+            disp('loading EEG data')
+            Dy = load(S.prep.calc.pred.pls.eeg_data,'D');
+            for nY = 1:length(Dy.D.prep.Y)
+                Y(:,nY) = Dy.D.prep.Y(nY).dtab.data;
+            end
+        else
+            error('supply EEG data')
+        end
         
+        % concatenate over subjects? Or treat each separately
+        if S.prep.calc.pred.pls.concat_over_subjects
+            cdata{1} = Y; 
+            for xm = 1:length(Xall)
+                X{xm}{1} = Xall{xm};
+            end
+        else
+            [U,~,iU]=unique(Dy.D.prep.dtab.ID,'stable');
+            for i=1:length(U)
+                cdata{i} = Y(iU==i,:);
+                for xm = 1:length(Xall)
+                    X{xm}{i} = Xall{xm}(iU==i,:);
+                end
+            end
+        end
+        clear Dy
+        
+        for xm = 1:length(X) % for each X model, i.e. predictor model
+            
+            if S.prep.calc.pred.pls.select_ncomp.boot
 
+            elseif S.prep.calc.pred.pls.select_ncomp.MSE_CV || S.prep.calc.pred.pls.select_ncomp.frac_explained || S.prep.calc.pred.pls.select_ncomp.PRESS
+                
+                clear explained explainedrand
+                NUM_FAC = size(X{xm}{1},2);
+                for i = 1:length(cdata)
+                    [~,~,~,~,BETA{xm}{i},explained{xm}(:,:,i),MSEcv{xm}(:,:,i)] = plsregress(X{xm}{i},cdata{i},NUM_FAC,'cv',5);
+                    [~,~,~,~,~,~,MSE{xm}(:,:,i)] = plsregress(X{xm}{i},cdata{i},NUM_FAC);
+
+                    % scale random data
+                    si = std(cdata{i}(:));
+                    randcdata=randn(size(cdata{i}))*si;
+                    [~,~,~,~,BETArand{xm}{i},explainedrand{xm}(:,:,i),MSEcvrand{xm}(:,:,i)] = plsregress(X{xm}{i},randcdata,NUM_FAC,'cv',5);
+                    [~,~,~,~,~,~,MSErand{xm}(:,:,i)] = plsregress(X{xm}{i},randcdata,NUM_FAC);
+
+                end
+                
+                % find number of PLS components using comparison of CV-MSE
+                % between actual and random data; or use fraction explained
+                nfac_msecv = find(mean(MSEcv{xm}(2,:,:),3)<mean(MSEcvrand{xm}(2,:,:),3));
+
+                % find number of PLS components using PRESS
+                % https://stats.idre.ucla.edu/wp-content/uploads/2016/02/pls.pdf
+                % http://facweb.cs.depaul.edu/sjost/csc423/documents/f-test-reg.htm
+                % https://sites.duke.edu/bossbackup/files/2013/02/FTestTutorial.pdf
+                
+                nsamples = [];
+                for i = 1:length(cdata)
+                    nsamples(i) = size(cdata{i},1);
+                end
+                mean_nsamples = mean(nsamples);
+                
+                % PRESS compared to previous model: Y
+                Fy=[];Py=[];
+                for n = 1:NUM_FAC
+                    df1 = mean_nsamples - (n-1);
+                    df2 = mean_nsamples - n;
+                    SSR1 = mean(MSEcv{xm}(2,n,:),3)*df1;
+                    SSR2 = mean(MSEcv{xm}(2,n+1,:),3)*df2;
+                    %F = SSR1/SSR2;
+                    Fy(n) = ((SSR1-SSR2)/(df1-df2)) / (SSR2/df2);
+                    Py(n)=1-fcdf(Fy(n),df1,df2);
+                end
+                % PRESS compared to previous model: X
+                Fx=[];Px=[];
+                for n = 1:NUM_FAC
+                    df1 = mean_nsamples - (n-1);
+                    df2 = mean_nsamples - n;
+                    SSR1 = mean(MSEcv{xm}(1,n,:),3)*df1;
+                    SSR2 = mean(MSEcv{xm}(1,n+1,:),3)*df2;
+                    %F = SSR1/SSR2;
+                    Fx(n) = ((SSR1-SSR2)/(df1-df2)) / (SSR2/df2);
+                    Px(n)=1-fcdf(Fx(n),df1,df2);
+                end
+                
+%                 % PRESS compared to random: Y
+%                 F=[];P=[];
+%                 for n = 1:NUM_FAC
+%                     df1 = mean_nsamples - n;
+%                     df2 = mean_nsamples - n;
+%                     SSR1 = mean(MSEcvrand{xm}(2,n,:),3)*df1;
+%                     SSR2 = mean(MSEcv{xm}(2,n+1,:),3)*df2;
+%                     F(n) = SSR1/SSR2;
+% %                     F(n) = ((SSR1-SSR2)/(df1-df2)) / (SSR2/df2);
+%                     P(n)=1-fcdf(F(n),df1,df2);
+%                 end
+%                 % PRESS compared to random: X
+%                 F=[];P=[];
+%                 for n = 1:NUM_FAC
+%                     df1 = mean_nsamples - n;
+%                     df2 = mean_nsamples - n;
+%                     SSR1 = mean(MSEcvrand{xm}(1,n,:),3)*df1;
+%                     SSR2 = mean(MSEcv{xm}(1,n+1,:),3)*df2;
+%                     F(n) = SSR1/SSR2;
+% %                     F(n) = ((SSR1-SSR2)/(df1-df2)) / (SSR2/df2);
+%                     P(n)=1-fcdf(F(n),df1,df2);
+%                 end
+                
+                figure('name',['PLS MSE and explained variance: Model ' num2str(xm)])
+                subplot(2,4,1); hold on
+                    plot(0:NUM_FAC,mean(MSE{xm}(1,:,:),3)'); xlabel('n comp'), ylabel('X MSE'); %gcaExpandable;
+                    plot(0:NUM_FAC,mean(MSErand{xm}(1,:,:),3)','r--'); 
+                subplot(2,4,5); hold on
+                    plot(0:NUM_FAC,mean(MSE{xm}(2,:,:),3)'); xlabel('n comp'), ylabel('Y MSE'); %gcaExpandable;
+                    plot(0:NUM_FAC,mean(MSErand{xm}(2,:,:),3)','r--'); 
+                subplot(2,4,2); hold on
+                    plot(0:NUM_FAC,mean(MSEcv{xm}(1,:,:),3)'); xlabel('n comp'), ylabel('X CV MSE'); %gcaExpandable;
+                    plot(0:NUM_FAC,mean(MSEcvrand{xm}(1,:,:),3)','r--');
+                    plot([nfac_msecv(end),nfac_msecv(end)],[0 max(mean(MSEcv{xm}(1,:,:),3))],'k'); 
+                subplot(2,4,6); hold on
+                    plot(0:NUM_FAC,mean(MSEcv{xm}(2,:,:),3)'); xlabel('n comp'), ylabel('Y CV MSE'); %gcaExpandable;
+                    plot(0:NUM_FAC,mean(MSEcvrand{xm}(2,:,:),3)','r--');
+                    plot([nfac_msecv(end),nfac_msecv(end)],[0 max(mean(MSEcv{xm}(2,:,:),3))],'k'); 
+                subplot(2,4,3); hold on
+                    plot(1:NUM_FAC,cumsum(mean(explained{xm}(1,:,:),3)')); xlabel('n comp'), ylabel('X explained variance'); %gcaExpandable;
+                    plot(1:NUM_FAC,cumsum(mean(explainedrand{xm}(1,:,:),3))','r--'); 
+                subplot(2,4,7); hold on
+                    plot(1:NUM_FAC,cumsum(mean(explained{xm}(2,:,:),3)')); xlabel('n comp'), ylabel('Y explained variance'); %gcaExpandable;
+                    plot(1:NUM_FAC,cumsum(mean(explainedrand{xm}(2,:,:),3))','r--'); 
+                fi = 1:NUM_FAC;
+                subplot(2,4,4); hold on
+                    plot(1:NUM_FAC,Fx); xlabel('n comp'), ylabel('X F value vs previous'); %gcaExpandable;
+                    plot(fi(Px<0.05),Fx(Px<0.05),'ro'); 
+                subplot(2,4,8); hold on
+                    plot(1:NUM_FAC,Fy); xlabel('n comp'), ylabel('Y F value vs previous'); %gcaExpandable;
+                    plot(fi(Py<0.05),Fy(Py<0.05),'ro'); 
+
+                nr=ceil(sqrt(length(cdata)));
+                figure('name',['PLS fitted responses: Model ' num2str(xm)])
+                for i = 1:length(cdata)
+                    subplot(nr,nr,i); plot(cdata{i},[ones(size(X{xm}{i},1),1) X{xm}{i}]*BETA{xm}{i},'bo');
+                        xlabel('Observed Response');
+                        ylabel('Fitted Response');
+                end
+                figure('name',['PLS fitted responses: random: Model ' num2str(xm)])
+                for i = 1:length(cdata)
+                    subplot(nr,nr,i); plot(cdata{i},[ones(size(X{xm}{i},1),1) X{xm}{i}]*BETArand{xm}{i},'bo');
+                        xlabel('Observed Response');
+                        ylabel('Fitted Response');
+                end
+                
+                if S.prep.calc.pred.pls.select_ncomp.MSE_CV
+                    grp_nfac{xm} = nfac_msecv(end)-1;
+                elseif S.prep.calc.pred.pls.select_ncomp.frac_explained
+                    nfac_exp = find(cumsum(mean(explained{xm}(2,:,:),3)) > S.prep.calc.pred.pls.select_ncomp.frac_explained);
+                    if isempty(nfac_exp)
+                    	nfac_exp = NUM_FAC;
+                    end
+                    grp_nfac{xm} = nfac_exp(1);
+                else 
+                    grp_nfac{xm} = str2double(inputdlg('number of factors?'));
+                end
+            else
+                grp_nfac{xm} = NUM_FAC;
+            end
+            
+        end
+        
+        if 0
+            % select model based on best t value
+            for xm = 1:length(X) % for each Y model
+                meantL(xm) = mean(abs(tL{xm}(:)));
+            end
+            [~,minidx] = find(max(meantL));
+            
+        elseif 0
+            % select model based on minimum MSE
+            for xm = 1:length(X) % for each Y model
+                MSEcvxm(xm) = mean(MSEcv{xm}(2,grp_nfac{xm},:),3)/size(X{xm}{1},2); 
+            end
+            [minMSE, minidx] = min(MSEcvxm);
+            figure; hold on
+                    plot(1:length(MSEcvxm),MSEcvxm); xlabel('model'), ylabel('mean MSE per variable'); %gcaExpandable;
+                    scatter(minidx,minMSE,'k'); 
+        else
+            minidx = 1:length(X);
+        end
+        
+        % take grp nfac
+        for xm = minidx
+            NUM_FAC = grp_nfac{xm};
+            clear explained MSE MSE_CV W
+            for i = 1:length(cdata)
+                [XCOEFF,YCOEFF,Xscore,Yscore,BETA{i},explained(:,:,i),MSE(:,:,i),stats] = plsregress(X{xm}{i},cdata{i},NUM_FAC);
+                [~,~,~,~,~,~,MSE_CV(:,:,i),~] = plsregress(X{xm}{i},cdata{i},NUM_FAC,'cv',5);
+
+                out.Ycoeff{xm}{i}=YCOEFF;
+                out.Yscore{xm}{i}=Yscore;
+                out.Xcoeff{xm}{i}=XCOEFF;
+                out.Xscore{xm}{i}=Xscore;
+                out.BETA{xm}{i}=BETA{i};
+                out.MSE{xm}{i}=MSE(:,:,i);
+                out.MSE_CV{xm}{i}=MSE_CV(:,:,i);
+                out.explained{xm}{i}=explained(:,:,i);
+                out.W{xm}{i}=stats.W;
+                out.Yfitted{xm}{i} = [ones(size(X{xm}{i},1),1) X{xm}{i}]*BETA{i};
+
+               
+            end
+            out.Ymodel=xm;
+    %         if exist('YCOEFFPCA','var')
+    %             out.YCOEFF_PCA=YCOEFFPCA{xm};
+    %             out.Yscore_PCA=YscorePCA{xm};
+    %         end
+            out.grp_nfac = grp_nfac;
+
+            % only plot if there are multiple subjects (not concat)
+            if ndims(explained)==3
+                figure('name',['PLS MSE and explained variance: Model ' num2str(xm)])
+                    subplot(2,3,1);
+                        boxplot(squeeze(MSE(1,:,:))'); xlabel('n comp'), ylabel('X CV MSE'); 
+                    subplot(2,3,2); 
+                        boxplot(squeeze(MSE(2,:,:))'); xlabel('n comp'), ylabel('Y MSE'); %gcaExpandable;
+                    subplot(2,3,3); 
+                        boxplot(squeeze(MSE_CV(2,:,:))'); xlabel('n comp'), ylabel('Y CV MSE'); %gcaExpandable;
+                    subplot(2,3,4); 
+                        boxplot(squeeze(explained(1,:,:))');  xlabel('n comp'), ylabel('X explained variance'); %gcaExpandable;
+                    subplot(2,3,5); 
+                        boxplot(squeeze(explained(2,:,:))'); xlabel('n comp'), ylabel('Y explained variance'); %gcaExpandable;
+            end
+            figure('name',['PLS fitted responses: first ' num2str(NUM_FAC) ' components'])
+            nr=ceil(sqrt(length(cdata)));
+            for i = 1:length(cdata)
+                subplot(nr,nr,i); plot(cdata{i},out.Yfitted{xm}{i},'bo');
+                    xlabel('Observed Response');
+                    ylabel('Fitted Response');
+            end
+            
+            if S.prep.calc.pred.pls.rotate_factors
+%                 % Rotate away from the principal components
+%                 [out.Ycoeff{xm}{i},T] = rotatefactors(out.Ycoeff{xm}{i},'Method',S.prep.calc.pred.FA_type.rotation_option,'Power',S.prep.calc.pred.FA_type.degree);
+%                 % Variances of the rotated scores, if we have S
+%                 evalues = diag(cov(out.Yscore{xm}{i}*T))';
+%                 out.explained{xm}{i} = diag(evalues)/sum(diag(evalues));
+%                 %FactorResults = erp_pca(Y{ym},nfac,type);
+%                 out.Ycorr{ym} = FactorResults.FacCor;
+%                 out.Ypattern{ym} = FactorResults.FacPat;
+%                 out.Ystruct{ym} = FactorResults.FacStr;
+%                 out.Yscore{ym} = FactorResults.FacScr;
+%                 out.Yfacvar{ym} = FactorResults.facVar;
+%                 out.Yfacvaruniq{ym} = FactorResults.facVarQ;
+%                 out.Yfacvartotal{ym} = FactorResults.facVarTot;
+                for i = 1:length(cdata)
+                    
+                    data=X{xm}{i};
+                    R=cov(data,'partialrows');
+                    R=cov2corr(R);
+                    goodVars=find(std(data) ~= 0);
+                    Sc = cov(data,'partialrows'); 
+                    Sd = diag(sqrt(diag(Sc)));
+                    
+                    V=out.Xcoeff{xm}{i};
+                    ScrDiag = diag(nanstd(out.Xscore{xm}{i}));
+                    A = inv(Sd) * (V * ScrDiag);  %unrotated factor loading matrix
+                    
+                    type.rotation_option = S.prep.calc.pred.FA_type.rotation_option;
+                    type.degree = S.prep.calc.pred.FA_type.degree;
+                    if strcmp(type.rotation_option,'promax')
+                        [FacPat, FacCor] = rotatefactors(A,...
+                            'Method',type.rotation_option,... 
+                            'Power',type.degree,... % Promax only
+                            'Normalize','on',...
+                            'Reltol',.00001,...
+                            'Maxit',1000);
+                        FacStr = FacPat * FacCor;	%factor structure matrix (Harman, eq. 12.19, p. 268)
+                    else
+                        [FacPat, FacCor] = rotatefactors(A,...
+                            'Method',type.rotation_option,... % 'Method' is 'orthomax', 'varimax', 'quartimax', 'equamax', or 'parsimax'
+                            'Normalize','on',...
+                            'Reltol',.00001,...
+                            'Maxit',1000);
+                        FacStr = FacPat;
+                    end
+                    LargestLoading=max(max(abs(FacStr))); %factor pattern loadings can go over 1 for oblique rotations
+                    LargestCom=max(max(abs(sum(FacPat.*FacStr,2))));
+
+
+                    invR=pinv(R);
+                    FacCof=invR*FacStr;
+                    FacScr=(data)*FacCof;
+
+                    facVar=[];
+                    facVarQ=[];
+                    Comm=[];
+
+                    if LargestCom ~=0 && LargestLoading~=0
+
+                        FacScr=(FacScr)*inv(diag(std(FacScr))); %Standardize factor scores, not mean corrected.
+                        Var=Sd.^2;
+
+                        Comm=sum((Var*FacPat.*FacStr),2)/sum(diag(Var)); % p. 100
+
+                        facVar = sum((Var*FacPat.*FacStr))/sum(diag(Var));
+
+                        facVarQ=sum(Var*(FacPat*inv(diag(sqrt(diag(inv(FacCor)))))).^2)/sum(diag(Var));
+
+                        %sort factors in order of size
+                        [dummy index]=sort(facVar); 
+                        index = fliplr(index);
+
+                        FacPat=FacPat(:,index);
+                        FacStr=FacStr(:,index);
+                        FacCof=FacCof(:,index);
+                        FacScr=FacScr(:,index);
+                        FacCor=FacCor(index,index);
+                        facVar=facVar(index);
+                        facVarQ=facVarQ(index);
+
+                        for f1 = 1:NUM_FAC
+                            if sum(FacPat(:,f1)) < 0	%flip factor loadings so mostly positive
+                                FacPat(:,f1) = FacPat(:,f1) .* (-1);
+                                FacStr(:,f1) = FacStr(:,f1) .* (-1);
+                                FacCof(:,f1) = FacCof(:,f1) .* (-1);
+                                FacScr(:,f1) = FacScr(:,f1) .* (-1); %if the loading is flipped, the scores must be flipped too.
+                                FacCor(:,f1) = FacCor(:,f1) .* (-1);
+                                FacCor(f1,:) = FacCor(f1,:) .* (-1);
+                            end
+                        end
+                    end
+
+                    facNames=[];
+                    facTypes=[];
+
+                    factorDigits=length(num2str(NUM_FAC));
+                    for f=1:NUM_FAC
+                        facNames{f,1}=['TF' sprintf(['%0' num2str(factorDigits) 'd'],f)];
+                        facTypes{f,1}='SGL';
+                    end
+
+                    out.Ycoeff{xm}{i}(goodVars,:) = FacCof;
+                    out.Ycorr{xm}{i} = FacCor;
+                    out.Ypattern{xm}{i}(goodVars,:) = FacPat;
+                    out.Ystruct{xm}{i}(goodVars,:) = FacStr;
+                    out.Yscore{xm}{i} = FacScr;
+                    out.Yfacvar{xm}{i} = facVar;
+                    out.Yfacvaruniq{xm}{i} = facVarQ;
+                    out.Yfacvartotal{xm}{i} = sum(Comm,1);
+                    out.numFacs{xm}{i}=NUM_FAC;
+                    out.facNames{xm}{i}=facNames;
+                    out.facTypes{xm}{i}=facTypes;
+                end
+            end
+            
+        end
+        
+end
+
+if S.prep.calc.pred.CCA_over_subjects
+
+    % trial indices
+    trialidx = unique(D.prep.dtab.tnums); % repetitions
+    nreps = trialidx(end);
+    for u=1:length(U)
+        dat{u} = reshape(grpdata(iU==u,:),[],currdim(1),currdim(2));
+        repidx{u} = D.prep.dtab.tnums(iU==u);
+        if ~isempty(Y)
+            for ym = 1:length(Y)
+                Ydat{ym}{u} = Y{ym}(iU==u,:);
+            end
+        end
+    end
+    % obtain subject-specific PCs
+    PCdata = nan(NUM_FAC(1),nobs);
+    sigma = {};
+    for i = 1:length(cdata)
+        sigma{i} = sqrt(var(score{i})); 
+        if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA')) % standardise scores if they will be used for CCA
+           score{i} = score{i}./repmat(sqrt(var(score{i})),size(score{i},1),1); % standardise so that each PC from each subject contributes equally to CCA solution
+        end
+        PCdata(:,rep{i},i) = score{i}';
+    end
+
+    disp(['CCA: ' S.type{pt}])
+
+    % parallel processing
+    checkp = gcp('nocreate');
+    if isempty(checkp)
+        myPool = parpool;
+    end
+
+    % CCA % https://onlinelibrary.wiley.com/doi/full/10.1002/hbm.23689
+
+    % cross-validated r/ncomp: SETTINGS
+    reg=1; 
+    r= S.cca_reg_weights;
+    nr=length(r);
+    if S.cca_test_nPCAcomp
+        ncomp =  1 : ceil(size(O(o).scores,1)/min(size(O(o).scores,1),S.cca_test_nPCAcomp)) : size(O(o).scores,1);
+    else
+        ncomp = size(O(o).scores,1);
+    end
+    CV_fold=5;
+    CVsample = cvpartition(size(O(o).scores,2),'KFold',CV_fold);
+
+    nci=0;
+    ncii=[];
+    RMSECV=[];
+    cca_reduce_by_scree = S.cca_reduce_by_scree;
+    for nc = 1:length(ncomp) 
+
+        % run CV CCAs in parallel for speed
+        CV_W = cell(CV_fold,nr);
+        CV_mdata_test = cell(CV_fold,nr);
+        nCCA = min([ncomp(nc),NUM_FAC(2)]);
+        nCCA_train = nan(CV_fold,nr);
+        disp(['Estimating CCAs: comp ' num2str(nc) '/' num2str(length(ncomp))])
+        parfor ri = 1:nr
+            for cv = 1:CV_fold
+                %disp(['ri ' num2str(ri) ', cv ' num2str(cv)])
+                CVdata_train = O(o).scores(1:ncomp(nc),training(CVsample,cv),:);
+                CVdata_test = O(o).scores(1:ncomp(nc),test(CVsample,cv),:);
+
+                % train sample
+                [CV_W{cv,ri},~] = mccas(CVdata_train,nCCA,reg,r(ri),O(o).W(1:ncomp(nc),:,:),S,cca_reduce_by_scree);
+                nCCA_train(cv,ri) = size(CV_W{cv,ri},2);
+
+                % test sample: fix the number of eigenvectors
+                [~,CV_mdata_test{cv,ri}] = mccas(CVdata_test,nCCA_train(cv,ri),reg,r(ri),O(o).W(1:ncomp(nc),:,:),S,0);
+                nCCA_train(cv,ri) = size(CV_mdata_test{cv,ri},1);
+            end
+        end
+
+        % how many CCA to test?
+        nCCA_train = nCCA_train(:);
+        %nCCA_train(nCCA_train==0) = []; % remove zeros
+        if S.cca_test_nPCAcomp
+            nCCAtest = 1:min([ncomp(nc),NUM_FAC(2),min(nCCA_train)]);
+        elseif S.cca_test_nCCAcomp>0
+            nCCAtest = 1:min([NUM_FAC(2),min(nCCA_train)]);
+        else
+            nCCAtest = min([NUM_FAC(2),min(nCCA_train)]);
+        end
+
+        for ncCCA = nCCAtest % for each CCA component
+
+            disp(['Reconstructing EEG from PCA comp ' num2str(nc) '/' num2str(length(ncomp)) ', CCA comp ' num2str(ncCCA) '/' num2str(nCCAtest(end))])
+
+            nci=nci+1;
+            ncii(nci,1)=nc;
+            ncii(nci,2)=ncCCA;
+            for u=1:length(U)
+                for cv = 1:CV_fold
+                    for ri = 1:nr
+
+                        % reconstructed PCs
+                        PCpred = squeeze(CV_mdata_test{cv,ri}(1:ncCCA,:,u))'*pinv(squeeze(CV_W{cv,ri}(:,1:ncCCA,u)));
+                        % reconstructed EEG data
+                        testind = test(CVsample,cv);
+                        data_test = subdata{o}{u}(testind(rep{u}),:);
+                        data_pred = PCpred(ismember(find(testind),rep{u}),:)*pinv(O(o).W(1:ncomp(nc),:,u))';
+                        sq_diff=bsxfun(@minus,data_test,data_pred).^2;
+                        RMSECV(ri,cv,nci,u) = squeeze(sqrt(nanmean(sq_diff(:))));
+                        %PCpred{u} = CV_mdata_test(:,:,u)'*pinv(CV_W(:,:,u));
+                        %sq_diff=bsxfun(@minus,CVdata_test(:,:,u),PCpred{u}').^2;
+                        %RMSECV(ri,cv,u) = squeeze(sqrt(nanmean(sq_diff(:))));
+                    end
+                end
+            end
+        end
+    end
+
+    % which regularisation parameter?
+    RMSECVm = squeeze(mean(RMSECV,[2 4]));
+    [~,minRi] = min(RMSECVm,[],1);
+    minR=r(minRi);
+    RMSECVr =[];
+    for nc = 1:length(minRi)
+        RMSECVr(:,nc,:) = RMSECV(minRi(nc),:,nc,:);
+    end
+
+    % which number of components?
+    if isfield(S,'cca_select_nPCA_per_group')
+        select_per_group = S.cca_select_nPCA_per_group;
+    else
+        select_per_group = 1;
+    end
+    figure; hold on
+    if select_per_group
+        for g=1:length(G)
+            rmdat = squeeze(mean(RMSECVr(:,:,iG(iu)==g),[1 3]));
+            [mintemp,minYi(g)] = min(rmdat);
+            for nc = 1:length(ncomp)
+               plot(rmdat(ncii(:,1)==nc));
+            end
+            scatter(ncii(minYi(g),2),mintemp);
+        end
+        minYi = max(minYi);
+    else
+        rmdat = squeeze(mean(RMSECVr,[1 3]));
+        [mintemp,minYi] = min(rmdat);
+        for nc = 1:length(ncomp)
+           plot(rmdat(ncii(:,1)==nc));
+        end
+        scatter(ncii(minYi,2),mintemp);
+    end
+    hold off
+
+    nCCA = ncii(minYi,2);
+    nPCA = ncomp(ncii(minYi,1));
+    disp(['n CCA comp: ' num2str(nCCA) ', n PCA comp: ' num2str(nPCA)])
+    O(o).CCA_regularisation = minR(minYi);
+    O(o).RMSECV = rmdat;
+
+    % reduce PCs
+    O(o).scores = O(o).scores(1:nPCA,:,:);
+    O(o).W = O(o).W(1:nPCA,:,:);
+    for u=1:length(U)
+        O(o).COEFF{u} = O(o).COEFF{u}(:,1:nPCA);
+        O(o).sigma{u} = O(o).sigma{u}(:,1:nPCA);
+    end
+
+    % final CCA solution
+    [O(o).W,O(o).mdata] = mccas(O(o).scores,nPCA,reg,minR(minYi),O(o).W,S,0);
+    O(o).W = O(o).W(:,1:nCCA,:);
+    O(o).mdata = O(o).mdata(1:nCCA,:,:);
+    NUM_FAC(2) = nCCA;
+
+    sz=size(O(o).mdata);
+    O(o).mdata_avg = squeeze(mean(reshape(O(o).mdata,sz(1),nreps,obsdim,sz(3)),2));
+elseif S.prep.calc.pred.concat_over_subjects && iscell(out.Ycoeff{1})
+    for xm = 1:length(out.Ycoeff)
+        % concatenate over subjects
+        if strcmp(S.prep.calc.pred.PCA_type,'FA') || (strcmp(S.prep.calc.pred.PCA_type,'PLS') && S.prep.calc.pred.pls.rotate_factors)
+            out.Ycoeff{xm} = out.Ycoeff{xm}{1};
+            out.Ycorr{xm} = out.Ycorr{xm}{1} ;
+            out.Ypattern{xm} = out.Ypattern{xm}{1};
+            out.Ystruct{xm} = out.Ystruct{xm}{1};
+            out.Yscore{xm} = out.Yscore{xm}{1};
+            out.Yfacvar{xm} = out.Yfacvar{xm}{1};
+            out.Yfacvaruniq{xm} = out.Yfacvaruniq{xm}{1};
+            out.Yfacvartotal{xm} = out.Yfacvartotal{xm}{1};
+            out.numFacs{xm} =  out.numFacs{xm}{1};
+            out.facNames{xm} = out.facNames{xm}{1};
+            out.facTypes{xm} = out.facTypes{xm}{1};
+        elseif strcmp(S.prep.calc.pred.PCA_type,'PLS')
+            out.Yscore{xm} = out.Yscore{xm}{1};
+        end
+    end
 end
 
 % apply weights to trialback variables
-Yscore_tb = {};
-for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
-    if ~isempty(trialback_idx{ym}) && any(trialback_idx{ym})
+if ~isempty(trialback_idx{1}) && any(trialback_idx{1})
+    Yscore_tb = {};
+    for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
+    
         out.col_names_trialback{ym} = dtab.Properties.VariableNames(trialback_idx{ym});
 
         for nc = 1:length(out.col_names_trialback{ym})
@@ -647,8 +1335,8 @@ for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
         end
         Yscore_tb{ym} = Yscore_tb{ym} * out.Ycoeff{ym};
     end
+    out.Yscore_tb = Yscore_tb;
 end
-out.Yscore_tb = Yscore_tb;
 
 function [A,B] = kmo(X)
 %KMO Kaiser-Meyer-Olkin Measure of Sampling Adequacy.
@@ -876,3 +1564,238 @@ if(isnan(r))
 end
 % Formular for alpha (Cronbach 1951)
 a=(N*r)/(1+(N-1)*r);
+
+
+function [W, mdata, mWeights] = mccas(data,K,reg,r,weights,Sx,cca_reduce_by_scree)
+%% regularized-multiset CCA
+%   Date           Programmers               Description of change
+%   ====        =================            =====================
+%  09/10/2016     Qiong Zhang                 Original code
+%% Citation
+%  Zhang,Q., Borst,J., Kass, R.E., & Anderson, J.A. (2016) Between-Subject
+%  Alignment of MEG Datasets at the Neural Representational Space. 
+
+%% INPUT
+% data - input training data to CCA (samples * sensors * subjects), or (samples * PCcomponents * datasets)
+% K - number of CCAs to retain
+% reg - add regularization (1) or not (0)
+% r - degree of regularization added
+% weights - PCA weight maps for each subject
+
+%% OUTPUT
+% W - CCA weights that transform PCAs to CCAs for each subject (PCAs * CCAs * subjects)
+% mdata - transformed averaged data (CCAs * sapmles * subjects)
+% mWeights - projection weights from sensor to CCAs (CCAs * sensors * subjects)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dim = size(data,1);
+num = size(data,2);
+sub = size(data,3);
+dim2 = size(weights,1);
+num2 = size(weights,2);
+sub2 = size(weights,3);
+if(K>dim)
+    K = dim;
+end
+allsub=[];
+for i=1:sub
+    allsub=[allsub;data(:,:,i)]; % concatenate components
+end
+R=cov(allsub.','partialrows'); % cab: added partialrows to allow missing data (nan)
+S = zeros(size(R));
+for i = 1:dim*sub
+    tmp = ceil(i/dim);
+    S((tmp-1)*dim+1:tmp*dim,i) = R((tmp-1)*dim+1:tmp*dim,i); 
+end
+
+% add regularization 
+if(reg==1)    
+    if(K>dim2)
+        K = dim2;
+    end
+    temp=[];
+    for i=1:sub2
+        temp=[temp;weights(:,:,i)];
+    end
+    R2=cov(temp.');
+    S2 = zeros(size(R2));
+    for i = 1:dim2*sub2
+        tmp = ceil(i/dim2);
+        S2((tmp-1)*dim2+1:tmp*dim2,i) = R2((tmp-1)*dim2+1:tmp*dim2,i); 
+    end
+    R = R + r*R2;
+    S = S + r*S2;
+end
+
+if ~isfield(Sx,'cca_method')
+    Sx.cca_method = 'eigs';
+end
+
+% obtain CCA solutions 
+switch Sx.cca_method
+    case 'eigs'
+        [tempW,values]=eigs((R-S),S,K);
+        if cca_reduce_by_scree
+            
+            allsubrand = randn(size(allsub'));
+            Rrand = cov(allsubrand);
+            Srand = zeros(size(Rrand));
+            for i = 1:dim*sub
+                tmp = ceil(i/dim);
+                Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
+            end
+            
+            explained = diag(values)/sum(diag(values));
+            [~,valuesrand]=eigs((Rrand-Srand),Srand,K);
+            explainedrand = diag(valuesrand)/sum(diag(valuesrand));
+            nfac_temp = find(explained<explainedrand);
+            if ~isempty(nfac_temp)
+                nfac = min(nfac_temp(1)-1, K);
+                tempW = tempW(:,1:nfac);
+            end
+        end
+    case 'FA'
+        type = Sx.cca_FA_type;
+        FactorResults = erp_pca(allsub',K,type,(R-S),S);
+        tempW = out.FacCof;
+        if cca_reduce_by_scree
+            
+            allsubrand = randn(size(allsub'));
+            Rrand = cov(allsubrand);
+            Srand = zeros(size(Rrand));
+            for i = 1:dim*sub
+                tmp = ceil(i/dim);
+                Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
+            end
+            
+            FactorResultsRand = erp_pca(allsubrand,K,type,(Rrand-Srand),Srand);
+            FactorResultsRand.scree = FactorResultsRand.scree*(sum(out.scree)/sum(FactorResultsRand.scree)); %scale to same size as real data
+            nfac_temp = find(out.scree<FactorResultsRand.scree);
+            if ~isempty(nfac_temp)
+                nfac = min(nfac_temp(1)-1, K);
+                tempW = tempW(:,1:nfac);
+                
+            end
+        end
+end
+
+K = size(tempW,2);
+W = zeros(dim,K,sub);
+for i=1:sub
+    if Sx.normalise_cca_weights 
+        W(:,:,i)=tempW((i-1)*dim+1:i*dim,:)./norm(tempW((i-1)*dim+1:i*dim,:));
+    else
+        W(:,:,i)=tempW((i-1)*dim+1:i*dim,:);
+    end
+end
+
+% projected data
+mdata = nan(K,num,sub);
+for i = 1:sub
+    nandat=isnan(data(:,:,i));
+    data_nonan = data(:,:,i);
+    if any(nandat,'all')
+        data_nonan(nandat)=[];
+        data_nonan = reshape(data_nonan,size(data,1),[]);
+    end
+    mdatatemp = W(:,:,i)'*data_nonan;
+    for j = 1:K
+        if Sx.normalise_cca_weights
+            mdatatemp(j,:) = mdatatemp(j,:)/norm(mdatatemp(j,:));
+        else
+            mdatatemp(j,:) = mdatatemp(j,:);
+        end
+    end
+    mdata(:,~any(nandat,1),i) = mdatatemp;
+end
+
+% sign of the data - does it need changing?
+
+% projection weights
+mWeights = 0;
+if(reg==1)
+    mWeights = zeros(K,num2,sub2);
+    for i = 1:sub2
+        mWeights(:,:,i) = W(:,:,i)'*weights(:,:,i);
+    end
+end
+
+
+function [mdataX, mdataY, Xweights,Yweights] = dccas(X,Y,K,reg,r,Sx)
+%% regularized-dual CCA
+
+%% INPUT
+% X,Y - input training data to CCA
+% K - number of CCAs to retain
+% reg - add regularization (1) or not (0)
+% r - degree of regularization added
+% weights - PCA weight maps for each subject
+
+%% OUTPUT
+% W - CCA weights that transform PCAs to CCAs for each subject (PCAs * CCAs * subjects)
+% mdata - transformed averaged data (CCAs * sapmles * subjects)
+% mWeights - projection weights from sensor to CCAs (CCAs * sensors * subjects)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+dimX = size(X,1);
+dimY = size(Y,1);
+if K>min(dimX,dimY)
+    K = min(dimX,dimY);
+end
+% temp=[];
+% for i=1:sub
+%     temp=[temp;data(:,:,i)];
+% end
+XY = [X;Y]; % concatenate components
+R=cov(XY','partialrows'); % cab: added partialrows to allow missing data (nan)
+S = zeros(size(R));
+% for i = 1:dim*sub % subjects*components
+%     tmp = ceil(i/dim); % 
+%     S((tmp-1)*dim+1:tmp*dim,i) = R((tmp-1)*dim+1:tmp*dim,i); % x: all samples for the subject; y: sample index
+% end
+S(1:dimX,1:dimX)=R(1:dimX,1:dimX);
+S(dimX+1:dimX+dimY,dimX+1:dimX+dimY)=R(dimX+1:dimX+dimY,dimX+1:dimX+dimY);
+
+% add regularization 
+if(reg==1)
+    R = R + r*eye(length(R));
+    S = S + r*eye(length(S));
+end
+
+% obtain CCA solutions 
+[tempW,values]=eigs((R-S),S,K);
+
+if Sx.normalise_cca_weights 
+    Xweights=tempW(1:dimX,:)./norm(tempW(1:dimX,:));
+    Yweights=tempW(dimX+1:dimX+dimY,:)./norm(tempW(dimX+1:dimX+dimY,:));
+else
+    Xweights=tempW(1:dimX,:);
+    Yweights=tempW(dimX+1:dimX+dimY,:);
+end
+
+% projected data
+nandatX=isnan(X);
+X_nonan = X;
+if any(nandatX,'all')
+    X_nonan(nandatX)=[];
+    X_nonan = reshape(X_nonan,size(X,1),[]);
+end
+mdataXtemp = Xweights'*X_nonan;
+
+nandatY=isnan(Y);
+Y_nonan = Y;
+if any(nandatY,'all')
+    Y_nonan(nandatY)=[];
+    Y_nonan = reshape(Y_nonan,size(Y,1),[]);
+end
+mdataYtemp = Yweights'*Y_nonan;
+    
+for j = 1:K
+    if Sx.normalise_cca_weights
+        mdataXtemp(j,:) = mdataXtemp(j,:)/norm(mdataXtemp(j,:));
+        mdataYtemp(j,:) = mdataYtemp(j,:)/norm(mdataYtemp(j,:));
+    end
+end
+mdataX=nan(K,size(X,2));
+mdataY=nan(K,size(Y,2));
+mdataX(:,~any(nandatX,1)) = mdataXtemp;
+mdataY(:,~any(nandatY,1)) = mdataYtemp;

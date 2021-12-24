@@ -1,1 +1,1 @@
-root='C:\toolbox\SCIn';
+root='E:\Q_backup\MATLAB\toolboxes_custom\SCIn';

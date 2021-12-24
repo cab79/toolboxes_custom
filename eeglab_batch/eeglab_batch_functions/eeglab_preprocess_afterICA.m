@@ -3,11 +3,11 @@ function S=eeglab_preprocess_afterICA(S)
 % To be run after ICA components have been manually selected for rejection
 % via EEGLAB or SASICA, but not yet removed from the data.
 
-S.func = 'prep2';
+S.func = 'prep';
 
 % GET FILE LIST
 S.path.file = S.path.prep;
-sname_ext = S.prep2.load.suffix;
+sname_ext = S.prep.load.suffix;
 S.path.file = fullfile(S.path.prep,sname_ext);
 S = getfilelist(S);
 
@@ -123,7 +123,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
     % save .set
     [pth nme ext] = fileparts(file); 
     sname_ext = 'cleaned';
-    sname = [strrep(nme,S.prep2.load.suffix{:},sname_ext) '.' S.(S.func).fname.ext{:}];
+    sname = [strrep(nme,S.prep.load.suffix{:},sname_ext) '.' S.(S.func).fname.ext{:}];
     if ~exist(fullfile(S.path.prep,sname_ext),'dir')
         mkdir(fullfile(S.path.prep,sname_ext));
     end

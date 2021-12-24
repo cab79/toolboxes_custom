@@ -33,6 +33,19 @@ if any(chan>length(orig_chans))
 end
 channel = orig_chans(chan);
 
+%% remove middle section of data
+if any(S.(S.func).clean.FTrejauto.ignore_stim_artefact)
+    art_time = S.(S.func).clean.FTrejauto.ignore_stim_artefact;
+    cfg.latency = [FT.time{1, 1}(1) art_time(1)]; data1 = ft_selectdata(cfg, FT);
+    cfg.latency = [art_time(2) FT.time{1, 1}(end)]; data2 = ft_selectdata(cfg, FT);
+    temp = FT;
+    for t = 1:length(FT.trial)
+        temp.trial{t} = horzcat(data1.trial{t},data2.trial{t});
+        temp.time{t} = horzcat(data1.time{t},data2.time{t});
+    end
+    FT=temp;
+end
+
 %% jump
 cfg = [];
 cfg.continuous = 'no';

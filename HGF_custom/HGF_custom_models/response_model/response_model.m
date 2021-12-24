@@ -182,9 +182,9 @@ if any(strcmp(r.c_obs.responses, 'RT')) || any(strcmp(r.c_obs.responses, 'EEG'))
 
     % Surprise: informational
     % ~~~~~~~~
-    %m1hreg = mu1hat;
-    %m1hreg(r.irr) = [];
-    poo = m1reg.^u.*(1-m1reg).^(1-u); % probability of observed outcome
+    m1hreg = mu1hat;
+    m1hreg(r.irr) = [];
+    poo = m1hreg.^u.*(1-m1hreg).^(1-u); % probability of observed outcome
     surp = -log2(poo);
 
     % Bernoulli variance (aka irreducible uncertainty, risk) 

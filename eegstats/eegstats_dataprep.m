@@ -100,6 +100,12 @@ for d = 1:length(subjects)
                 tnums=1:length(eventType); % assumes all trials present
                 D(d).prep.dim = [n_chans,n_samples,n_trials];
                 timecourse = reshape(eeg,n_chans,[]); % make 2D: chans x (time*trials)
+                % save other info
+                other = fieldnames(D(d).prep.(fename{1})(1).dat);
+                other = setdiff(other,S.prep.fname.struct{2});
+                for fo = 1:length(other)
+                    D(d).prep.other.(other{:}) = D(d).prep.(fename{1})(1).dat.(other{:});
+                end
             else % this is for processing group ICA data files
                 try
                     topography = D(d).prep.topography.dat;
@@ -327,9 +333,9 @@ for d = 1:length(subjects)
     D(d).prep.dtab.ID=repmat(D(d).prep.subname,length(tnums),1);
     D(d).prep.dtab.group=repmat(designmat.groups(d),length(tnums),1);
     D(d).prep.dtab.eventTypes=categorical(eventType');
-    D(d).prep.dtab.fnums=categorical(fnums');
-    D(d).prep.dtab.bnums=categorical(bnums');
-    D(d).prep.dtab.tnums=tnums';
+    if exist('fnums','var'); D(d).prep.dtab.fnums=categorical(fnums'); end
+    if exist('bnums','var'); D(d).prep.dtab.bnums=categorical(bnums'); end
+    if exist('tnums','var'); D(d).prep.dtab.tnums=tnums'; end
     D(d).prep.dtab.train=categorical(train_matrix);
     D(d).prep.dtab.test=categorical(test_matrix);
     %D(d).prep.tnums = tnums;
@@ -343,6 +349,9 @@ for d = 1:length(D)
     E(d).prep.data = D(d).prep.data;
     E(d).prep.dtab = D(d).prep.dtab;
     E(d).prep.dim = D(d).prep.dim;
+    if isfield(D(1).prep,'other')
+        E(d).prep.other = D(d).prep.other;
+    end
     %E(d).prep.tnums = D(d).prep.tnums;
 end
 D=E;

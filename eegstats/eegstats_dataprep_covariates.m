@@ -45,7 +45,7 @@ for d = 1:length(D)
                 case 'eegfile'
                     pred_out = eegfile_covariate(...
                         CVs(ci),...
-                        D(d).prep.(fename{1})(1).dat,...
+                        D(d).prep.other,...
                         D(d).prep.dtab.tnums');
             end
             repl=find(ismember(pred_out.Properties.VariableNames,D(d).prep.dtab.Properties.VariableNames));
@@ -156,8 +156,8 @@ for ci = 1:length(cv.def)
     elseif strcmp(cv.def{ci}{1},'traj')
         % for each traj group... reformat into predictor matrix
         D.HGF = dat;
-        S.traj = {cv.def{ci}(2:end)}; 
-        [Stemp] = HGF_traj2mat(S,D);
+        S.traj = {cv.def{ci}(2:5)}; 
+        [Stemp] = HGF_traj2mat(S,D,cv.def{ci}{6});
         predtemp=Stemp.pred;
         pred_label=Stemp.pred_label;
     end
@@ -174,6 +174,29 @@ for ci = 1:length(cv.def)
         pred.([pred_label{pr} predlabelsuff])=predtemp(tnums,pr);
     end
 end
+
+if 0
+    % calculate predictive surprise
+    u = dat.u(tnums,1);
+    pred.HGF_PL_PSurp = -log2(pred.HGF_PL_muhat_1.^u.*(1-pred.HGF_PL_muhat_1).^(1-u));
+
+    % calculate Bayesian surprise
+    x = [-3:.1:3];
+    for n = 1:length(pred.HGF_PL_muhat_1)
+        P = normpdf(x,pred.HGF_PL_muhat_1(n),pred.HGF_PL_sahat_1(n)^(1/2));
+        Q = normpdf(x,pred.HGF_PL_mu_1(n),pred.HGF_PL_sa_1(n)^(1/2));
+        try
+            pred.HGF_PL_BSurp(n)=KLDiv(P,Q);
+        catch
+            pred.HGF_PL_BSurp(n)=NaN;
+        end
+    end
+    if any(isinf(pred.HGF_PL_BSurp))
+        warning('inf values');
+        pred.HGF_PL_BSurp(isinf(pred.HGF_PL_BSurp))=NaN;
+    end
+end
+
 % remove almost identical data
 dat = corr(table2array(pred));
 rm_dat = find(dat(1,2:end)>0.99999);
@@ -182,7 +205,7 @@ if ~isempty(rm_dat)
 end
 % remove data with almost no variance
 dat = std(table2array(pred));
-rm_dat = dat<0.00001;
+rm_dat = dat<0.000001;
 if any(rm_dat)
     pred(:,rm_dat) = [];
 end 
@@ -197,4 +220,43 @@ for ci = 1:size(cv.def,1)
         predtemp = dat.(cv.def{ci}{1})(:,nc);
         pred.(cv.def{ci,2}{nc})=predtemp(tnums);
     end
+end
+
+function dist=KLDiv(P,Q)
+%  dist = KLDiv(P,Q) Kullback-Leibler divergence of two discrete probability
+%  distributions
+%  P and Q  are automatically normalised to have the sum of one on rows
+% have the length of one at each 
+% P =  n x nbins
+% Q =  1 x nbins or n x nbins(one to one)
+% dist = n x 1
+if size(P,2)~=size(Q,2)
+    error('the number of columns in P and Q should be the same');
+end
+if sum(~isfinite(P(:))) + sum(~isfinite(Q(:)))
+   error('the inputs contain non-finite values!') 
+end
+
+%CAB
+P(P==0) = realmin;
+Q(Q==0) = realmin;
+P(P<realmin) = realmin;
+Q(Q<realmin) = realmin;
+
+% normalizing the P and Q
+if size(Q,1)==1
+    Q = Q ./sum(Q);
+    P = P ./repmat(sum(P,2),[1 size(P,2)]);
+    temp =  P.*log(P./repmat(Q,[size(P,1) 1]));
+    temp(isnan(temp))=0;% resolving the case when P(i)==0
+    dist = sum(temp,2);
+    
+    
+elseif size(Q,1)==size(P,1)
+    
+    Q = Q ./repmat(sum(Q,2),[1 size(Q,2)]);
+    P = P ./repmat(sum(P,2),[1 size(P,2)]);
+    temp =  P.*log(P./Q);
+    temp(isnan(temp))=0; % resolving the case when P(i)==0
+    dist = sum(temp,2);
 end

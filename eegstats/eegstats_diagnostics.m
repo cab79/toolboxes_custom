@@ -59,17 +59,19 @@ for d=1:length(D)
             else
                 D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
                 if exist(D(d).model(i).resid_vol_file,'file')
-                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading resid file'])
+                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading residm file'])
                     load(D(d).model(i).resid_vol_file);
                 else
-                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading resid file'])
-                    load(D(d).model(i).resid_file);
+                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading residm file'])
+                    r=load(D(d).model(i).resid_file);
+                    residm=r.resid;
+                    clear r;
                     if ~exist('resid_vol','var')
-                        disp([save_pref num2str(d) ', model ' num2str(i) ', creating resid image'])
-                        resid_vol = topotime_3D(resid,S);
-                        disp([save_pref num2str(d) ', model ' num2str(i) ', saving resid image'])
+                        disp([save_pref num2str(d) ', model ' num2str(i) ', creating residm image'])
+                        resid_vol = topotime_3D(residm,S);
+                        disp([save_pref num2str(d) ', model ' num2str(i) ', saving residm image'])
                         save(D(d).model(i).resid_vol_file,'resid_vol','-v7.3');
-                        clear resid
+                        clear residm
                     end
                 end
             end

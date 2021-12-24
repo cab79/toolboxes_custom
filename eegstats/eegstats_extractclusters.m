@@ -57,12 +57,16 @@ for d=1:length(D)
     Ddtab = load(S.clus.path.dtab_inputs);
                 
     %% create/load input volume
-    i=S.clus.model.index(1);
-    D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
-    if exist(D(d).model(i).input_vol_file,'file')
-        disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
-        load(D(d).model(i).input_vol_file);
-    else
+    for i=1:length(D(d).model)
+        D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
+        if exist(D(d).model(i).input_vol_file,'file')
+            disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
+            load(D(d).model(i).input_vol_file);
+            break;
+        end
+    end
+    
+    if ~exist('input_vol','var')
         datadim = Ddtab.D.prep.dim;
         samples=struct;
         disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])

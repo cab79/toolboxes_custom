@@ -88,10 +88,10 @@ for d=1:length(D)
             if ismember('coeffs',S.covcorr.summary_data)
                 
                 for co = 1:length(D(d).model(i).coeff)
-                    inp_ind = find(strcmp(S.covcorr.summary_coeffs(:,2),D(d).model.coeff(co).name)); % input index
+                    inp_ind = find(strcmp(S.covcorr.summary_coeffs(:,2),D(d).model(i).coeff(co).name)); % input index
                     if isempty(inp_ind); continue; end
                     con_name = S.covcorr.summary_coeffs{inp_ind,1};
-                    c = find(strcmp({D(d).model.con(:).term},con_name));
+                    c = find(strcmp({D(d).model(i).con(:).term},con_name));
                     nc=numel(D(d).model(i).con(c).vox);
                     
                     for ci=1:nc
@@ -137,14 +137,30 @@ else
     title('predictor correlations - p values')
 end
 
-% lm_results = table2array(results);
-% lm_var = lm_results(:,npred+1:end);
-% for p=1:npred
-%     lm_pred = lm_results(:,p); 
-%     lm{p} = fitlm(lm_var,lm_pred);
-% end
-%figure; corrplot(results,'type','Spearman')
-
+if 0
+    %% multiple regression / lasso
+    lm_results = table2array(results);
+    lm_var = lm_results(:,npred+1:end);
+    % collinearity of predictors
+    thresh = 0.8;
+    [corrmat, pmat] = corr(lm_var,'type',S.covcorr.type);
+    plot_names = results(:,npred+1:end).Properties.VariableNames;
+    figure
+    imagesc(corrmat.*(corrmat>thresh));colorbar;colormap('jet'); caxis([-1 1])
+    xticks(1:width(results)); xticklabels(plot_names); xtickangle(90);
+    yticks(1:width(results)); yticklabels(plot_names);
+    title(['predictor collinearity - Rho values > ' num2str(thresh)])
+    % remove collinear predictors
+    removetype = 2; % 1=rows, 2=cols
+    lm_var(:,any(triu(corrmat>thresh,1),removetype))=[];
+    plot_names(:,any(triu(corrmat>thresh,1),removetype))=[];
+    % regress
+    for p=1%:npred
+        lm_pred = lm_results(:,p); 
+%         [lm{p},fit{p}] = lasso(lm_var,lm_pred,'Alpha',0.5);
+        lm{p} = fitlm(lm_var,lm_pred);
+    end
+end
 
 function set_paths(S)
 for p = 1:length(S.path.code)
