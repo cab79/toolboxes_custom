@@ -841,6 +841,7 @@ switch part
             S.prep.clean.ICA.file{fn+f} = file;
             S.prep.clean.ICA.ncomp(fn+f) = size(EEG.icaweights,1);
             S.prep.clean.ICA.IClabel_nreject(fn+f) = sum(EEG.reject.gcompreject);
+            S.prep.clean.ICA.IClabel_nkeep(fn+f) = sum(~EEG.reject.gcompreject);
             S.prep.clean.ICA.IClabel_fracreject(fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
             
             % save all classification values
