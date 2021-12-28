@@ -842,7 +842,15 @@ switch part
             S.prep.clean.ICA.ncomp(fn+f) = size(EEG.icaweights,1);
             S.prep.clean.ICA.IClabel_nreject(fn+f) = sum(EEG.reject.gcompreject);
             S.prep.clean.ICA.IClabel_fracreject(fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
-
+            
+            % save all classification values
+            S.prep.clean.ICA.IClabel_classes(fn+f) = EEG.etc.ic_classification.ICLabel.classes;
+            S.prep.clean.ICA.IClabel_classifications{fn+f} = EEG.etc.ic_classification.ICLabel.classifications;
+            
+            for cl = 1:length(S.prep.clean.ICA.IClabel_classes(fn+f)
+                vals = EEG.etc.ic_classification.ICLabel.classifications(:,getbrain);
+            end
+            
             % SAVE
             %[pth nme ext] = fileparts(file);
             %sname = [nme '_' S.prep.save.suffix{:} '.' S.prep.fname.ext{:}];
