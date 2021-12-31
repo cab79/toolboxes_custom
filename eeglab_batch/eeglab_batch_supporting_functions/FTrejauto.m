@@ -138,6 +138,9 @@ for tr = 1:length(EEG.epoch)
 end
 
 S.(S.func).clean.FTrejauto.rejtrial = find(rejtrial);
+S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump = sum(C(:,1));
+S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle = sum(C(:,2));
+S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog = sum(C(:,3));
 
 disp(['TOTAL: ' num2str(sum(rejtrial)) ' out of ' num2str(length(rejtrial)) ' trials rejected'])
 disp(['JUMP: ' num2str(sum(C(:,1))) ' out of ' num2str(length(rejtrial)) ' trials rejected'])

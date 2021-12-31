@@ -232,7 +232,7 @@ switch part
         if S.prep.epoch.rmbase
             if iscell(S.prep.epoch.basewin) % markers set by condition
                 basewin = S.prep.epoch.basewin{ismember(S.prep.select.conds,S.prep.designtab.conds{f})};
-                EG = pop_rmbase( EEG, [basewin(1)*1000, basewin(2)*1000]);
+                EEG = pop_rmbase( EEG, [basewin(1)*1000, basewin(2)*1000]);
             else
                 EEG = pop_rmbase( EEG, [S.prep.epoch.basewin(1)*1000, S.prep.epoch.basewin(2)*1000]);
             end
@@ -566,17 +566,21 @@ switch part
 
             
             % Auto trial rejection
+            % first run without ignoring artefact, then with, and only
+            % exclude trials rejected by both in case excluding data causes
+            % artificial jump artfacts, e.g. due to EOG.
             if isfield(S.(S.func).clean,'FTrejauto')
                 ignore_stim_artefact = S.(S.func).clean.FTrejauto.ignore_stim_artefact;
-                if any(ignore_stim_artefact) && S.(S.func).clean.FTrejauto.test_effect_of_stim_artefact
+                if any(ignore_stim_artefact) 
                     S.(S.func).clean.FTrejauto.ignore_stim_artefact = 0;
                     S = FTrejauto(EEG,S);%...
 %                     S.(S.func).clean.FTrejauto.cutoffs,...
 %                     S.(S.func).clean.FTrejauto.interactive,...
 %                     S.(S.func).inclchan); 
-                    rejtrial = S.(S.func).clean.FTrejauto.rejtrial;
-                    S.prep.clean.reject.FTrejauto_trials_withstimartefact(fn+f) = numel(rejtrial);
-                    S.prep.clean.reject.FTrejauto_trials_withstimartefact_frac(fn+f) = numel(rejtrial)/S.prep.clean.reject.initial_trials(fn+f);
+                    rejtrial_with_artefact = S.(S.func).clean.FTrejauto.rejtrial;
+                    S.prep.clean.reject.FTrejauto_trials_jump(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump;
+                    S.prep.clean.reject.FTrejauto_trials_muscle(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle;
+                    S.prep.clean.reject.FTrejauto_trials_eog(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog;
                 end
                 S.(S.func).clean.FTrejauto.ignore_stim_artefact=ignore_stim_artefact;
                 S = FTrejauto(EEG,S);%...
@@ -584,6 +588,14 @@ switch part
 %                     S.(S.func).clean.FTrejauto.interactive,...
 %                     S.(S.func).inclchan); 
                 rejtrial = S.(S.func).clean.FTrejauto.rejtrial;
+                S.prep.clean.reject.FTrejauto_trials_jump(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump;
+                S.prep.clean.reject.FTrejauto_trials_muscle(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle;
+                S.prep.clean.reject.FTrejauto_trials_eog(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog;
+
+                if any(ignore_stim_artefact) 
+                    rejtrial = intersect(rejtrial_with_artefact,rejtrial);
+                end
+
                 S.prep.clean.reject.FTrejauto_trials(fn+f) = numel(rejtrial);
                 S.prep.clean.reject.FTrejauto_trials_frac(fn+f) = numel(rejtrial)/S.prep.clean.reject.initial_trials(fn+f);
 
@@ -841,15 +853,13 @@ switch part
             S.prep.clean.ICA.file{fn+f} = file;
             S.prep.clean.ICA.ncomp(fn+f) = size(EEG.icaweights,1);
             S.prep.clean.ICA.IClabel_nreject(fn+f) = sum(EEG.reject.gcompreject);
+            S.prep.clean.ICA.IClabel_nkeep(fn+f) = sum(~EEG.reject.gcompreject);
             S.prep.clean.ICA.IClabel_fracreject(fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
             
             % save all classification values
-            S.prep.clean.ICA.IClabel_classes(fn+f) = EEG.etc.ic_classification.ICLabel.classes;
+            S.prep.clean.ICA.IClabel_classes{fn+f} = EEG.etc.ic_classification.ICLabel.classes;
             S.prep.clean.ICA.IClabel_classifications{fn+f} = EEG.etc.ic_classification.ICLabel.classifications;
             
-            for cl = 1:length(S.prep.clean.ICA.IClabel_classes(fn+f)
-                vals = EEG.etc.ic_classification.ICLabel.classifications(:,getbrain);
-            end
             
             % SAVE
             %[pth nme ext] = fileparts(file);
@@ -912,21 +922,24 @@ switch part
             if S.(S.func).epoch.ICAremove && any(EEG.reject.gcompreject==0)
                 EEG = pop_subcomp( EEG, [], 0); 
             end
-    
+
             % detrend
             if S.(S.func).epoch.detrend
                 for i = 1:EEG.trials, EEG.data(:,:,i) = detrend(EEG.data(:,:,i)')'; end
             end
     
-            % remove baseline
-            if S.(S.func).epoch.rmbase
-                EEG = pop_rmbase( EEG, [S.(S.func).epoch.basewin(1)*1000 S.(S.func).epoch.basewin(2)*1000]);
+            % REMOVE BASELINE
+            if S.prep.epoch.rmbase
+                if iscell(S.prep.epoch.basewin) % markers set by condition
+                    basewin = S.prep.epoch.basewin{ismember(S.prep.select.conds,S.prep.designtab.conds{f})};
+                    EEG = pop_rmbase( EEG, [basewin(1)*1000, basewin(2)*1000]);
+                else
+                    EEG = pop_rmbase( EEG, [S.prep.epoch.basewin(1)*1000, S.prep.epoch.basewin(2)*1000]);
+                end
             end
-
+    
             % collect summary data
             S.prep.clean.reject.file{fn+f} = file;
-            S.prep.clean.ICA.final_nreject(fn+f) = sum(EEG.reject.gcompreject);
-            S.prep.clean.ICA.final_fracreject(fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
             S.prep.clean.reject.initial_trials(fn+f) = EEG.trials;
             
             % select or deselect channels for cleaning
@@ -989,18 +1002,45 @@ switch part
                 EEG = pop_select(EEG, 'notrial', unique(rejtrial));
             end
 
-            % Auto trial rejection
+%             % Auto trial rejection
+%             if isfield(S.(S.func).clean,'FTrejauto')
+%                 ignore_stim_artefact = S.(S.func).clean.FTrejauto.ignore_stim_artefact;
+%                 if any(ignore_stim_artefact) && S.(S.func).clean.FTrejauto.test_effect_of_stim_artefact
+%                     S.(S.func).clean.FTrejauto.ignore_stim_artefact = 0;
+%                     S = FTrejauto(EEG,S);%...
+% %                     S.(S.func).clean.FTrejauto.cutoffs,...
+% %                     S.(S.func).clean.FTrejauto.interactive,...
+% %                     S.(S.func).inclchan); 
+%                     rejtrial = S.(S.func).clean.FTrejauto.rejtrial;
+%                     S.prep.clean.reject.FTrejauto_trials_withstimartefact(fn+f) = numel(rejtrial);
+%                     S.prep.clean.reject.FTrejauto_trials_withstimartefact_frac(fn+f) = numel(rejtrial)/S.prep.clean.reject.initial_trials(fn+f);
+%                 end
+%                 S.(S.func).clean.FTrejauto.ignore_stim_artefact=ignore_stim_artefact;
+%                 S = FTrejauto(EEG,S);%...
+% %                     S.(S.func).clean.FTrejauto.cutoffs,...
+% %                     S.(S.func).clean.FTrejauto.interactive,...
+% %                     S.(S.func).inclchan); 
+%                 rejtrial = S.(S.func).clean.FTrejauto.rejtrial;
+%                 S.prep.clean.reject.FTrejauto_trials(fn+f) = numel(rejtrial);
+%                 S.prep.clean.reject.FTrejauto_trials_frac(fn+f) = numel(rejtrial)/S.prep.clean.reject.initial_trials(fn+f);
+% 
+%                 % reject bad trials
+%                 try
+%                     EEG = pop_select(EEG, 'notrial', unique(rejtrial));
+%                 catch
+%                     continue % too many trials rejected
+%                 end
+%             end
+
             if isfield(S.(S.func).clean,'FTrejauto')
                 ignore_stim_artefact = S.(S.func).clean.FTrejauto.ignore_stim_artefact;
-                if any(ignore_stim_artefact) && S.(S.func).clean.FTrejauto.test_effect_of_stim_artefact
+                if any(ignore_stim_artefact) 
                     S.(S.func).clean.FTrejauto.ignore_stim_artefact = 0;
                     S = FTrejauto(EEG,S);%...
 %                     S.(S.func).clean.FTrejauto.cutoffs,...
 %                     S.(S.func).clean.FTrejauto.interactive,...
 %                     S.(S.func).inclchan); 
-                    rejtrial = S.(S.func).clean.FTrejauto.rejtrial;
-                    S.prep.clean.reject.FTrejauto_trials_withstimartefact(fn+f) = numel(rejtrial);
-                    S.prep.clean.reject.FTrejauto_trials_withstimartefact_frac(fn+f) = numel(rejtrial)/S.prep.clean.reject.initial_trials(fn+f);
+                    rejtrial_with_artefact = S.(S.func).clean.FTrejauto.rejtrial;
                 end
                 S.(S.func).clean.FTrejauto.ignore_stim_artefact=ignore_stim_artefact;
                 S = FTrejauto(EEG,S);%...
@@ -1008,8 +1048,16 @@ switch part
 %                     S.(S.func).clean.FTrejauto.interactive,...
 %                     S.(S.func).inclchan); 
                 rejtrial = S.(S.func).clean.FTrejauto.rejtrial;
+
+                if any(ignore_stim_artefact) 
+                    rejtrial = intersect(rejtrial_with_artefact,rejtrial);
+                end
+
                 S.prep.clean.reject.FTrejauto_trials(fn+f) = numel(rejtrial);
                 S.prep.clean.reject.FTrejauto_trials_frac(fn+f) = numel(rejtrial)/S.prep.clean.reject.initial_trials(fn+f);
+                S.prep.clean.reject.FTrejauto_trials_jump(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump;
+                S.prep.clean.reject.FTrejauto_trials_muscle(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle;
+                S.prep.clean.reject.FTrejauto_trials_eog(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog;
 
                 % reject bad trials
                 try
@@ -1052,25 +1100,7 @@ switch part
 
             if isfield(S.(S.func),'epoch') && isfield(S.(S.func).epoch,'reref')
                 % re-reference to the common average
-                if S.(S.func).epoch.reref == 1
-                    % re-reference to the common average
-                    EEG = pop_reref( EEG, []); 
-                elseif S.(S.func).epoch.reref==2
-                    %% PrepPipeline - performs robust re-referencing
-                    % conventional re-referencing to the common average, prior to
-                    % cleaning could introduce artefact to otherwise clean channels.
-                    % Robust averaging as done here gets around this.
-                    params = struct();
-                    params.lineFrequencies = [];
-                    params.detrendType = 'high pass';
-                    params.detrendCutoff = 1;
-                    params.referenceType = 'robust';
-                    params.meanEstimateType = 'median';
-                    params.interpolationOrder = 'post-reference';
-                    params.keepFiltered = false;
-                    params.ignoreBoundaryEvents = true;
-                    [EEG, computationTimes] = prepPipeline(EEG, params); 
-                end
+                EEG = pop_reref( EEG, []);
             end
 
             % SAVE
