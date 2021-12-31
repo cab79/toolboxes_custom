@@ -15,8 +15,6 @@ else
     interactive = 'no';
 end
 
-cutoffs=S.(S.func).clean.FTrejauto.cutoffs;
-
 if strcmp(format,'EEGLAB')
     FT = convertoft(EEG);
 elseif strcmp(format,'SPM')
@@ -45,6 +43,8 @@ if any(S.(S.func).clean.FTrejauto.ignore_stim_artefact)
     end
     FT=temp;
 end
+
+cutoffs=S.(S.func).clean.FTrejauto.cutoffs;
 
 %% jump
 cfg = [];
