@@ -200,8 +200,8 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
 
                 % This is study-specific code for MoNoPly study where there are
                 % duplicate events - only use the second event in each epoch
-                events = [];
                 if S.(S.func).epoch.secondeventonly
+                    events = [];
                     for e = 1:length(EEG.epoch)
                         if length(EEG.epoch(e).eventtype)>1
                             EEG.epoch(e).event = EEG.epoch(e).event(end);
@@ -210,12 +210,10 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                             EEG.epoch(e).eventcode = EEG.epoch(e).eventcode(end);
                             EEG.epoch(e).eventduration = EEG.epoch(e).eventduration(end);
                             EEG.epoch(e).eventchannel = EEG.epoch(e).eventchannel(end);
-                            if ~isempty(EEG.epoch(e).eventbvtime); EEG.epoch(e).eventbvtime = EEG.epoch(e).eventbvtime(end); end
+                            EEG.epoch(e).eventbvtime = EEG.epoch(e).eventbvtime(end);
                             EEG.epoch(e).eventurevent = EEG.epoch(e).eventurevent(end);
                         end
-                        if iscell(EEG.epoch(e).eventurevent) events = [events EEG.epoch(e).eventurevent{:}];  
-                        else events = [events EEG.epoch(e).eventurevent]; 
-                        end
+                        events = {EEG.epoch(:).eventurevent{:}}  
                     end
                     % update events
                     
@@ -226,9 +224,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 FTEEG.event=EEG.event;
 
                 % remove incorrect events
-                if ~isempty(events)
-                    FTEEG.event = FTEEG.event(ismember([FTEEG.event(:).urevent],events));
-                end
+                FTEEG.event = FTEEG.event(ismember({FTEEG.event.type},S.(S.func).epoch.markers{mt}));
                 
                 % ERP: timelocked (evoked) data
                 if ~isfield(S.(S.func).epoch,'keeptrials')
