@@ -69,11 +69,20 @@ if isempty(S.(S.func).filelist)
     error('No files found!\n');
 end
 
+% save summary data in a table
+if ~isfield(S.(S.func),'summ') || S.(S.func).overwrite==1
+    S.(S.func).summ = table;
+end
+fn = height(S.(S.func).summ);
+
 % run though all files in a loop
 for f = S.(S.func).startfile:length(S.(S.func).filelist)
 
     file = S.(S.func).filelist{f};
     EEG = pop_loadset('filename',file,'filepath',S.path.file);
+
+    % collect summary data
+    S.(S.func).summ.file{fn+f} = file;
     
     if isempty(EEG.epoch)
         continue
@@ -250,6 +259,21 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 end
                 %tldata{mt} = ft_timelockanalysis(cfg,tldata{mt});
                 %erp = squeeze(double(mean(tldata.trial,1)));
+
+                % collect summary data: number of trials
+                mname = S.(S.func).epoch.markers{mt};
+                mname(isspace(mname)) = [];
+                S.(S.func).summ.(['Ntrials_' mname]){fn+f} = tldata{mt}.ntrials;
+
+                % collect summary data: SNR
+                basewin=dsearchn(EEG.times',1000*S.erp.SNR.basewin');
+                sigwin=dsearchn(EEG.times',1000*S.erp.SNR.signalwin');
+                base=EEG.data(:,basewin(1):basewin(2),:);
+                sig=EEG.data(:,sigwin(1):sigwin(2),:);
+                S.(S.func).summ.(['signal_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).summ.(['noise_' mname]){fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).summ.(['SNR_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+
             end
             
             % SAVE

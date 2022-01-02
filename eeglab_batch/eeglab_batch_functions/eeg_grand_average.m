@@ -75,6 +75,7 @@ for ga = 1:length(uni_ind)
     S.(S.func).fileidx = fileidx(noemp);
     
     % multivariate outliers
+    % calculate multivariate outliers (SLOW): 1=all events, 2=each event, 3=mean of events
     if S.ga.grand_avg.outliers==1
         if ~isempty(S.ga.grand_avg.out_win)
             cfg.latency        = S.ga.grand_avg.out_chan; 

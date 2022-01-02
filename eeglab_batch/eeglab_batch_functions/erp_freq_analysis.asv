@@ -69,11 +69,20 @@ if isempty(S.(S.func).filelist)
     error('No files found!\n');
 end
 
+% save summary data in a table
+if ~isfield(S.(S.func),'summ') || S.(S.func).overwrite==1
+    S.(S.func).summ = table;
+end
+fn = height(S.(S.func).summ);
+
 % run though all files in a loop
 for f = S.(S.func).startfile:length(S.(S.func).filelist)
 
     file = S.(S.func).filelist{f};
     EEG = pop_loadset('filename',file,'filepath',S.path.file);
+
+    % collect summary data
+    S.(S.func).summ.file{fn+f} = file;
     
     if isempty(EEG.epoch)
         continue
@@ -200,8 +209,8 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
 
                 % This is study-specific code for MoNoPly study where there are
                 % duplicate events - only use the second event in each epoch
+                events = [];
                 if S.(S.func).epoch.secondeventonly
-                    events = [];
                     for e = 1:length(EEG.epoch)
                         if length(EEG.epoch(e).eventtype)>1
                             EEG.epoch(e).event = EEG.epoch(e).event(end);
@@ -210,10 +219,12 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                             EEG.epoch(e).eventcode = EEG.epoch(e).eventcode(end);
                             EEG.epoch(e).eventduration = EEG.epoch(e).eventduration(end);
                             EEG.epoch(e).eventchannel = EEG.epoch(e).eventchannel(end);
-                            EEG.epoch(e).eventbvtime = EEG.epoch(e).eventbvtime(end);
+                            if ~isempty(EEG.epoch(e).eventbvtime); EEG.epoch(e).eventbvtime = EEG.epoch(e).eventbvtime(end); end
                             EEG.epoch(e).eventurevent = EEG.epoch(e).eventurevent(end);
                         end
-                        events = {EEG.epoch(:).eventurevent{:}}  
+                        if iscell(EEG.epoch(e).eventurevent) events = [events EEG.epoch(e).eventurevent{:}];  
+                        else events = [events EEG.epoch(e).eventurevent]; 
+                        end
                     end
                     % update events
                     
@@ -224,7 +235,9 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 FTEEG.event=EEG.event;
 
                 % remove incorrect events
-                FTEEG.event = FTEEG.event(ismember({FTEEG.event.type},S.(S.func).epoch.markers{mt}));
+                if ~isempty(events)
+                    FTEEG.event = FTEEG.event(ismember([FTEEG.event(:).urevent],events));
+                end
                 
                 % ERP: timelocked (evoked) data
                 if ~isfield(S.(S.func).epoch,'keeptrials')
@@ -246,6 +259,21 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 end
                 %tldata{mt} = ft_timelockanalysis(cfg,tldata{mt});
                 %erp = squeeze(double(mean(tldata.trial,1)));
+
+                % collect summary data: number of trials
+                mname = ['Ntrials_' S.(S.func).epoch.markers{mt}];
+                mname(isspace(mname)) = [];
+                S.(S.func).summ.(mname){fn+f} = tldata{mt}.ntrials;
+
+                % collect summary data: SNR
+                basewin=dsearchn(EEG.times',1000*S.erp.SNR.basewin');
+                sigwin=dsearchn(EEG.times',1000*S.erp.SNR.signalwin');
+                base=EEG.data(:,basewin(1):basewin(2),:);
+                sig=EEG.data(:,sigwin(1):sigwin(2),:);
+                S.(S.func).summ.(mname){fn+f} = mean(rms(std(sig,[],1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).summ.(mname){fn+f} = mean(rms(std(base,[],1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).summ.(mname){fn+f} = mean(rms(std(sig,[],1),2),3) / mean(rms(std(base,[],1),2),3); % mean over trials of the RMS over time of the GFP over channels
+
             end
             
             % SAVE

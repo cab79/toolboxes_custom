@@ -1229,7 +1229,7 @@ switch part
             S.(S.func).designtab(idx_remove,:)=[];
         end
 
-        sname_ext = S.(S.func).save.suffix;
+        sname_ext = S.(S.func).save.suffix{:};
         if ~exist(fullfile(S.path.prep,sname_ext),'dir')
             mkdir(fullfile(S.path.prep,sname_ext));
         end
@@ -1256,15 +1256,24 @@ switch part
                         markerindex = find(ismember(allmarkers,selectmarkers));
                         EEG = pop_select(INEEGsep1,'trial',markerindex);
     
-                        % save .set
+                        % save .set LIKELY NEEDS UPDATING TO BE SIMILAR TO
+                        % AFTER THE 'ELSE'
                         sname = [sfiles{s} '_' S.(S.func).separatefiles.suffix{n} '.' S.(S.func).fname.ext{:}];
                         pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,sname_ext)); 
                     end
                 else
                     % save as one file
-                    sname = [sfiles{s} '_cleaned.' S.(S.func).fname.ext{:}];
+                    sname = strrep(sfiles{s},'epoched','cleaned');
+
+                    % put into sub-directory according to original
+                    % block/condition (needed for MoNoPly study)
+                    spath = fullfile(S.path.prep,sname_ext,[S.prep.designtab.blocks{f} '_' S.prep.designtab.conds{f}]);
+                    if ~exist(spath,'dir')
+                        mkdir(spath);
+                    end
+
                     EEG=EEGsep1;
-                    pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,sname_ext));
+                    pop_saveset(EEG,'filename',sname,'filepath',spath);
                 end 
             end
              
