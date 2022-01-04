@@ -125,6 +125,7 @@ pause(0.1)
 p=get(gca,'Position'); w=0.98*(x-p(1)); p(3)=w; set(gca,'Position',p)
 
 if strcmp(dattype,'subjects')
+    % summarise per subject
 
 %     % OLD
 %     files = unique(S.(S.func).fileidx);
@@ -143,10 +144,8 @@ if strcmp(dattype,'subjects')
     end
     % each event type
     [unievents,~,eventidx] = unique(S.(S.func).eventidx,'stable');
-    nsub = height(S.(S.func).multoutlist);
-    for i = 1:length(unievents) 
-        noemp = S.(S.func).noemp_vector(nsub*(i-1)+1:nsub*i);
-        S.(S.func).multoutlist.(['RD_event' num2str(unievents(i))])(noemp) = RD(eventidx==i)';%num2cell(sortRD');
+    for i = unievents'
+        S.(S.func).multoutlist.(['RD_event' num2str(i)]) = RD(eventidx==i)';%num2cell(sortRD');
     end
 
 %     [sortRD,ord] = sort(RDsub,'descend');

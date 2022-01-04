@@ -15,7 +15,7 @@ for f = 1:length(S.(S.func).files)
                 S.(S.func).data{f} = {tldata};
             elseif iscell(tldata)
                 S.(S.func).data{f} = cell(1,max(S.(S.func).select.events));
-                selectevents=intersect(S.(S.func).select.events,1:length(tldata));
+                selectevents=intersect(S.(S.func).select.events,find(~cellfun(@isempty,tldata)));
                 S.(S.func).data{f}(selectevents) = tldata(selectevents);
             end
         case {'TF','Freq'}

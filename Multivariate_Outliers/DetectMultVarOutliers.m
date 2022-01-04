@@ -204,7 +204,7 @@ c_b=(c_npr*m_j)/chi2inv(0.5,d);
 RD=MD/sqrt(c_b);
 
 % Critical values of chi^2 with d DOF
-p_crt=[0.2 0.1 0.05 0.01];
+p_crt=[0.2 0.1 0.05 0.01 0.001];
 chi_crt=sqrt(chi2inv(1-p_crt/2,d));
 
 

@@ -36,7 +36,7 @@ uni_ind = unique(file_ind);
 % file loop
 data_all = {}; % empty cell array for all subjects' tldata
 S.(S.func).gadata = {}; % empty cell array for grand average data
-for ga = 1:length(uni_ind)
+for ga = 2:length(uni_ind)
     
     % FIND THE FILES
     S.(S.func).gafiles{ga} = S.(S.func).filelist(file_ind==uni_ind(ga));
@@ -194,17 +194,18 @@ for ga = 1:length(uni_ind)
 
         % conatenate over event types
         temp{ga} = reshape(temp{ga},[],1);
-        S.(S.func).noemp_vector = reshape(noemp,[],1);
+        noemp_vector = reshape(noemp,[],1);
 
         % file index matches to concatenated events
         S.(S.func).fileidx = repmat(fileidx,size(data_all{ga},2),1);
         S.(S.func).eventidx = reshape(repmat(keepev,size(data_all{ga},1),1),{},1);
-        %remove empty
-        S.(S.func).fileidx = S.(S.func).fileidx(S.(S.func).noemp_vector);
-        S.(S.func).eventidx = S.(S.func).eventidx(S.(S.func).noemp_vector);
+%         %remove empty cells
+%         noemp = ~cellfun(@isempty,data_all{ga});
+%         data_all{ga} = reshape(data_all{ga}(noemp),[],nev);
+%         S.(S.func).fileidx = fileidx(noemp);
         
         %S.(S.func).fileidx = 1:length(temp{ga});
-        S=MultiOutliers(S,temp{ga}(S.(S.func).noemp_vector)); %CHECK: NOEMP NEEDED?
+        S=MultiOutliers(S,temp{ga}); %CHECK: NOEMP NEEDED?
         if any(isempty(fieldnames(S.(S.func).multout)))
             continue % due to not enough subjects/events
         end
@@ -219,7 +220,7 @@ for ga = 1:length(uni_ind)
         cfg.channel        = 'all';
         cfg.latency        = 'all';
         for i = 1:size(data_all{ga},1)
-            for n = 1:nev
+            for n = keepev
                 if noemp(i,n)
                     temp{ga}{i,n} = ft_timelockgrandaverage_cab(cfg, data_all{ga}{i,n});
                 end
@@ -292,8 +293,8 @@ for ga = 1:length(uni_ind)
             noemp_noout = noemp(ismember(outlist.subjects,rejsub),:);
             noemp_out = noemp(~ismember(outlist.subjects,rejsub),:);
         else
-            for i = 1:nev
-                rej{i} = outlist.subjects(outlist.(['RD_event' num2str(keepev(i))])>=str2double(rej_thresh{:}));
+            for i = keepev
+                rej{i} = outlist.subjects(outlist.(['RD_event' num2str(i)])>=str2double(rej_thresh{:}));
                 data_all_rej{ga}{i} = data_all{ga}(ismember(outlist.subjects,rej{i}),i);
                 data_all_acc{ga}{i} = data_all{ga}(~ismember(outlist.subjects,rej{i}),i);
                 noemp_noout{i} = noemp(ismember(outlist.subjects,rej{i}),i);
@@ -306,7 +307,7 @@ for ga = 1:length(uni_ind)
     end
     
     % for each event
-    for n = 1:nev
+    for n = keepev
         switch S.(S.func).select.datatype
             case {'ERP'}
                 % grand average using Fieldtrip - includes all subjects
@@ -412,7 +413,7 @@ for ga = 1:length(uni_ind)
             else
                 cfg.latency = 'all';
             end
-            for n = 1:nev
+            for n = keepev
                 S.(S.func).gadata{ga}.events{n} = ft_timelockgrandaverage_cab(cfg, data_all{ga}(noemp(:,n),n));
                 if n==1
                     S.(S.func).gadata{ga}.gavg = ft_timelockgrandaverage_cab(cfg, data_all{ga}{noemp});

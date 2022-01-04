@@ -275,6 +275,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 S.(S.func).summ.(['SNR_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
 
             end
+            S.(S.func).summ.nMarkerTypes{fn+f} = sum(~cellfun(@isempty,tldata));
             
             % SAVE
             if ~exist(S.path.erp,'dir')
