@@ -878,70 +878,70 @@ switch part
             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
         end
 
-    case 'postICA_diag'
-
-        % previously processed files
-        if isfield(S.(S.func),'filelist')
-            if S.(S.func).overwrite==0
-                prev_filelist = S.(S.func).filelist;
-                prev_dirlist = S.(S.func).dirlist;
-                prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-                prev_designtab = S.(S.func).designtab;
-            end
-            S.(S.func) = rmfield(S.(S.func),'dirlist');
-            S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-            S.(S.func) = rmfield(S.(S.func),'designtab');
-        end
-
-        % GET FILE LIST
-        S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-        S = getfilelist(S,S.prep.load.suffix);
-
-        % select which to process
-        if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-            idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-            S.(S.func).filelist(idx_remove)=[];
-            S.(S.func).dirlist(idx_remove)=[];
-            S.(S.func).subj_pdat_idx(idx_remove)=[];
-            S.(S.func).designtab(idx_remove,:)=[];
-        end
-
-        loadpath = S.path.file;
-
-        
-        if ~isfield(S.prep,'clean') || ~isfield(S.prep.clean,'chandiag') || S.(S.func).overwrite==1
-            S.prep.clean.chandiag = table;
-        end
-        fn = height(S.prep.clean.chandiag);
-
-        for f = S.(S.func).startfile:length(S.prep.filelist)
-            file = S.(S.func).filelist{f};
-            disp(['loading file index ' num2str(f)])
-            EEG = pop_loadset('filename',file,'filepath',loadpath);
-
-            % collect summary data
-            S.prep.clean.chandiag.file{fn+f} = file;
-            S.prep.clean.chandiag.ncomp(fn+f) = size(EEG.icaweights,1);
-            S.prep.clean.chandiag.IClabel_nkeep(fn+f) = sum(~EEG.reject.gcompreject);
-            S.prep.clean.chandiag.IClabel_frackeep(fn+f) = sum(~EEG.reject.gcompreject)/size(EEG.icaweights,1);
-
-            % remove selected ICA components (MUST HAVE ALREADY SELECTED THESE MANUALLY)
-            if S.(S.func).epoch.ICAremove && any(EEG.reject.gcompreject==0)
-                EEG = pop_subcomp( EEG, [], 0); 
-            end
-    
-            S = noisyflat_channel_diagnostics(S,EEG);
-            S.prep.clean.chandiag.var_chan(fn+f) = S.prep.chandiag.var_chan;
-            S.prep.clean.chandiag.invvar_chan(fn+f) = S.prep.chandiag.invvar_chan;
-
-        end
-
-        if exist('prev_filelist','var')
-            S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-            S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-            S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-            S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-        end
+%     case 'postICA_diag' % NOW PART OF postICA_rej
+% 
+%         % previously processed files
+%         if isfield(S.(S.func),'filelist')
+%             if S.(S.func).overwrite==0
+%                 prev_filelist = S.(S.func).filelist;
+%                 prev_dirlist = S.(S.func).dirlist;
+%                 prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+%                 prev_designtab = S.(S.func).designtab;
+%             end
+%             S.(S.func) = rmfield(S.(S.func),'dirlist');
+%             S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+%             S.(S.func) = rmfield(S.(S.func),'designtab');
+%         end
+% 
+%         % GET FILE LIST
+%         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
+%         S = getfilelist(S,S.prep.load.suffix);
+% 
+%         % select which to process
+%         if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+%             idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+%             S.(S.func).filelist(idx_remove)=[];
+%             S.(S.func).dirlist(idx_remove)=[];
+%             S.(S.func).subj_pdat_idx(idx_remove)=[];
+%             S.(S.func).designtab(idx_remove,:)=[];
+%         end
+% 
+%         loadpath = S.path.file;
+% 
+%         
+%         if ~isfield(S.prep,'clean') || ~isfield(S.prep.clean,'chandiag') || S.(S.func).overwrite==1
+%             S.prep.clean.chandiag = table;
+%         end
+%         fn = height(S.prep.clean.chandiag);
+% 
+%         for f = S.(S.func).startfile:length(S.prep.filelist)
+%             file = S.(S.func).filelist{f};
+%             disp(['loading file index ' num2str(f)])
+%             EEG = pop_loadset('filename',file,'filepath',loadpath);
+% 
+%             % collect summary data
+%             S.prep.clean.chandiag.file{fn+f} = file;
+%             S.prep.clean.chandiag.ncomp(fn+f) = size(EEG.icaweights,1);
+%             S.prep.clean.chandiag.IClabel_nkeep(fn+f) = sum(~EEG.reject.gcompreject);
+%             S.prep.clean.chandiag.IClabel_frackeep(fn+f) = sum(~EEG.reject.gcompreject)/size(EEG.icaweights,1);
+% 
+%             % remove selected ICA components (MUST HAVE ALREADY SELECTED THESE MANUALLY)
+%             if S.(S.func).epoch.ICAremove && any(EEG.reject.gcompreject==0)
+%                 EEG = pop_subcomp( EEG, [], 0); 
+%             end
+%     
+%             S = noisyflat_channel_diagnostics(S,EEG);
+%             S.prep.clean.chandiag.var_chan(fn+f) = S.prep.chandiag.var_chan;
+%             S.prep.clean.chandiag.invvar_chan(fn+f) = S.prep.chandiag.invvar_chan;
+% 
+%         end
+% 
+%         if exist('prev_filelist','var')
+%             S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+%             S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+%             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+%             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+%         end
    
     case 'postICA_rej'
 

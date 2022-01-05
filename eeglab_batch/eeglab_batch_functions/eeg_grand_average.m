@@ -11,17 +11,25 @@ switch S.(S.func).select.datatype
     case 'Freq'
         S.path.file = S.path.freq;
 end
-S.path.outfile = fullfile(S.path.ga,S.(S.func).select.datatype);
-if ~exist(S.path.outfile,'dir')
-    mkdir(S.path.outfile)
-end
 
 % load directory
 if ~isfield(S.(S.func),'loaddir')
     S.(S.func).loaddir = fullfile(S.path.erp,S.(S.func).load.suffix{:});
 end
 
+
+% save directory
+if ~isfield(S.(S.func),'outdir')
+    S.path.outfile = fullfile(S.path.ga,S.(S.func).select.datatype);
+else
+    S.path.outfile = S.(S.func).outdir;
+end
+if ~exist(S.path.outfile,'dir')
+    mkdir(S.path.outfile)
+end
+
 % GET FILE LIST
+S.path.file = S.(S.func).loaddir;
 S = getfilelist(S);
 
 % select channels
@@ -466,11 +474,13 @@ for ga = 1:length(uni_ind)
             outlist.(['sim_event' num2str(keepev(n))])=sim_score.sim(:,n);
             outlist.(['inv_event' num2str(keepev(n))])=sim_score.inv(:,n);
             outlist.(['xcorr_score_event' num2str(keepev(n))])=xcorr_score(:,n);
+            outlist.(['outlier_event' num2str(keepev(n))]) = ismember(outlist.subjects, rej{n});  
         end
         % means
         outlist.sim_score_mean=mean(sim_score.sim,2);
         outlist.inv_sim_score_mean=mean(sim_score.inv,2);
         outlist.xcorr_score_mean=mean(xcorr_score,2);
+        outlist.outlier_anyevent = ismember(outlist.subjects, vertcat(rej{:}));  
         writetable(outlist,fullfile(S.path.outfile,[S.(S.func).ganame{ga} '_summary.xlsx']));
     end
 
