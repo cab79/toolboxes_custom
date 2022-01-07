@@ -540,7 +540,7 @@ switch part
                 end
 
                 % plot
-                S.fig2=figure('Name',file)
+                f1=figure
                 tiledlayout(1,2)
                 nexttile
                 imagesc(rejbad_all,[0 1]); title('outliers total')
@@ -553,10 +553,7 @@ switch part
                     S.prep.clean.reject.noisy_chans_Nbadchans(fn+f) = badlist.nbadchan;
                     S.prep.clean.reject.noisy_chans_Nbadtrials(fn+f) = badlist.nbadtrial;
                 end
-                savefig(S.fig,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy.fig')))
-                savefig(S.fig2,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy_removed.fig')))
-                close(S.fig)
-                close(S.fig2)
+                close(f1)
             end
 
             % REMOVE FLAT CHANNELS using 1/var
@@ -664,7 +661,7 @@ switch part
             end
             disp(['saving file index ' num2str(f)])
             EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:})); 
-            
+            savefig(S.fig,fullfile(S.path.file,S.prep.save.suffix{:},strrep(file,'.set','.fig')))
         end
         %elseif exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
         %    S.prep.save.suffix{:} = 'manrej';

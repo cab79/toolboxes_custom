@@ -18,9 +18,15 @@ switch S.(S.func).select.datatype
         S.path.file = S.path.freq;
 end
 
+% load directory
+if ~isfield(S.(S.func),'loaddir')
+    S.(S.func).loaddir = fullfile(S.path.file,S.(S.func).load.suffix{:});
+end
+S.path.file = S.(S.func).loaddir;
+
 % select channels
 S=select_chans(S);
-dbstop if error
+
 switch type
     case 'subject'
 
@@ -28,34 +34,34 @@ switch type
     S = getfilelist(S);
 
     % show data quality from metrics
-    [~,~,pdata] = xlsread(S.path.datfile);
-    pdata(all(cellfun(@(x) any(isnan(x)),pdata),2),:) = []; % remove NaN rows
-    pdata(:,all(cellfun(@(x) any(isnan(x)),pdata),1)) = []; % remove NaN rowscols
+    pdata = readtable(S.path.datfile);
+%     pdata(all(cellfun(@(x) any(isnan(x)),pdata),2),:) = []; % remove NaN rows
+%     pdata(:,all(cellfun(@(x) any(isnan(x)),pdata),1)) = []; % remove NaN rowscols
+
     % get subjects and include
-    subject_col = find(strcmp(pdata(1,:),'Subject'));
-    include_col = find(strcmp(pdata(1,:),'Include'));
-    subs = pdata(2:end,subject_col);
-    include = find([pdata{2:end,include_col}]);
-    subs=subs(include);
-    quality_col = strfind(pdata(1,:),'EEG_quality_');
-    quality_col = find(~cellfun(@isempty,quality_col));
-    metric={};
-    if ~isempty(quality_col)
-        for i = 1:length(quality_col)
-            metric{i,1}=pdata{1,quality_col(i)};
-            metric{i,1}=strrep(metric{i,1},'EEG_quality_','');
-            metric{i,2}=[pdata{2:end,quality_col(i)}];
-            metric{i,2} = metric{i,2}(include);
-        end
-    end
+%     subs = pdata.Subject;
+%     include = pdata.Include;
+%     subs=subs(include);
+
+%     quality_col = strfind(pdata(1,:),'EEG_quality_');
+%     quality_col = find(~cellfun(@isempty,quality_col));
+%     metric={};
+%     if ~isempty(quality_col)
+%         for i = 1:length(quality_col)
+%             metric{i,1}=pdata{1,quality_col(i)};
+%             metric{i,1}=strrep(metric{i,1},'EEG_quality_','');
+%             metric{i,2}=[pdata{2:end,quality_col(i)}];
+%             metric{i,2} = metric{i,2}(include);
+%         end
+%     end
 
     for i = S.(S.func).startfile : length(S.(S.func).filelist)
 
-        if exist(fullfile(S.path.file,'data_quality.mat'),'file')
-            load(fullfile(S.path.file,'data_quality'),'qual')
-        end
+%         if exist(fullfile(S.path.file,'data_quality.mat'),'file')
+%             load(fullfile(S.path.file,'data_quality'),'qual')
+%         end
         file = S.(S.func).filelist{i};
-        filesubs=S.(S.func).designmat(2:end,strcmp(S.(S.func).designmat(1,:),'subjects'));
+        filesubs=S.(S.func).designtab.subjects;
         load(file)
         
         if exist('gadata','var')
@@ -84,13 +90,14 @@ switch type
         avgdata = tldata{1};
         datstruct = cell2mat(tldata);
         datmat = cat(3,datstruct(:).avg);
-        weights = cat(3,datstruct(:).ntrails);
+        weights = cat(3,datstruct(:).ntrials);
         weighted_data = bsxfun(@times,datmat,weights/mean(weights));
         avgdata.avg = mean(weighted_data,3);
         %avgdata.avg = sum(datmat*weights,2)./sum(datmat,2);
 
         [f,f2]=plotmulti(S,datmat,tldata,file,avgdata)
-
+        waitfor(f)
+        close(f2)
 %         % show outlier-ness
 %         if exist('outlist','var');
 %             max([outlist{:,2}])
@@ -100,108 +107,105 @@ switch type
 %             outval = 0;
 %         end
 
-        % good, so-so, bad data?
-        hm=figure('Name','Z-scores of each metric',...
-        'units','normalized','outerposition',[0.75 0.60 0.25 0.40]);
-        hold on
-        col='bgrmy'; 
-        ii=find(strcmp(subs,filesubs{i}));
-        qstr = '';
-        for m = 1:length(metric)
-            if all(ismember(metric{m,2},[0 1]))
-                %qstr = [qstr metric{m,1} ': ' num2str(metric{m,2}(ii)) ', '];
-            else
-                %qstr = [qstr metric{m,1} ': ' num2str(round(invprctile(metric{m,2},metric{m,2}(ii)))) '%, '];
-                sortm=sort(metric{m,2});
-                p(m)=plot(sortm,col(m)); 
-                scatter(find(sortm==metric{m,2}(ii)),metric{m,2}(ii),col(m),'filled');
-            end
-        end
-        %thresholds
-        qual_metric = metric{strcmp(metric(:,1),S.(S.func).qual_metric),2};
-        stat(1).data = qual_metric(strcmp(qual(:,2),'Good'));
-        stat(2).data = qual_metric(strcmp(qual(:,2),'So-so'));
-        stat(3).data = qual_metric(strcmp(qual(:,2),'Bad'));
-        if length(stat(1).data)>=S.ploterp.minN_thresh && length(stat(2).data)>=S.ploterp.minN_thresh && length(stat(3).data)>=S.ploterp.minN_thresh
-            for st = 1:length(stat)
-                stat(st).mean=mean(stat(st).data);
-                stat(st).std=std(stat(st).data);
-            end
-            % create thresholds based on means weighted by std
-            std_norm = 2*[stat(2).std,stat(1).std]/(stat(1).std+stat(2).std);
-            thresh(1)=mean(std_norm.*[stat(1).mean,stat(2).mean]);
-            perc(1)=dsearchn(sort(qual_metric)',thresh(1));
-            std_norm = 2*[stat(3).std,stat(2).std]/(stat(2).std+stat(3).std);
-            thresh(2)=mean(std_norm.*[stat(2).mean,stat(3).mean]);
-            perc(2)=dsearchn(sort(qual_metric)',thresh(2));
-            plot([0 length(subs)],[thresh(1) thresh(1)],'--k'); % plot thresholds
-            plot([0 length(subs)],[thresh(2) thresh(2)],'--k'); % plot thresholds
-            yl=ylim;
-            plot([perc(1) perc(1)],[yl(1) yl(2)],'--k'); % plot thresholds
-            plot([perc(2) perc(2)],[yl(1) yl(2)],'--k'); % plot thresholds
-        end
-        legend(p,metric(:,1),'Location','southeast');
-        xlabel('subjects')
-        ylabel('z-scores')
-        hold off
-        qual{i,1} = file;
-        if ~isempty(qual{i,2})
-            dft=qual{i,2};
-        else
-            dft='So-so';
-        end
-        qual{i,2} = MFquestdlg([0.9 0.3],qstr,'Data quality','Good','So-so','Bad',dft);
-        if isempty(qual{i,2})
-            return
-        end
-        close(f); close(f2); close(hm);
-        qual=qual;
-        autoind(qual_metric<thresh(1))=1;
-        autoind(qual_metric>=thresh(1) & qual_metric<thresh(2))=2;
-        autoind(qual_metric>=thresh(2))=3;
-        autoqual = {'Good','So-so','Bad'}; autoqual = autoqual(autoind);
-        save(fullfile(S.path.file,'data_quality'),'qual','thresh','perc','autoqual')
-
-        if strcmp(qual{i,2},'')
-            return
-        end
+%         % good, so-so, bad data?
+%         hm=figure('Name','Z-scores of each metric',...
+%         'units','normalized','outerposition',[0.75 0.60 0.25 0.40]);
+%         hold on
+%         col='bgrmy'; 
+%         ii=find(strcmp(subs,filesubs{i}));
+%         qstr = '';
+%         for m = 1:length(metric)
+%             if all(ismember(metric{m,2},[0 1]))
+%                 %qstr = [qstr metric{m,1} ': ' num2str(metric{m,2}(ii)) ', '];
+%             else
+%                 %qstr = [qstr metric{m,1} ': ' num2str(round(invprctile(metric{m,2},metric{m,2}(ii)))) '%, '];
+%                 sortm=sort(metric{m,2});
+%                 p(m)=plot(sortm,col(m)); 
+%                 scatter(find(sortm==metric{m,2}(ii)),metric{m,2}(ii),col(m),'filled');
+%             end
+%         end
+%         %thresholds
+%         qual_metric = metric{strcmp(metric(:,1),S.(S.func).qual_metric),2};
+%         stat(1).data = qual_metric(strcmp(qual(:,2),'Good'));
+%         stat(2).data = qual_metric(strcmp(qual(:,2),'So-so'));
+%         stat(3).data = qual_metric(strcmp(qual(:,2),'Bad'));
+%         if length(stat(1).data)>=S.ploterp.minN_thresh && length(stat(2).data)>=S.ploterp.minN_thresh && length(stat(3).data)>=S.ploterp.minN_thresh
+%             for st = 1:length(stat)
+%                 stat(st).mean=mean(stat(st).data);
+%                 stat(st).std=std(stat(st).data);
+%             end
+%             % create thresholds based on means weighted by std
+%             std_norm = 2*[stat(2).std,stat(1).std]/(stat(1).std+stat(2).std);
+%             thresh(1)=mean(std_norm.*[stat(1).mean,stat(2).mean]);
+%             perc(1)=dsearchn(sort(qual_metric)',thresh(1));
+%             std_norm = 2*[stat(3).std,stat(2).std]/(stat(2).std+stat(3).std);
+%             thresh(2)=mean(std_norm.*[stat(2).mean,stat(3).mean]);
+%             perc(2)=dsearchn(sort(qual_metric)',thresh(2));
+%             plot([0 length(subs)],[thresh(1) thresh(1)],'--k'); % plot thresholds
+%             plot([0 length(subs)],[thresh(2) thresh(2)],'--k'); % plot thresholds
+%             yl=ylim;
+%             plot([perc(1) perc(1)],[yl(1) yl(2)],'--k'); % plot thresholds
+%             plot([perc(2) perc(2)],[yl(1) yl(2)],'--k'); % plot thresholds
+%         end
+%         legend(p,metric(:,1),'Location','southeast');
+%         xlabel('subjects')
+%         ylabel('z-scores')
+%         hold off
+%         qual{i,1} = file;
+%         if ~isempty(qual{i,2})
+%             dft=qual{i,2};
+%         else
+%             dft='So-so';
+%         end
+%         qual{i,2} = MFquestdlg([0.9 0.3],qstr,'Data quality','Good','So-so','Bad',dft);
+%         if isempty(qual{i,2})
+%             return
+%         end
+%         close(f); close(f2); close(hm);
+%         qual=qual;
+%         autoind(qual_metric<thresh(1))=1;
+%         autoind(qual_metric>=thresh(1) & qual_metric<thresh(2))=2;
+%         autoind(qual_metric>=thresh(2))=3;
+%         autoqual = {'Good','So-so','Bad'}; autoqual = autoqual(autoind);
+%         save(fullfile(S.path.file,'data_quality'),'qual','thresh','perc','autoqual')
+% 
+%         if strcmp(qual{i,2},'')
+%             return
+%         end
 
     end
     
     case 'grandavg'
-        
-        if ~isfield(S.ga,'ganame')
-            S.ga.ganame = {'grandavg.mat'};
-        end
-        
-        for ga = 1:length(S.ga.ganame)
-            
-            load(fullfile(S.path.file,S.ga.ganame{ga}));
-            avgdata = gadata.gavg;
-            tldata = gadata.events;
-            datstruct = cell2mat(tldata);
-            datmat = cat(3,datstruct(:).avg);
 
+        fname = dir(fullfile(S.path.file,[S.ploterp.select.sessions{:} '_' S.ploterp.select.blocks{:} '_' S.ploterp.select.conds{:} '_' S.ploterp.load.suffix{:} '.' S.ploterp.fname.ext{:}]));
+        fname = fname.name;
+        load(fullfile(S.path.file,fname));
+        avgdata = gadata.gavg;
+        tldata = gadata.events;
+        datstruct = cell2mat(tldata);
+        datmat = cat(3,datstruct(:).avg);
+
+        if S.ploterp.allsubjects
             title = 'grand average';
             [f,f2]=plotmulti(S,datmat,tldata,title,avgdata)
-            
-            try
-                [f3,f4]=plotvar(S,datmat,tldata,title,avgdata)
-            end
-            
-            if S.ga.grand_avg.outliers 
-                tldata = gadata.events_acc;
-                title = 'grand average robust';
-                [f,f2]=plotmulti(S,datmat,tldata,title,avgdata)
-
-                tldata = gadata.events_rej;
-                title = 'grand average rejected';
-                [f,f2]=plotmulti(S,datmat,tldata,title,avgdata)
-            end
-            
-
         end
         
+        if S.ploterp.allsubjects_var
+            [f3,f4]=plotvar(S,datmat,tldata,title,avgdata)
+        end
+        
+        if S.ploterp.robustsubjects
+            tldata = gadata.events_acc;
+            title = 'grand average robust';
+            [f5,f6]=plotmulti(S,datmat,tldata,title,avgdata)
+        end
+
+        if S.ploterp.outliersubjects
+            tldata = gadata.events_rej;
+            title = 'grand average rejected';
+            [f7,f8]=plotmulti(S,datmat,tldata,title,avgdata)
+        end
+ 
 end
 
 function [f,f2] = plotmulti(S,datmat,tldata,file,avgdata)
@@ -215,7 +219,7 @@ f=figure('units','normalized','outerposition',[0 0 1 1]);
 cfg = [];
 cfg.layout = S.ploterp.layout;
 cfg.ylim = [prctile(datmat(:),0.1),prctile(datmat(:),99.9)];%S.ploterp.ylim;
-if ~isfield(S.ploterp,'event_labels') || isempty(S.ploterp.event_labels)
+if ~isfield(S.ploterp,'event_labels') || isempty(S.ploterp.event_labels{:})
     temp=1:length(tldata);
     labels = cellstr(num2str(temp(:)))';
 else

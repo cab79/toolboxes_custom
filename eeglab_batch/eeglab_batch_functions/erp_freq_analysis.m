@@ -18,7 +18,12 @@ end
 if strcmp(S.(S.func).select.datatype,'ERP') && S.(S.func).CSD.apply 
     load(S.(S.func).CSD.montage); % path to CSD montage (only needed if using CSD)
 end 
-S.(S.func).nMarkType = length(S.(S.func).epoch.markers);
+
+if S.(S.func).epoch.combinemarkers
+    S.(S.func).nMarkType = 1;
+else
+    S.(S.func).nMarkType = length(S.(S.func).epoch.markers);
+end
 
 % % GET FILE LIST
 % S.path.file = S.path.prep;

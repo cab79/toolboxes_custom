@@ -14,7 +14,7 @@ end
 
 % load directory
 if ~isfield(S.(S.func),'loaddir')
-    S.(S.func).loaddir = fullfile(S.path.erp,S.(S.func).load.suffix{:});
+    S.(S.func).loaddir = fullfile(S.path.file,S.(S.func).load.suffix{:});
 end
 
 
