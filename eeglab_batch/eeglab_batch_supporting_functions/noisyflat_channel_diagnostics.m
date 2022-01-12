@@ -412,7 +412,7 @@ switch cfg.method
     if scaled
       fprintf('showing a summary of the scaled data for all channels and trials\n');
     else
-      fprintf('showing a summary of the data for all channels and trials\n');
+      fprintf('computing a summary of the data for all channels and trials\n');
     end
     [chansel, trlsel, cfg] = rejectvisual_summary_cab(cfg, tmpdata);
 
@@ -720,55 +720,68 @@ end
 function info = compute_metric_auto(info)
 
 tmp = info.level(info.chansel, info.trlsel);
-level = zeros(info.nchan, info.ntrl);
 
 if strcmp(info.metric, 'zvalue') || strcmp(info.metric, 'maxzvalue')
   % cellmean and cellstd (see ft_denoise_pca) would work instead of for-loops, but they are too memory-intensive
   runsum = zeros(info.nchan, 1);
   runss  = zeros(info.nchan, 1);
   runnum = 0;
-  for i=1:info.ntrl
-    dat = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
-    runsum = runsum + nansum(dat, 2);
-    runss  = runss  + nansum(dat.^2, 2);
-    runnum = runnum + sum(isfinite(dat), 2);
+
+  tic
+  tempdat=cell(1,info.ntrl);
+  parfor i=1:info.ntrl
+    tempdat{i} = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
   end
+  toc
+
+  for i=1:info.ntrl
+    runsum = runsum + nansum(tempdat{i}, 2);
+    runss  = runss  + nansum(tempdat{i}.^2, 2);
+    runnum = runnum + sum(isfinite(tempdat{i}), 2);
+  end
+
   mval = runsum./runnum;
   sd   = sqrt(runss./runnum - (runsum./runnum).^2);
+else
+  % otherwise next parfor fails
+  mval = zeros(info.nchan,1);
+  sd   = ones(info.nchan,1);
 end
-
-for i=1:info.ntrl
+level = cell(1,info.ntrl);
+tic
+parfor i=1:info.ntrl
   dat = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
   switch info.metric
     case 'var'
-      level(:, i) = nanstd(dat, [], 2).^2;
+      level{i} = nanstd(dat, [], 2).^2;
     case 'min'
-      level(:, i) = nanmin(dat, [], 2);
+      level{i} = nanmin(dat, [], 2);
     case 'max'
-      level(:, i) = nanmax(dat, [], 2);
+      level{i} = nanmax(dat, [], 2);
     case 'maxabs'
-      level(:, i) = nanmax(abs(dat), [], 2);
+      level{i} = nanmax(abs(dat), [], 2);
     case 'range'
-      level(:, i) = nanmax(dat, [], 2) - nanmin(dat, [], 2);
+      level{i} = nanmax(dat, [], 2) - nanmin(dat, [], 2);
     case 'kurtosis'
-      level(:, i) = kurtosis(dat, [], 2);
+      level{i} = kurtosis(dat, [], 2);
     case '1/var'
-      level(:, i) = 1./(nanstd(dat, [], 2).^2);
+      level{i} = 1./(nanstd(dat, [], 2).^2);
     case 'zvalue'
-      level(:, i) = nanmean( (dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , 2);
+      level{i} = nanmean( (dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , 2);
     case 'maxzvalue'
-      level(:, i) = nanmax( ( dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , [], 2);
+      level{i} = nanmax( ( dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , [], 2);
     case 'autocorr'
         Ncorrint=round(20/(1000/info.fsample)); % number of samples for lag
         for k=1:size(dat,1)
             yy=xcorr(dat(k,:),Ncorrint,'coeff');
-            level(k,i) = yy(1);
+            level{i}(k,1) = yy(1);
         end
     otherwise
       ft_error('unsupported method');
   end
 end
-info.level = level;
+toc
+info.level = horzcat(level{:});
 
 
 function compute_metric(h)
@@ -796,6 +809,7 @@ if strcmp(info.metric, 'zvalue') || strcmp(info.metric, 'maxzvalue')
   mval = runsum./runnum;
   sd   = sqrt(runss./runnum - (runsum./runnum).^2);
 end
+tic
 for i=1:info.ntrl
   ft_progress(i/info.ntrl, 'computing metric %d of %d\n', i, info.ntrl);
   dat = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
@@ -828,6 +842,7 @@ for i=1:info.ntrl
       ft_error('unsupported method');
   end
 end
+toc
 ft_progress('close');
 update_log(info.output_box, 'Done.');
 info.level = level;

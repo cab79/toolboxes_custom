@@ -529,6 +529,15 @@ switch part
                     S.prep.outtable.chancorr_frac_bad(S.fn+f) = S.(S.func).clean.corrchan.frac_bad;
     
                     % other metrics
+                    poolobj = gcp('nocreate'); % If no pool, do not create new one.
+                    if isempty(poolobj) && S.prep.clean.noisychan.parallel_workers
+                        parpool('local',S.prep.clean.noisychan.parallel_workers);
+                    elseif ~isempty(poolobj) && S.prep.clean.noisychan.parallel_workers
+                        if poolobj.NumWorkers ~= S.prep.clean.noisychan.parallel_workers
+                            delete(poolobj)
+                            parpool('local',S.prep.clean.noisychan.parallel_workers);
+                        end
+                    end
                     S = noisyflat_channel_diagnostics(S,EEG,file);
                     for oi = 1:length(S.(S.func).clean.noisychan.metric)
                         mname = S.(S.func).clean.noisychan.metric(oi).name;
@@ -558,26 +567,31 @@ switch part
                         rejchan_all = unique([rejchan_all, rejchan']);
                         rejbad(interp_idx,:)=0;
                     end
+
+                    rejbad_all = rejbad;
     
-                    % update according to minimum criteria
+                    % ensure trials are ignored if they have a lot of
+                    % badchans still, otherwise this could loop endlessly
+                    trials_reject = sum(rejbad,1)<=S.prep.clean.noisychan.badchans;
+                    trials_reject = repmat(trials_reject,size(rejbad,1),1);
+                    rejbad = rejbad.*trials_reject;
+
+                    % update according to minimum criteria for partial
+                    % correction later
                     % first, ensure channels are only selected if noisy more
                     % than X% of trials
-                    rejbad_all = rejbad;
                     chans_reject = (sum(rejbad,2)/size(rejbad,2))>=S.prep.clean.noisychan.badsegs;
                     chans_reject = repmat(chans_reject,1,size(rejbad,2));
                     rejbad = rejbad.*chans_reject;
-    
+
                     if all(sum(rejbad,1)<=S.prep.clean.noisychan.badchans)
                         partial_interp_allow=1;
+                        % otherwise, loop back and correct more whole
+                        % channels
                     end
                 end
 
-%                 % then, ensure trials are only selected if not
-%                 % interpolating too many channels
-%                 % CHANGE/REMOVE THIS: iF TOO MANY CHANNELS, CONTINUE LOOP
-%                 trials_reject = sum(rejbad,1)<=S.prep.clean.noisychan.badchans;
-%                 trials_reject = repmat(trials_reject,size(rejbad,1),1);
-%                 rejbad = rejbad.*chans_reject.*trials_reject;
+
 
                 % summary data
                 % ADD CHANNELS INTERPOLATED IN FULL
@@ -585,6 +599,11 @@ switch part
                 if length(rejchan_all)>0
                     S.prep.outtable.noisy_chans_fullinterp(S.fn+f) = {{EEG.chanlocs(rejchan_all).labels}};
                 end
+                % ADD BAD TRIALS IGNORED FOR NOW (THEY WILL BE REMOVED LATER)
+                S.prep.outtable.Nnoisy_trials_ignored_partialinterp(S.fn+f) = sum(~all(trials_reject,1));
+                S.prep.outtable.FracNoisy_trials_ignored_partialinterp(S.fn+f) = sum(~all(trials_reject,1))/S.prep.outtable.initial_trials(S.fn+f);
+                %S.prep.outtable.Noisy_trials_ignored_partialinterp(S.fn+f) = {find(~all(trials_reject,1))};
+                % ADD CHANNELS/TRIALS PARTIALLY INTERPOLATED
                 S.prep.outtable.Nnoisy_chans_partialinterp(S.fn+f) = sum(any(rejbad,2));
                 S.prep.outtable.Nnoisy_trials_partialinterp(S.fn+f) = sum(any(rejbad,1));
                 if any(rejbad,'all')
@@ -593,20 +612,22 @@ switch part
 
                 % plot
                 S.fig2=figure('Name',file)
-                tiledlayout(1,3)
+                tiledlayout(1,4)
                 nexttile
                 rejchanmat = zeros(size(rejbad,1),1);
                 rejchanmat(rejchan_all)=1;
                 repmat(rejchanmat,1,size(rejbad,2));
-                imagesc(rejchanmat,[0 1]); title('noisy fully removed')
+                imagesc(rejchanmat,[0 1]); title('noisy chan fully interpolated')
                 nexttile
                 imagesc(rejbad_all,[0 1]); title('noisy remaining')
                 nexttile
-                imagesc(rejbad,[0 1]); title('noisy to partially remove')
+                imagesc(rejbad,[0 1]); title('noisy to partially interpolate')
+                nexttile
+                imagesc(~trials_reject,[0 1]); title('noisy trials to be fully removed')
                 
-                savefig(S.fig,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy.fig')))
-                savefig(S.fig2,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy_removed.fig')))
-                savefig(S.fig3,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_corrchan.fig')))
+                if isfield(S,'fig') savefig(S.fig,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy.fig'))); end
+                if isfield(S,'fig2') savefig(S.fig2,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy_removed.fig'))); end
+                if isfield(S,'fig3') savefig(S.fig3,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_corrchan.fig'))); end
     
                 % REMOVE NOISY CHANNELS using var
                 if S.prep.clean.noisychan.clean_data
@@ -625,6 +646,14 @@ switch part
                     S.prep.outtable.noisy_chans_Nbadtrials(S.fn+f) = badlist.nbadtrial;
                     parfevalOnAll(@clearvars, 0);
                 end
+
+                % remove bad trials
+                try
+                    EEG = pop_select(EEG, 'notrial', find(~all(trials_reject,1)));
+                catch
+                    continue % too many trials rejected
+                end
+
                 close all
             end
 
@@ -1199,11 +1228,22 @@ switch part
                     rejbad = zeros(EEG.nbchan, EEG.trials);
     
                     % correlated channel metric
-                    S = correlated_channels(S,EEG,file);
-                    rejbad = rejbad + S.(S.func).clean.corrchan.bad;
-                    S.prep.outtable.chancorr_frac_bad(S.fn+f) = S.(S.func).clean.corrchan.frac_bad;
+                    if isfield(S.(S.func).clean,'corrchan')
+                        S = correlated_channels(S,EEG,file);
+                        rejbad = rejbad + S.(S.func).clean.corrchan.bad;
+                        S.prep.outtable.chancorr_frac_bad(S.fn+f) = S.(S.func).clean.corrchan.frac_bad;
+                    end
     
                     % other metrics
+                    poolobj = gcp('nocreate'); % If no pool, do not create new one.
+                    if isempty(poolobj) && S.prep.clean.noisychan.parallel_workers
+                        parpool('local',S.prep.clean.noisychan.parallel_workers);
+                    elseif ~isempty(poolobj) && S.prep.clean.noisychan.parallel_workers
+                        if poolobj.NumWorkers ~= S.prep.clean.noisychan.parallel_workers
+                            delete(poolobj)
+                            parpool('local',S.prep.clean.noisychan.parallel_workers);
+                        end
+                    end
                     S = noisyflat_channel_diagnostics(S,EEG,file);
                     for oi = 1:length(S.(S.func).clean.noisychan.metric)
                         mname = S.(S.func).clean.noisychan.metric(oi).name;
@@ -1233,26 +1273,31 @@ switch part
                         rejchan_all = unique([rejchan_all, rejchan']);
                         rejbad(interp_idx,:)=0;
                     end
+
+                    rejbad_all = rejbad;
     
-                    % update according to minimum criteria
+                    % ensure trials are ignored if they have a lot of
+                    % badchans still, otherwise this could loop endlessly
+                    trials_reject = sum(rejbad,1)<=S.prep.clean.noisychan.badchans;
+                    trials_reject = repmat(trials_reject,size(rejbad,1),1);
+                    rejbad = rejbad.*trials_reject;
+
+                    % update according to minimum criteria for partial
+                    % correction later
                     % first, ensure channels are only selected if noisy more
                     % than X% of trials
-                    rejbad_all = rejbad;
                     chans_reject = (sum(rejbad,2)/size(rejbad,2))>=S.prep.clean.noisychan.badsegs;
                     chans_reject = repmat(chans_reject,1,size(rejbad,2));
                     rejbad = rejbad.*chans_reject;
-    
+
                     if all(sum(rejbad,1)<=S.prep.clean.noisychan.badchans)
                         partial_interp_allow=1;
+                        % otherwise, loop back and correct more whole
+                        % channels
                     end
                 end
 
-%                 % then, ensure trials are only selected if not
-%                 % interpolating too many channels
-%                 % CHANGE/REMOVE THIS: iF TOO MANY CHANNELS, CONTINUE LOOP
-%                 trials_reject = sum(rejbad,1)<=S.prep.clean.noisychan.badchans;
-%                 trials_reject = repmat(trials_reject,size(rejbad,1),1);
-%                 rejbad = rejbad.*chans_reject.*trials_reject;
+
 
                 % summary data
                 % ADD CHANNELS INTERPOLATED IN FULL
@@ -1260,6 +1305,11 @@ switch part
                 if length(rejchan_all)>0
                     S.prep.outtable.noisy_chans_fullinterp(S.fn+f) = {{EEG.chanlocs(rejchan_all).labels}};
                 end
+                % ADD BAD TRIALS IGNORED FOR NOW (THEY WILL BE REMOVED LATER)
+                S.prep.outtable.Nnoisy_trials_ignored_partialinterp(S.fn+f) = sum(~all(trials_reject,1));
+                S.prep.outtable.FracNoisy_trials_ignored_partialinterp(S.fn+f) = sum(~all(trials_reject,1))/S.prep.outtable.initial_trials(S.fn+f);
+                %S.prep.outtable.Noisy_trials_ignored_partialinterp(S.fn+f) = {find(~all(trials_reject,1))};
+                % ADD CHANNELS/TRIALS PARTIALLY INTERPOLATED
                 S.prep.outtable.Nnoisy_chans_partialinterp(S.fn+f) = sum(any(rejbad,2));
                 S.prep.outtable.Nnoisy_trials_partialinterp(S.fn+f) = sum(any(rejbad,1));
                 if any(rejbad,'all')
@@ -1268,20 +1318,22 @@ switch part
 
                 % plot
                 S.fig2=figure('Name',file)
-                tiledlayout(1,3)
+                tiledlayout(1,4)
                 nexttile
                 rejchanmat = zeros(size(rejbad,1),1);
                 rejchanmat(rejchan_all)=1;
                 repmat(rejchanmat,1,size(rejbad,2));
-                imagesc(rejchanmat,[0 1]); title('noisy fully removed')
+                imagesc(rejchanmat,[0 1]); title('noisy chan fully interpolated')
                 nexttile
                 imagesc(rejbad_all,[0 1]); title('noisy remaining')
                 nexttile
-                imagesc(rejbad,[0 1]); title('noisy to partially remove')
+                imagesc(rejbad,[0 1]); title('noisy to partially interpolate')
+                nexttile
+                imagesc(~trials_reject,[0 1]); title('noisy trials to be fully removed')
                 
-                savefig(S.fig,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy.fig')))
-                savefig(S.fig2,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy_removed.fig')))
-                savefig(S.fig3,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_corrchan.fig')))
+                if isfield(S,'fig') savefig(S.fig,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy.fig'))); end
+                if isfield(S,'fig2') savefig(S.fig2,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy_removed.fig'))); end
+                if isfield(S,'fig3') savefig(S.fig3,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_corrchan.fig'))); end
     
                 % REMOVE NOISY CHANNELS using var
                 if S.prep.clean.noisychan.clean_data
@@ -1300,6 +1352,14 @@ switch part
                     S.prep.outtable.noisy_chans_Nbadtrials(S.fn+f) = badlist.nbadtrial;
                     parfevalOnAll(@clearvars, 0);
                 end
+
+                % remove bad trials
+                try
+                    EEG = pop_select(EEG, 'notrial', find(~all(trials_reject,1)));
+                catch
+                    continue % too many trials rejected
+                end
+
                 close all
             end
 
@@ -1544,74 +1604,6 @@ switch part
 %             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
 %             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
 %         end
-end
-
-
-function S = filehandler(S,step)
-
-switch step
-    case 'start'
-
-        % create directory for saving if doesn't exist
-        if ~exist(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}),'dir')
-            mkdir(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}));
-        end
-
-        % load directory
-        if isfield(S.(S.func),'S.path.file')
-            S.path.file = fullfile(S.path.(S.func),S.(S.func).load.suffix{:});
-        else
-            S.path.file = fullfile(S.path.(S.func),S.(S.func).load.suffix{:});
-        end
-        
-        % get previously processed files
-        if isfield(S.(S.func),'designtab')
-            if S.(S.func).overwrite==0
-                prev_designtab = S.(S.func).designtab;
-            end
-            S.(S.func) = rmfield(S.(S.func),'designtab');
-        end
-        
-        % GET DESIGNTAB, INCLUDING FILE LIST
-        S = getfilelist(S,S.(S.func).load.suffix);
-        
-        % update designtab with those already processed and generate
-        % filelist to process
-        if S.(S.func).overwrite==0 && exist('prev_designtab','var')
-            idx_processed = ismember(S.(S.func).designtab.file,prev_designtab.file(prev_designtab.processed==1));
-            S.(S.func).designtab.processed(idx_processed)=1;
-            S.(S.func).filelist = S.(S.func).designtab.file(~idx_processed);
-        else
-            S.(S.func).filelist = S.(S.func).designtab.file;
-        end
-        
-        %S.loadpath = S.path.file;
-        
-        % setup output table if needed
-        if ~isfield(S.(S.func),'outtable') || S.(S.func).overwrite==1
-            S.(S.func).outtable = table;
-        end
-        S.fn = height(S.(S.func).outtable);
-
-    case 'update'
-        idx_processed = ismember(S.(S.func).designtab.file,S.(S.func).file_processed);
-        S.(S.func).designtab.processed(idx_processed)=1;
-
-        % save S
-        save(fullfile(S.path.prep,S.sname),'S'); % saves 'S' - will be overwritten each time
-
-        % save table
-        if isfield(S.prep,'outtable_name')
-            writetable(S.prep.outtable,fullfile(fullfile(S.path.prep,S.prep.outtable_name)))
-        end
-
-%         if exist('prev_filelist','var')
-%             S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-%             S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-%             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-%             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-%         end
-
 end
 
 %% REJECT CHANNELS

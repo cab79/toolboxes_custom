@@ -18,11 +18,11 @@ switch S.(S.func).select.datatype
         S.path.file = S.path.freq;
 end
 
-% load directory
-if ~isfield(S.(S.func),'loaddir')
-    S.(S.func).loaddir = fullfile(S.path.file,S.(S.func).load.suffix{:});
-end
-S.path.file = S.(S.func).loaddir;
+% % load directory
+% if ~isfield(S.(S.func),'loaddir')
+%     S.(S.func).loaddir = fullfile(S.path.file,S.(S.func).load.suffix{:});
+% end
+% S.path.file = S.(S.func).loaddir;
 
 % select channels
 S=select_chans(S);
@@ -31,7 +31,8 @@ switch type
     case 'subject'
 
     % GET FILE LIST
-    S = getfilelist(S);
+    S = filehandler(S,'start');
+%     S = getfilelist(S);
 
     % show data quality from metrics
     pdata = readtable(S.path.datfile);

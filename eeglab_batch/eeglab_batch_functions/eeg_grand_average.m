@@ -12,10 +12,10 @@ switch S.(S.func).select.datatype
         S.path.file = S.path.freq;
 end
 
-% load directory
-if ~isfield(S.(S.func),'loaddir')
-    S.(S.func).loaddir = fullfile(S.path.file,S.(S.func).load.suffix{:});
-end
+% % load directory
+% if ~isfield(S.(S.func),'loaddir')
+%     S.(S.func).loaddir = fullfile(S.path.file,S.(S.func).load.suffix{:});
+% end
 
 
 % save directory
@@ -28,9 +28,10 @@ if ~exist(S.path.outfile,'dir')
     mkdir(S.path.outfile)
 end
 
-% GET FILE LIST
-S.path.file = S.(S.func).loaddir;
-S = getfilelist(S);
+% % GET FILE LIST
+% S.path.file = S.(S.func).loaddir;
+% S = getfilelist(S);
+S = filehandler(S,'start');
 
 % select channels
 S=select_chans(S);

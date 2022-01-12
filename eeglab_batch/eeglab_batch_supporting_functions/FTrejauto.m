@@ -21,6 +21,18 @@ elseif strcmp(format,'SPM')
     FT = EEG.fttimelock;
 end
 
+if isfield(S.prep.clean.FTrejauto,'parallel_workers') && S.prep.clean.FTrejauto.parallel_workers
+    poolobj = gcp('nocreate'); % If no pool, do not create new one.
+    if isempty(poolobj) && S.prep.clean.FTrejauto.parallel_workers
+        parpool('local',S.prep.clean.FTrejauto.parallel_workers);
+    elseif ~isempty(poolobj) && S.prep.clean.FTrejauto.parallel_workers
+        if poolobj.NumWorkers ~= S.prep.clean.FTrejauto.parallel_workers
+            delete(poolobj)
+            parpool('local',S.prep.clean.FTrejauto.parallel_workers);
+        end
+    end
+end
+
 %% define chans
 orig_chans=FT.label';
 if ~exist('chan','var') || isempty(chan)
@@ -67,7 +79,12 @@ cfg.artfctdef.zvalue.absdiff = 'yes';
 cfg.artfctdef.zvalue.interactive = interactive;
 
 % run
-[cfg, artifact_jump] = ft_artifact_zvalue(cfg,FT);
+if isfield(S.prep.clean.FTrejauto,'parallel_workers') && S.prep.clean.FTrejauto.parallel_workers
+    cfg.parallel = S.prep.clean.FTrejauto.parallel_workers;
+    [cfg, artifact_jump] = ft_artifact_zvaluecab(cfg,FT);
+else
+    [cfg, artifact_jump] = ft_artifact_zvalue(cfg,FT);
+end
 
 %% muscle
 cfg = [];
@@ -91,8 +108,12 @@ cfg.artfctdef.zvalue.boxcar       = 0.2;
 
 % make the process interactive
 cfg.artfctdef.zvalue.interactive = interactive;
-
-[cfg, artifact_muscle] = ft_artifact_zvalue(cfg,FT);
+if isfield(S.prep.clean.FTrejauto,'parallel_workers') && S.prep.clean.FTrejauto.parallel_workers
+    cfg.parallel = S.prep.clean.FTrejauto.parallel_workers;
+    [cfg, artifact_muscle] = ft_artifact_zvaluecab(cfg,FT);
+else
+    [cfg, artifact_muscle] = ft_artifact_zvalue(cfg,FT);
+end
 
 % EOG
 cfg = [];
@@ -115,7 +136,12 @@ cfg.continuous = 'no';
  % feedback
  cfg.artfctdef.zvalue.interactive = interactive;
 
- [cfg, artifact_EOG] = ft_artifact_zvalue(cfg,FT);
+ if isfield(S.prep.clean.FTrejauto,'parallel_workers') && S.prep.clean.FTrejauto.parallel_workers
+    cfg.parallel = S.prep.clean.FTrejauto.parallel_workers;
+    [cfg, artifact_EOG] = ft_artifact_zvaluecab(cfg,FT);
+ else
+    [cfg, artifact_EOG] = ft_artifact_zvalue(cfg,FT);
+ end
 
 
 %cfg=[];

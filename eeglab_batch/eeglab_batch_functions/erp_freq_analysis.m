@@ -25,46 +25,42 @@ else
     S.(S.func).nMarkType = length(S.(S.func).epoch.markers);
 end
 
-% % GET FILE LIST
-% S.path.file = S.path.prep;
-% S = getfilelist(S);
+% % load directory
+% if ~isfield(S.(S.func),'loaddir')
+%     S.(S.func).loaddir = fullfile(S.path.prep,S.(S.func).load.suffix{:});
+% end
 % 
-% for f = 1:length(S.(S.func).filelist)
+% % previously processed files
+% if isfield(S.(S.func),'filelist')
+%     if S.(S.func).overwrite==0
+%         prev_filelist = S.(S.func).filelist;
+%         prev_dirlist = S.(S.func).dirlist;
+%         prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+%         prev_designtab = S.(S.func).designtab;
+%     end
+%     S.(S.func) = rmfield(S.(S.func),'dirlist');
+%     S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+%     S.(S.func) = rmfield(S.(S.func),'designtab');
+% end
+% 
+% % GET FILE LIST
+% S.path.file = S.(S.func).loaddir;
+% if ~isempty(S.(S.func).load.suffix{:})
+%     S = getfilelist(S,S.(S.func).load.suffix);
+% else
+%     S = getfilelist(S);
+% end
+% 
+% % select which to process
+% if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+%     idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+%     S.(S.func).filelist(idx_remove)=[];
+%     S.(S.func).dirlist(idx_remove)=[];
+%     S.(S.func).subj_pdat_idx(idx_remove)=[];
+%     S.(S.func).designtab(idx_remove,:)=[];
+% end
 
-% load directory
-if ~isfield(S.(S.func),'loaddir')
-    S.(S.func).loaddir = fullfile(S.path.prep,S.(S.func).load.suffix{:});
-end
-
-% previously processed files
-if isfield(S.(S.func),'filelist')
-    if S.(S.func).overwrite==0
-        prev_filelist = S.(S.func).filelist;
-        prev_dirlist = S.(S.func).dirlist;
-        prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-        prev_designtab = S.(S.func).designtab;
-    end
-    S.(S.func) = rmfield(S.(S.func),'dirlist');
-    S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-    S.(S.func) = rmfield(S.(S.func),'designtab');
-end
-
-% GET FILE LIST
-S.path.file = S.(S.func).loaddir;
-if ~isempty(S.(S.func).load.suffix{:})
-    S = getfilelist(S,S.(S.func).load.suffix);
-else
-    S = getfilelist(S);
-end
-
-% select which to process
-if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-    idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-    S.(S.func).filelist(idx_remove)=[];
-    S.(S.func).dirlist(idx_remove)=[];
-    S.(S.func).subj_pdat_idx(idx_remove)=[];
-    S.(S.func).designtab(idx_remove,:)=[];
-end
+S = filehandler(S,'start');
 
 % change to the input directory
 eval(sprintf('%s', ['cd(''' S.path.file ''')']));
@@ -87,7 +83,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
     EEG = pop_loadset('filename',file,'filepath',S.path.file);
 
     % collect summary data
-    S.(S.func).summ.file{fn+f} = file;
+    S.(S.func).outtable.file{fn+f} = file;
     
     if isempty(EEG.epoch)
         continue
@@ -269,16 +265,16 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 % collect summary data: number of trials
                 mname = S.(S.func).epoch.markers{mt};
                 mname(isspace(mname)) = [];
-                S.(S.func).summ.(['Ntrials_' mname]){fn+f} = tldata{mt}.ntrials;
+                S.(S.func).outtable.(['Ntrials_' mname]){fn+f} = tldata{mt}.ntrials;
 
                 % collect summary data: SNR
                 basewin=dsearchn(EEG.times',1000*S.erp.SNR.basewin');
                 sigwin=dsearchn(EEG.times',1000*S.erp.SNR.signalwin');
                 base=EEG.data(:,basewin(1):basewin(2),:);
                 sig=EEG.data(:,sigwin(1):sigwin(2),:);
-                S.(S.func).summ.(['signal_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
-                S.(S.func).summ.(['noise_' mname]){fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
-                S.(S.func).summ.(['SNR_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).outtable.(['signal_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).outtable.(['noise_' mname]){fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).outtable.(['SNR_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
                 
                 % collect summary data: signal difference from zero (t-test over trials)
                 if size(sig,3)>1
@@ -293,15 +289,15 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                             ts(dp) = stats.tstat;
                         end
                     end
-                    S.(S.func).summ.(['ttest_meanT_' mname]){fn+f} = nanmean(ts); 
-                    S.(S.func).summ.(['ttest_fracSig_' mname]){fn+f} = nanmean(hs); 
+                    S.(S.func).outtable.(['ttest_meanT_' mname]){fn+f} = nanmean(ts); 
+                    S.(S.func).outtable.(['ttest_fracSig_' mname]){fn+f} = nanmean(hs); 
                 else
-                    S.(S.func).summ.(['ttest_meanT_' mname]){fn+f} = nan; 
-                    S.(S.func).summ.(['ttest_fracSig_' mname]){fn+f} = nan; 
+                    S.(S.func).outtable.(['ttest_meanT_' mname]){fn+f} = nan; 
+                    S.(S.func).outtable.(['ttest_fracSig_' mname]){fn+f} = nan; 
                 end
 
             end
-            S.(S.func).summ.nMarkerTypes{fn+f} = sum(~cellfun(@isempty,tldata));
+            S.(S.func).outtable.nMarkerTypes{fn+f} = sum(~cellfun(@isempty,tldata));
             
             % SAVE
             if ~exist(S.path.erp,'dir')
@@ -444,6 +440,9 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
             end
                     
     end
+
+S.(S.func).file_processed=file;
+S = filehandler(S,'update');
     
 end
 

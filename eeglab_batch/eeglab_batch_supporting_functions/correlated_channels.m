@@ -26,7 +26,7 @@ corrs = zeros(length(usable_channels),T);
 % calculate each channel's correlation to its RANSAC reconstruction for each window
 timePassedList = zeros(T,1);
 fprintf('corr_channels...'); 
-for t=1:T
+parfor t=1:T
     %tic; % makoto
     XX = X(:,:,t)';
     YY = sort(reshape(XX*P,Sm,length(usable_channels),S.prep.clean.corrchan.NumSamples),3);

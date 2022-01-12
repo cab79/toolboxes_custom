@@ -15,12 +15,22 @@ else
     interactive = 'no';
 end
 
-cutoffs=S.(S.func).clean.FTrejauto.cutoffs;
-
 if strcmp(format,'EEGLAB')
     FT = convertoft(EEG);
 elseif strcmp(format,'SPM')
     FT = EEG.fttimelock;
+end
+
+if isfield(S.prep.clean.FTrejauto,'parallel_workers') && S.prep.clean.FTrejauto.parallel_workers
+    poolobj = gcp('nocreate'); % If no pool, do not create new one.
+    if isempty(poolobj) && S.prep.clean.FTrejauto.parallel_workers
+        parpool('local',S.prep.clean.FTrejauto.parallel_workers);
+    elseif ~isempty(poolobj) && S.prep.clean.FTrejauto.parallel_workers
+        if poolobj.NumWorkers ~= S.prep.clean.FTrejauto.parallel_workers
+            delete(poolobj)
+            parpool('local',S.prep.clean.FTrejauto.parallel_workers);
+        end
+    end
 end
 
 %% define chans
@@ -34,10 +44,19 @@ end
 channel = orig_chans(chan);
 
 %% remove middle section of data
-cfg.latency = [FT.time{1, 1}(1) -0.1]; data1 = ft_selectdata(cfg, FT);
-cfg.latency = [0.1 FT.time{1, 1}(end)]; data2 = ft_selectdata(cfg, FT);
-temp = FT;
-for t = 1:length(FT.trial)
+if any(S.(S.func).clean.FTrejauto.ignore_stim_artefact)
+    art_time = S.(S.func).clean.FTrejauto.ignore_stim_artefact;
+    cfg.latency = [FT.time{1, 1}(1) art_time(1)]; data1 = ft_selectdata(cfg, FT);
+    cfg.latency = [art_time(2) FT.time{1, 1}(end)]; data2 = ft_selectdata(cfg, FT);
+    temp = FT;
+    for t = 1:length(FT.trial)
+        temp.trial{t} = horzcat(data1.trial{t},data2.trial{t});
+        temp.time{t} = horzcat(data1.time{t},data2.time{t});
+    end
+    FT=temp;
+end
+
+cutoffs=S.(S.func).clean.FTrejauto.cutoffs;
 
 %% jump
 cfg = [];
@@ -60,7 +79,12 @@ cfg.artfctdef.zvalue.absdiff = 'yes';
 cfg.artfctdef.zvalue.interactive = interactive;
 
 % run
-[cfg, artifact_jump] = ft_artifact_zvalue(cfg,FT);
+if isfield(S.prep.clean.FTrejauto,'parallel_workers') && S.prep.clean.FTrejauto.parallel_workers
+    cfg.parallel = S.prep.clean.FTrejauto.parallel_workers;
+    [cfg, artifact_jump] = ft_artifact_zvaluecab(cfg,FT);
+else
+    [cfg, artifact_jump] = ft_artifact_zvalue(cfg,FT);
+end
 
 %% muscle
 cfg = [];
@@ -84,8 +108,12 @@ cfg.artfctdef.zvalue.boxcar       = 0.2;
 
 % make the process interactive
 cfg.artfctdef.zvalue.interactive = interactive;
-
-[cfg, artifact_muscle] = ft_artifact_zvalue(cfg,FT);
+if isfield(S.prep.clean.FTrejauto,'parallel_workers') && S.prep.clean.FTrejauto.parallel_workers
+    cfg.parallel = S.prep.clean.FTrejauto.parallel_workers;
+    [cfg, artifact_muscle] = ft_artifact_zvalue_cab(cfg,FT);
+else
+    [cfg, artifact_muscle] = ft_artifact_zvalue(cfg,FT);
+end
 
 % EOG
 cfg = [];
@@ -108,7 +136,12 @@ cfg.continuous = 'no';
  % feedback
  cfg.artfctdef.zvalue.interactive = interactive;
 
- [cfg, artifact_EOG] = ft_artifact_zvalue(cfg,FT);
+ if isfield(S.prep.clean.FTrejauto,'parallel_workers') && S.prep.clean.FTrejauto.parallel_workers
+    cfg.parallel = S.prep.clean.FTrejauto.parallel_workers;
+    [cfg, artifact_EOG] = ft_artifact_zvalue_cab(cfg,FT);
+ else
+    [cfg, artifact_EOG] = ft_artifact_zvalue(cfg,FT);
+ end
 
 
 %cfg=[];
@@ -131,6 +164,9 @@ for tr = 1:length(EEG.epoch)
 end
 
 S.(S.func).clean.FTrejauto.rejtrial = find(rejtrial);
+S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump = sum(C(:,1));
+S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle = sum(C(:,2));
+S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog = sum(C(:,3));
 
 disp(['TOTAL: ' num2str(sum(rejtrial)) ' out of ' num2str(length(rejtrial)) ' trials rejected'])
 disp(['JUMP: ' num2str(sum(C(:,1))) ' out of ' num2str(length(rejtrial)) ' trials rejected'])
