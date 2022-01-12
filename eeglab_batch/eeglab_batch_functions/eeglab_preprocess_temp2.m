@@ -6,43 +6,40 @@ switch part
 
     case 'epoch'
         
-%     % load directory
-%     if ~isfield(S.prep,'S.path.file')
-%         S.prep.S.path.file = fullfile(S.path.(S.func),S.prep.load.suffix{:});
-%     end
-% 
-%     % previously processed files
-%     if isfield(S.(S.func),'filelist')
-%         if S.(S.func).overwrite==0
-%             prev_filelist = S.(S.func).filelist;
-%             prev_dirlist = S.(S.func).dirlist;
-%             prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%             prev_designtab = S.(S.func).designtab;
-%         end
-%         S.(S.func) = rmfield(S.(S.func),'dirlist');
-%         S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%         S.(S.func) = rmfield(S.(S.func),'designtab');
-%     end
-% 
-%     % GET FILE LIST
-%     S.path.file = S.prep.loaddir;
-%     if ~isempty(S.prep.load.suffix{:})
-%         S = getfilelist(S,S.prep.load.suffix);
-%     else
-%         S = getfilelist(S);
-%     end
-% 
-%     % select which to process
-%     if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%         idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%         S.(S.func).filelist(idx_remove)=[];
-%         S.(S.func).dirlist(idx_remove)=[];
-%         S.(S.func).subj_pdat_idx(idx_remove)=[];
-%         S.(S.func).designtab(idx_remove,:)=[];
-%     end
+    % load directory
+    if ~isfield(S.prep,'loaddir')
+        S.prep.loaddir = fullfile(S.path.(S.func),S.prep.load.suffix{:});
+    end
 
-    
-    S = filehandler(S,'start');
+    % previously processed files
+    if isfield(S.(S.func),'filelist')
+        if S.(S.func).overwrite==0
+            prev_filelist = S.(S.func).filelist;
+            prev_dirlist = S.(S.func).dirlist;
+            prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+            prev_designtab = S.(S.func).designtab;
+        end
+        S.(S.func) = rmfield(S.(S.func),'dirlist');
+        S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+        S.(S.func) = rmfield(S.(S.func),'designtab');
+    end
+
+    % GET FILE LIST
+    S.path.file = S.prep.loaddir;
+    if ~isempty(S.prep.load.suffix{:})
+        S = getfilelist(S,S.prep.load.suffix);
+    else
+        S = getfilelist(S);
+    end
+
+    % select which to process
+    if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+        idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+        S.(S.func).filelist(idx_remove)=[];
+        S.(S.func).dirlist(idx_remove)=[];
+        S.(S.func).subj_pdat_idx(idx_remove)=[];
+        S.(S.func).designtab(idx_remove,:)=[];
+    end
 
     % change to the input directory
     eval(sprintf('%s', ['cd(''' S.path.prep ''')']));
@@ -264,18 +261,14 @@ switch part
             mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
         end
         EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:})); 
-
-        % update
-        S.(S.func).file_processed=file;
-        S = filehandler(S,'update');
     end
 
-%     if exist('prev_filelist','var')
-%         S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-%         S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-%         S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-%         S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-%     end
+    if exist('prev_filelist','var')
+        S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+        S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+        S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+        S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+    end
 
 %% COMBINE
     case 'combine'
@@ -307,36 +300,34 @@ switch part
 %         end
 
         
-%         % previously processed files
-%         if isfield(S.(S.func),'filelist')
-%             if S.(S.func).overwrite==0
-%                 prev_filelist = S.(S.func).filelist;
-%                 prev_dirlist = S.(S.func).dirlist;
-%                 prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%                 prev_designtab = S.(S.func).designtab;
-%             end
-%             S.(S.func) = rmfield(S.(S.func),'dirlist');
-%             S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%             S.(S.func) = rmfield(S.(S.func),'designtab');
-%         end
-% 
-%         % GET FILE LIST
-%         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-%         S = getfilelist(S,S.prep.load.suffix);
-% 
-% 
-%         % select which to process
-%         if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%             idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%             S.(S.func).filelist(idx_remove)=[];
-%             S.(S.func).dirlist(idx_remove)=[];
-%             S.(S.func).subj_pdat_idx(idx_remove)=[];
-%             S.(S.func).designtab(idx_remove,:)=[];
-%         end
+        % previously processed files
+        if isfield(S.(S.func),'filelist')
+            if S.(S.func).overwrite==0
+                prev_filelist = S.(S.func).filelist;
+                prev_dirlist = S.(S.func).dirlist;
+                prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+                prev_designtab = S.(S.func).designtab;
+            end
+            S.(S.func) = rmfield(S.(S.func),'dirlist');
+            S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+            S.(S.func) = rmfield(S.(S.func),'designtab');
+        end
 
-        S = filehandler(S,'start');
-% 
-%         loadpath = fullfile(S.path.prep,S.prep.load.suffix{:});
+        % GET FILE LIST
+        S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
+        S = getfilelist(S,S.prep.load.suffix);
+
+
+        % select which to process
+        if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+            idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+            S.(S.func).filelist(idx_remove)=[];
+            S.(S.func).dirlist(idx_remove)=[];
+            S.(S.func).subj_pdat_idx(idx_remove)=[];
+            S.(S.func).designtab(idx_remove,:)=[];
+        end
+
+        loadpath = fullfile(S.path.prep,S.prep.load.suffix{:});
         for s = 1:length(S.prep.select.subjects)
             if isempty(S.prep.select.sessions)
                 S.prep.select.sessions = {''};
@@ -368,7 +359,7 @@ switch part
                     end
 
                     % load and merge
-                    EEG = pop_loadset('filename',file,'filepath',S.path.file);
+                    EEG = pop_loadset('filename',file,'filepath',loadpath);
                     [EEG.epoch(:).file] = deal(basename);
                     if exist('OUTEEG','var')
                         OUTEEG = pop_mergeset(OUTEEG, EEG);
@@ -403,24 +394,18 @@ switch part
                 EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.dir{:}));
             end
         end
-        
-    % update
-    S.(S.func).file_processed=file;
-    S = filehandler(S,'update');
-
+%     elseif exist(fullfile(S.path.prep,'combined'),'dir')
+%         S.prep.save.suffix{:} = 'combined';
     end
 
 
-%     if exist('prev_filelist','var')
-%         S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-%         S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-%         S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-%         S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-%     end
+    if exist('prev_filelist','var')
+        S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+        S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+        S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+        S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+    end
 
-    % FIND THE NEW DATA FILES
-    %files = dir(fullfile(S.path.prep,['*' S.runsubject '*' S.prep.load.suffix{:}]));
-    %files_ana = 1:length(files);
 
     %% NOISY TRIAL AND CHANNEL REJECTION
     case 'rej'
@@ -723,48 +708,54 @@ switch part
             disp(['saving file index ' num2str(f)])
             EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:})); 
 
-            % update
             S.(S.func).file_processed=file;
             S = filehandler(S,'update');
             
         end
 
     
+%         if exist('prev_filelist','var')
+%             S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+%             S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+%             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+%             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+%         end
+    
+    
 %% ICA
     case 'ICA'
         if S.prep.clean.ICA
 
-%             % previously processed files
-%             if isfield(S.(S.func),'filelist')
-%                 if S.(S.func).overwrite==0
-%                     prev_filelist = S.(S.func).filelist;
-%                     prev_dirlist = S.(S.func).dirlist;
-%                     prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%                     prev_designtab = S.(S.func).designtab;
-%                 end
-%                 S.(S.func) = rmfield(S.(S.func),'dirlist');
-%                 S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%                 S.(S.func) = rmfield(S.(S.func),'designtab');
-%             end
-% 
-%             % GET FILE LIST 
-%             S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-%             S = getfilelist(S,S.prep.load.suffix);
-% 
-%             % select which to process
-%             if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%                 idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%                 S.(S.func).filelist(idx_remove)=[];
-%                 S.(S.func).dirlist(idx_remove)=[];
-%                 S.(S.func).subj_pdat_idx(idx_remove)=[];
-%                 S.(S.func).designtab(idx_remove,:)=[];
-%             end
-    
-            S = filehandler(S,'start');
+            % previously processed files
+            if isfield(S.(S.func),'filelist')
+                if S.(S.func).overwrite==0
+                    prev_filelist = S.(S.func).filelist;
+                    prev_dirlist = S.(S.func).dirlist;
+                    prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+                    prev_designtab = S.(S.func).designtab;
+                end
+                S.(S.func) = rmfield(S.(S.func),'dirlist');
+                S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+                S.(S.func) = rmfield(S.(S.func),'designtab');
+            end
 
+            % GET FILE LIST 
+            S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
+            S = getfilelist(S,S.prep.load.suffix);
+
+            % select which to process
+            if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+                idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+                S.(S.func).filelist(idx_remove)=[];
+                S.(S.func).dirlist(idx_remove)=[];
+                S.(S.func).subj_pdat_idx(idx_remove)=[];
+                S.(S.func).designtab(idx_remove,:)=[];
+            end
+    
+            loadpath = S.path.file;
             for f = S.prep.startfile:length(S.prep.filelist)
                 file = S.prep.filelist{f};
-                EEG = pop_loadset('filename',file,'filepath',S.path.file);
+                EEG = pop_loadset('filename',file,'filepath',loadpath);
                
     
                 %RUN ICA 
@@ -798,58 +789,58 @@ switch part
                     mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
                 end
                 EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:}));
-
-                % update
-                S.(S.func).file_processed=file;
-                S = filehandler(S,'update');
-
             end
 
+            if exist('prev_filelist','var')
+                S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+                S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+                S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+                S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+            end
         end
 
     case 'SASICA'
 
-%         % previously processed files
-%         if isfield(S.(S.func),'filelist')
-%             if S.(S.func).overwrite==0
-%                 prev_filelist = S.(S.func).filelist;
-%                 prev_dirlist = S.(S.func).dirlist;
-%                 prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%                 prev_designtab = S.(S.func).designtab;
-%             end
-%             S.(S.func) = rmfield(S.(S.func),'dirlist');
-%             S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%             S.(S.func) = rmfield(S.(S.func),'designtab');
-%         end
-%         
-%         % GET FILE LIST 
-%         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-%         S = getfilelist(S,S.prep.load.suffix);
-%         
-%         % select which to process
-%         if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%             idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%             S.(S.func).filelist(idx_remove)=[];
-%             S.(S.func).dirlist(idx_remove)=[];
-%             S.(S.func).subj_pdat_idx(idx_remove)=[];
-%             S.(S.func).designtab(idx_remove,:)=[];
-%         end
-%         
-%         % setup summary table
-%         if ~isfield(S.(S.func).clean,'ICA') || S.(S.func).overwrite==1
-%             S.(S.func).clean.ICA = table;
-%         end
-%         fn = height(S.(S.func).clean.ICA);
+        % previously processed files
+        if isfield(S.(S.func),'filelist')
+            if S.(S.func).overwrite==0
+                prev_filelist = S.(S.func).filelist;
+                prev_dirlist = S.(S.func).dirlist;
+                prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+                prev_designtab = S.(S.func).designtab;
+            end
+            S.(S.func) = rmfield(S.(S.func),'dirlist');
+            S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+            S.(S.func) = rmfield(S.(S.func),'designtab');
+        end
 
-        S = filehandler(S,'start');
+        % GET FILE LIST 
+        S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
+        S = getfilelist(S,S.prep.load.suffix);
 
+        % select which to process
+        if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+            idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+            S.(S.func).filelist(idx_remove)=[];
+            S.(S.func).dirlist(idx_remove)=[];
+            S.(S.func).subj_pdat_idx(idx_remove)=[];
+            S.(S.func).designtab(idx_remove,:)=[];
+        end
+
+        % setup summary table
+        if ~isfield(S.(S.func).clean,'ICA') || S.(S.func).overwrite==1
+            S.(S.func).clean.ICA = table;
+        end
+        fn = height(S.(S.func).clean.ICA);
+
+        loadpath = S.path.file;
         for f = S.prep.startfile:length(S.prep.filelist)
             file = S.(S.func).filelist{f};
-            EEG = pop_loadset('filename',file,'filepath',S.path.file);
+            EEG = pop_loadset('filename',file,'filepath',loadpath);
            
 %             %RUN ICA on auto
 %             [ALLEEG EEG CURRENTSET ALLCOM] = eeglab('nogui'); 
-%             EEG = pop_loadset('filename',file,'filepath',S.path.file);
+%             EEG = pop_loadset('filename',file,'filepath',loadpath);
 %             [ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG, 0); 
 %             SASICA(EEG)
 %             load SASICA_obj
@@ -862,10 +853,10 @@ switch part
             end
 
             % save info to a table
-            S.prep.outtable.file{S.fn+f} = file;
-            S.prep.outtable.ncomp(S.fn+f) = size(EEG.icaweights,1);
-            S.prep.outtable.sasica_nreject(S.fn+f) = sum(EEG.reject.gcompreject);
-            S.prep.outtable.sasica_fracreject(S.fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
+            S.prep.clean.ICA.file{fn+f} = file;
+            S.prep.clean.ICA.ncomp(fn+f) = size(EEG.icaweights,1);
+            S.prep.clean.ICA.sasica_nreject(fn+f) = sum(EEG.reject.gcompreject);
+            S.prep.clean.ICA.sasica_fracreject(fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
 
             % SAVE
             %[pth nme ext] = fileparts(file);
@@ -875,60 +866,53 @@ switch part
                 mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
             end
             EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:}));
-            
-            % update
-            S.(S.func).file_processed=file;
-            S = filehandler(S,'update');
         end
     
-%         if exist('prev_filelist','var')
-%             S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-%             S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-%             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-%             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-%         end
+        if exist('prev_filelist','var')
+            S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+            S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+            S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+            S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+        end
 
     case 'IClabel'
 
-%         % previously processed files
-%         if isfield(S.(S.func),'filelist')
-%             if S.(S.func).overwrite==0
-%                 prev_filelist = S.(S.func).filelist;
-%                 prev_dirlist = S.(S.func).dirlist;
-%                 prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%                 prev_designtab = S.(S.func).designtab;
-%             end
-%             S.(S.func) = rmfield(S.(S.func),'dirlist');
-%             S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%             S.(S.func) = rmfield(S.(S.func),'designtab');
-%         end
-% 
-%         % GET FILE LIST 
-%         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-%         S = getfilelist(S,S.prep.load.suffix);
-% 
-%         % select which to process
-%         if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%             idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%             S.(S.func).filelist(idx_remove)=[];
-%             S.(S.func).dirlist(idx_remove)=[];
-%             S.(S.func).subj_pdat_idx(idx_remove)=[];
-%             S.(S.func).designtab(idx_remove,:)=[];
-%         end
-% 
-%         % setup summary table
-%         if ~isfield(S.(S.func).clean,'ICA') || S.(S.func).overwrite==1
-%             S.(S.func).clean.ICA = table;
-%         end
-%         fn = height(S.(S.func).clean.ICA);
-% 
-%         loadpath = S.path.file;
+        % previously processed files
+        if isfield(S.(S.func),'filelist')
+            if S.(S.func).overwrite==0
+                prev_filelist = S.(S.func).filelist;
+                prev_dirlist = S.(S.func).dirlist;
+                prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+                prev_designtab = S.(S.func).designtab;
+            end
+            S.(S.func) = rmfield(S.(S.func),'dirlist');
+            S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+            S.(S.func) = rmfield(S.(S.func),'designtab');
+        end
 
-        S = filehandler(S,'start');
+        % GET FILE LIST 
+        S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
+        S = getfilelist(S,S.prep.load.suffix);
 
+        % select which to process
+        if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+            idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+            S.(S.func).filelist(idx_remove)=[];
+            S.(S.func).dirlist(idx_remove)=[];
+            S.(S.func).subj_pdat_idx(idx_remove)=[];
+            S.(S.func).designtab(idx_remove,:)=[];
+        end
+
+        % setup summary table
+        if ~isfield(S.(S.func).clean,'ICA') || S.(S.func).overwrite==1
+            S.(S.func).clean.ICA = table;
+        end
+        fn = height(S.(S.func).clean.ICA);
+
+        loadpath = S.path.file;
         for f = S.prep.startfile:length(S.prep.filelist)
             file = S.(S.func).filelist{f};
-            EEG = pop_loadset('filename',file,'filepath',S.path.file);
+            EEG = pop_loadset('filename',file,'filepath',loadpath);
            
             EEG = iclabel(EEG);
             getbrain = strcmp(EEG.etc.ic_classification.ICLabel.classes,'Brain');
@@ -940,15 +924,15 @@ switch part
             end
 
             % save info to a table
-            S.prep.outtable.file{S.fn+f} = file;
-            S.prep.outtable.ncomp(S.fn+f) = size(EEG.icaweights,1);
-            S.prep.outtable.IClabel_nreject(S.fn+f) = sum(EEG.reject.gcompreject);
-            S.prep.outtable.IClabel_nkeep(S.fn+f) = sum(~EEG.reject.gcompreject);
-            S.prep.outtable.IClabel_fracreject(S.fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
+            S.prep.clean.ICA.file{fn+f} = file;
+            S.prep.clean.ICA.ncomp(fn+f) = size(EEG.icaweights,1);
+            S.prep.clean.ICA.IClabel_nreject(fn+f) = sum(EEG.reject.gcompreject);
+            S.prep.clean.ICA.IClabel_nkeep(fn+f) = sum(~EEG.reject.gcompreject);
+            S.prep.clean.ICA.IClabel_fracreject(fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);
             
             % save all classification values
-            S.prep.outtable.IClabel_classes{S.fn+f} = EEG.etc.ic_classification.ICLabel.classes;
-            S.prep.outtable.IClabel_classifications{S.fn+f} = EEG.etc.ic_classification.ICLabel.classifications;
+            S.prep.clean.ICA.IClabel_classes{fn+f} = EEG.etc.ic_classification.ICLabel.classes;
+            S.prep.clean.ICA.IClabel_classifications{fn+f} = EEG.etc.ic_classification.ICLabel.classifications;
             
             
             % SAVE
@@ -959,18 +943,14 @@ switch part
                 mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
             end
             EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:}));
-
-            % update
-            S.(S.func).file_processed=file;
-            S = filehandler(S,'update');
         end
     
-%         if exist('prev_filelist','var')
-%             S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-%             S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-%             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-%             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-%         end
+        if exist('prev_filelist','var')
+            S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+            S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+            S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+            S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+        end
 
 %     case 'postICA_diag' % NOW PART OF postICA_rej
 % 
@@ -1039,56 +1019,54 @@ switch part
    
     case 'postICA_rej'
 
-%         if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
-%             mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
-%         end
-% 
-%         % previously processed files
-%         if isfield(S.(S.func),'filelist')
-%             if S.(S.func).overwrite==0
-%                 prev_filelist = S.(S.func).filelist;
-%                 prev_dirlist = S.(S.func).dirlist;
-%                 prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%                 prev_designtab = S.(S.func).designtab;
-%             end
-%             S.(S.func) = rmfield(S.(S.func),'dirlist');
-%             S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%             S.(S.func) = rmfield(S.(S.func),'designtab');
-%         end
-% 
-%         % GET FILE LIST
-%         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-%         S = getfilelist(S,S.prep.load.suffix);
-% 
-%         % select which to process
-%         if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%             idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%             S.(S.func).filelist(idx_remove)=[];
-%             S.(S.func).dirlist(idx_remove)=[];
-%             S.(S.func).subj_pdat_idx(idx_remove)=[];
-%             S.(S.func).designtab(idx_remove,:)=[];
-%         end
-% 
-%         loadpath = S.path.file;
-% 
-%         if ~isfield(S.prep.clean,'reject') || S.(S.func).overwrite==1
-%             S.prep.clean.reject = table;
-%         end
-%         fn = height(S.prep.clean.reject);
+        if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
+            mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
+        end
 
-        S = filehandler(S,'start');
-           
+        % previously processed files
+        if isfield(S.(S.func),'filelist')
+            if S.(S.func).overwrite==0
+                prev_filelist = S.(S.func).filelist;
+                prev_dirlist = S.(S.func).dirlist;
+                prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+                prev_designtab = S.(S.func).designtab;
+            end
+            S.(S.func) = rmfield(S.(S.func),'dirlist');
+            S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+            S.(S.func) = rmfield(S.(S.func),'designtab');
+        end
+
+        % GET FILE LIST
+        S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
+        S = getfilelist(S,S.prep.load.suffix);
+
+        % select which to process
+        if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+            idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+            S.(S.func).filelist(idx_remove)=[];
+            S.(S.func).dirlist(idx_remove)=[];
+            S.(S.func).subj_pdat_idx(idx_remove)=[];
+            S.(S.func).designtab(idx_remove,:)=[];
+        end
+
+        loadpath = S.path.file;
+
+        if ~isfield(S.prep.clean,'reject') || S.(S.func).overwrite==1
+            S.prep.clean.reject = table;
+        end
+        fn = height(S.prep.clean.reject);
+
         for f = S.(S.func).startfile:length(S.prep.filelist)
             file = S.(S.func).filelist{f};
             disp(['loading file index ' num2str(f)])
-            EEG = pop_loadset('filename',file,'filepath',S.path.file);
+            EEG = pop_loadset('filename',file,'filepath',loadpath);
 
             % collect summary data
-            S.prep.outtable.file{S.fn+f} = file;
-            S.prep.outtable.initial_trials(S.fn+f) = EEG.trials;
-            S.prep.outtable.ncomp(S.fn+f) = size(EEG.icaweights,1);
-            S.prep.outtable.IClabel_nkeep(S.fn+f) = sum(~EEG.reject.gcompreject);
-            S.prep.outtable.IClabel_frackeep(S.fn+f) = sum(~EEG.reject.gcompreject)/size(EEG.icaweights,1);
+            S.prep.clean.reject.file{fn+f} = file;
+            S.prep.clean.reject.initial_trials(fn+f) = EEG.trials;
+            S.prep.clean.reject.ncomp(fn+f) = size(EEG.icaweights,1);
+            S.prep.clean.reject.IClabel_nkeep(fn+f) = sum(~EEG.reject.gcompreject);
+            S.prep.clean.reject.IClabel_frackeep(fn+f) = sum(~EEG.reject.gcompreject)/size(EEG.icaweights,1);
 
             % remove selected ICA components (MUST HAVE ALREADY SELECTED THESE MANUALLY)
             if S.(S.func).epoch.ICAremove && any(EEG.reject.gcompreject==0)
@@ -1143,8 +1121,8 @@ switch part
                 rejchan = [rejchan;S.(S.func).clean.man.rejchan];
                 rejtrial = [rejtrial;S.(S.func).clean.man.rejtrial];
 
-                S.prep.outtable.man_trials(S.fn+f) = numel(rejtrial);
-                S.prep.outtable.man_chans(S.fn+f) = numel(rejchan);
+                S.prep.clean.reject.man_trials(fn+f) = numel(rejtrial);
+                S.prep.clean.reject.man_chans(fn+f) = numel(rejchan);
                 
                 close all
                 % reject bad channels
@@ -1153,139 +1131,51 @@ switch part
                 EEG = pop_select(EEG, 'notrial', unique(rejtrial));
             end
 
-            % clean bursts
-            if isfield(S.prep.clean,'bursts')
-    %             S.prep.clean_continuous.ChannelCriterion = 'off';
-    %             S.prep.clean_continuous.LineNoiseCriterion = 'off';
-    %             S.prep.clean_continuous.BurstCriterion = 5;
-    %             S.prep.clean_continuous.WindowCriterion = 'off';
-    %             S.prep.clean_continuous.Highpass = 'off';
-%                 [EEG_clean,~,~,removed_channels] = clean_artifacts(EEG,...
-%                     'ChannelCriterion',S.prep.clean_continuous.ChannelCriterion, ...
-%                     'LineNoiseCriterion',S.prep.clean_continuous.LineNoiseCriterion, ...
-%                     'BurstCriterion',S.prep.clean_continuous.BurstCriterion, ...
-%                     'WindowCriterion',S.prep.clean_continuous.WindowCriterion, ...
-%                     'Highpass',S.prep.clean_continuous.Highpass, ...
-%                     'ChannelCriterion',S.prep.clean_continuous.ChannelCriterion ...
-%                     );
-                %vis_artifacts(EEG_clean,EEG);
-                %{EEG.chanlocs(removed_channels).labels}
-
-                EEGcont = eeg_epoch2continuous(EEG);
-                BUR = clean_asr(EEGcont,...
-                    S.prep.clean.bursts.BurstCriterion,...
-                    S.prep.clean.bursts.WindowLength,...
-                    [], ...
-                    [],...
-                    S.prep.clean.bursts.burst_crit_refmaxbadchns,...
-                    S.prep.clean.bursts.burst_crit_reftolerances,...
-                    [], ...
-                    S.prep.clean.bursts.use_GPU,...
-                    false,... 
-                    S.prep.clean.bursts.max_mem); 
-                EEG.data = reshape(BUR.data,size(EEG.data));
-                clear BUR EEGcont
-            end
-
             % channel diagnostics
             if isfield(S.prep.clean,'noisychan')
-
-                % While loop ensures not to many channels are interpolated
-                % at a time, either in full or partially
-                partial_interp_allow=0;
-                rejchan_all =[];
-                while partial_interp_allow==0
-
-                    rejbad = zeros(EEG.nbchan, EEG.trials);
-    
-                    % correlated channel metric
-                    S = correlated_channels(S,EEG,file);
-                    rejbad = rejbad + S.(S.func).clean.corrchan.bad;
-                    S.prep.outtable.chancorr_frac_bad(S.fn+f) = S.(S.func).clean.corrchan.frac_bad;
-    
-                    % other metrics
-                    S = noisyflat_channel_diagnostics(S,EEG,file);
-                    for oi = 1:length(S.(S.func).clean.noisychan.metric)
-                        mname = S.(S.func).clean.noisychan.metric(oi).name;
-                        S.prep.outtable.([mname '_var_trial'])(S.fn+f) = S.(S.func).clean.noisychan.metric(oi).var_trial;
-                        S.prep.outtable.([mname '_var_chan'])(S.fn+f) = S.(S.func).clean.noisychan.metric(oi).var_chan;
-                        
-                        % combine outliers
-                        rejbad = rejbad + S.(S.func).clean.noisychan.metric(oi).OL_upper;
-                        rejbad = rejbad + S.(S.func).clean.noisychan.metric(oi).OL_lower;
-                    end
-                    rejbad = rejbad>=S.prep.clean.noisychan.NbadMetrics;
-    
-                    % interpolate whole channels if too many trials are affected (defined by S.prep.clean.noisychan.badsegs_wholechannel)
-                    interp_allow=0;
-                    bs_thresh = S.prep.clean.noisychan.badsegs_wholechannel;
-                    while interp_allow==0 % reduce threshold until max number of bad channels reached (S.prep.clean.noisychan.badchans)
-                        interp_idx=(sum(rejbad,2)/size(rejbad,2))>bs_thresh;
-                        rejchan = find(interp_idx);
-                        if sum(interp_idx) <= S.prep.clean.noisychan.badchans
-                            interp_allow=1;
-                        else
-                            bs_thresh = bs_thresh+0.01;
-                        end
-                    end
-                    if interp_allow
-                        EEG = reject_channels(EEG,rejchan);
-                        rejchan_all = unique([rejchan_all, rejchan']);
-                        rejbad(interp_idx,:)=0;
-                    end
-    
-                    % update according to minimum criteria
-                    % first, ensure channels are only selected if noisy more
-                    % than X% of trials
-                    rejbad_all = rejbad;
-                    chans_reject = (sum(rejbad,2)/size(rejbad,2))>=S.prep.clean.noisychan.badsegs;
-                    chans_reject = repmat(chans_reject,1,size(rejbad,2));
-                    rejbad = rejbad.*chans_reject;
-    
-                    if all(sum(rejbad,1)<=S.prep.clean.noisychan.badchans)
-                        partial_interp_allow=1;
-                    end
+                S = noisyflat_channel_diagnostics(S,EEG,file);
+                rejbad = zeros(EEG.nbchan, EEG.trials);
+                for oi = 1:length(S.(S.func).clean.noisychan.metric)
+                    mname = S.(S.func).clean.noisychan.metric(oi).name;
+                    S.prep.clean.reject.([mname '_var_trial'])(fn+f) = S.(S.func).clean.noisychan.metric(oi).var_trial;
+                    S.prep.clean.reject.([mname '_var_chan'])(fn+f) = S.(S.func).clean.noisychan.metric(oi).var_chan;
+                    
+                    % combine outliers
+                    rejbad = rejbad + S.(S.func).clean.noisychan.metric(oi).OL_upper;
+                    rejbad = rejbad + S.(S.func).clean.noisychan.metric(oi).OL_lower;
                 end
+                rejbad = rejbad>=S.prep.clean.noisychan.NbadMetrics;
 
-%                 % then, ensure trials are only selected if not
-%                 % interpolating too many channels
-%                 % CHANGE/REMOVE THIS: iF TOO MANY CHANNELS, CONTINUE LOOP
-%                 trials_reject = sum(rejbad,1)<=S.prep.clean.noisychan.badchans;
-%                 trials_reject = repmat(trials_reject,size(rejbad,1),1);
-%                 rejbad = rejbad.*chans_reject.*trials_reject;
+                % update according to minimum criteria
+                % first, ensure channels are only selected if noisy more
+                % than X% of trials
+                rejbad_all = rejbad;
+                chans_reject = (sum(rejbad,2)/size(rejbad,2))>=S.prep.clean.noisychan.badsegs;
+                chans_reject = repmat(chans_reject,1,size(rejbad,2));
+                rejbad = rejbad.*chans_reject;
+                % then, ensure trials are only selected if not
+                % interpolating too many channels
+                trials_reject = sum(rejbad,1)<=S.prep.clean.noisychan.badchans;
+                trials_reject = repmat(trials_reject,size(rejbad,1),1);
+                rejbad = rejbad.*chans_reject.*trials_reject;
 
                 % summary data
-                % ADD CHANNELS INTERPOLATED IN FULL
-                S.prep.outtable.Nnoisy_chans_fullinterp(S.fn+f) = length(rejchan_all);
-                if length(rejchan_all)>0
-                    S.prep.outtable.noisy_chans_fullinterp(S.fn+f) = {{EEG.chanlocs(rejchan_all).labels}};
-                end
-                S.prep.outtable.Nnoisy_chans_partialinterp(S.fn+f) = sum(any(rejbad,2));
-                S.prep.outtable.Nnoisy_trials_partialinterp(S.fn+f) = sum(any(rejbad,1));
+                S.prep.clean.reject.Nnoisy_chans_partialinterp(fn+f) = sum(any(rejbad,2));
+                S.prep.clean.reject.Nnoisy_trials_partialinterp(fn+f) = sum(any(rejbad,1));
                 if any(rejbad,'all')
-                    S.prep.outtable.noisy_chans_partialinterp(S.fn+f) = {{EEG.chanlocs(any(rejbad,2)).labels}};
+                    S.prep.clean.reject.noisy_chans_partialinterp(fn+f) = {{EEG.chanlocs(any(rejbad,2)).labels}};
                 end
 
                 % plot
                 S.fig2=figure('Name',file)
-                tiledlayout(1,3)
+                tiledlayout(1,2)
                 nexttile
-                rejchanmat = zeros(size(rejbad,1),1);
-                rejchanmat(rejchan_all)=1;
-                repmat(rejchanmat,1,size(rejbad,2));
-                imagesc(rejchanmat,[0 1]); title('noisy fully removed')
+                imagesc(rejbad_all,[0 1]); title('outliers total')
                 nexttile
-                imagesc(rejbad_all,[0 1]); title('noisy remaining')
-                nexttile
-                imagesc(rejbad,[0 1]); title('noisy to partially remove')
-                
-                savefig(S.fig,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy.fig')))
-                savefig(S.fig2,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy_removed.fig')))
-                savefig(S.fig3,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_corrchan.fig')))
+                imagesc(rejbad,[0 1]); title('outliers to remove')
     
                 % REMOVE NOISY CHANNELS using var
                 if S.prep.clean.noisychan.clean_data
-%                     S.prep.clean.noisychan.parallel_workers = 8;
                     poolobj = gcp('nocreate'); % If no pool, do not create new one.
                     if isempty(poolobj) && S.prep.clean.noisychan.parallel_workers
                         parpool('local',S.prep.clean.noisychan.parallel_workers);
@@ -1296,11 +1186,13 @@ switch part
                         end
                     end
                     [EEG,badlist] = reject_channelsbytrial(EEG,rejbad,S.prep.clean.noisychan.badsegs_wholechannel,S.prep.clean.noisychan.badchans,S.prep.clean.noisychan.plotbads);
-                    S.prep.outtable.noisy_chans_Nbadchans(S.fn+f) = badlist.nbadchan;
-                    S.prep.outtable.noisy_chans_Nbadtrials(S.fn+f) = badlist.nbadtrial;
-                    parfevalOnAll(@clearvars, 0);
+                    S.prep.clean.reject.noisy_chans_Nbadchans(fn+f) = badlist.nbadchan;
+                    S.prep.clean.reject.noisy_chans_Nbadtrials(fn+f) = badlist.nbadtrial;
                 end
-                close all
+                savefig(S.fig,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy.fig')))
+                savefig(S.fig2,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_noisy_removed.fig')))
+                close(S.fig)
+                close(S.fig2)
             end
 
             % reject bad trials
@@ -1363,9 +1255,9 @@ switch part
 %                     S.(S.func).clean.FTrejauto.interactive,...
 %                     S.(S.func).inclchan); 
                     rejtrial_with_artefact = S.(S.func).clean.FTrejauto.rejtrial;
-                    S.prep.outtable.FTrejauto_trials_withstimartefact_jump(S.fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump;
-                    S.prep.outtable.FTrejauto_trials_withstimartefact_muscle(S.fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle;
-                    S.prep.outtable.FTrejauto_trials_withstimartefact_eog(S.fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog;
+                    S.prep.clean.reject.FTrejauto_trials_withstimartefact_jump(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump;
+                    S.prep.clean.reject.FTrejauto_trials_withstimartefact_muscle(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle;
+                    S.prep.clean.reject.FTrejauto_trials_withstimartefact_eog(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog;
                 end
                 S.(S.func).clean.FTrejauto.ignore_stim_artefact=ignore_stim_artefact;
                 S = FTrejauto(EEG,S);%...
@@ -1378,11 +1270,11 @@ switch part
                     rejtrial = intersect(rejtrial_with_artefact,rejtrial);
                 end
 
-                S.prep.outtable.FTrejauto_trials(S.fn+f) = numel(rejtrial);
-                S.prep.outtable.FTrejauto_trials_frac(S.fn+f) = numel(rejtrial)/S.prep.outtable.initial_trials(S.fn+f);
-                S.prep.outtable.FTrejauto_trials_jump(S.fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump;
-                S.prep.outtable.FTrejauto_trials_muscle(S.fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle;
-                S.prep.outtable.FTrejauto_trials_eog(S.fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog;
+                S.prep.clean.reject.FTrejauto_trials(fn+f) = numel(rejtrial);
+                S.prep.clean.reject.FTrejauto_trials_frac(fn+f) = numel(rejtrial)/S.prep.clean.reject.initial_trials(fn+f);
+                S.prep.clean.reject.FTrejauto_trials_jump(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.jump;
+                S.prep.clean.reject.FTrejauto_trials_muscle(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.muscle;
+                S.prep.clean.reject.FTrejauto_trials_eog(fn+f) = S.(S.func).clean.FTrejauto.Nrejtrial_by_type.eog;
 
                 % reject bad trials
                 try
@@ -1400,8 +1292,8 @@ switch part
                 rejchan = S.(S.func).clean.FTrej.rejchan;
                 rejtrial = S.(S.func).clean.FTrej.rejtrial;
 
-                S.prep.outtable.FTrejman_trials(S.fn+f) = numel(rejtrial);
-                S.prep.outtable.FTrejman_chans(S.fn+f) = numel(rejchan);
+                S.prep.clean.reject.FTrejman_trials(fn+f) = numel(rejtrial);
+                S.prep.clean.reject.FTrejman_chans(fn+f) = numel(rejchan);
 
                 % reject bad channels
                 EEG = reject_channels(EEG,rejchan);
@@ -1437,65 +1329,59 @@ switch part
 %             end
             disp(['saving file index ' num2str(f)])
             EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:})); 
-            
-            % update
-            S.(S.func).file_processed=file;
-            S = filehandler(S,'update');
         end
         %elseif exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
         %    S.prep.save.suffix{:} = 'manrej';
         %end
     
     
-%         if exist('prev_filelist','var')
-%             S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-%             S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-%             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-%             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-%         end
+        if exist('prev_filelist','var')
+            S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+            S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+            S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+            S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+        end
    
     %% separate files
     case 'sep'
-%         % previously processed files
-%         if isfield(S.(S.func),'filelist')
-%             if S.(S.func).overwrite==0
-%                 prev_filelist = S.(S.func).filelist;
-%                 prev_dirlist = S.(S.func).dirlist;
-%                 prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%                 prev_designtab = S.(S.func).designtab;
-%             end
-%             S.(S.func) = rmfield(S.(S.func),'dirlist');
-%             S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%             S.(S.func) = rmfield(S.(S.func),'designtab');
-%         end
-% 
-%         % GET FILE LIST
-%         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-%         S = getfilelist(S,S.prep.load.suffix);
-% 
-%         % select which to process
-%         if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%             idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%             S.(S.func).filelist(idx_remove)=[];
-%             S.(S.func).dirlist(idx_remove)=[];
-%             S.(S.func).subj_pdat_idx(idx_remove)=[];
-%             S.(S.func).designtab(idx_remove,:)=[];
-%         end
-% 
-%         sname_ext = S.(S.func).save.suffix{:};
-%         if ~exist(fullfile(S.path.prep,sname_ext),'dir')
-%             mkdir(fullfile(S.path.prep,sname_ext));
-%         end
-% 
-%         loadpath = S.path.file;
+        % previously processed files
+        if isfield(S.(S.func),'filelist')
+            if S.(S.func).overwrite==0
+                prev_filelist = S.(S.func).filelist;
+                prev_dirlist = S.(S.func).dirlist;
+                prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
+                prev_designtab = S.(S.func).designtab;
+            end
+            S.(S.func) = rmfield(S.(S.func),'dirlist');
+            S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
+            S.(S.func) = rmfield(S.(S.func),'designtab');
+        end
 
-        S = filehandler(S,'start');
+        % GET FILE LIST
+        S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
+        S = getfilelist(S,S.prep.load.suffix);
+
+        % select which to process
+        if S.(S.func).overwrite==0 && exist('prev_filelist','var')
+            idx_remove = ismember(S.(S.func).filelist,prev_filelist);
+            S.(S.func).filelist(idx_remove)=[];
+            S.(S.func).dirlist(idx_remove)=[];
+            S.(S.func).subj_pdat_idx(idx_remove)=[];
+            S.(S.func).designtab(idx_remove,:)=[];
+        end
+
+        sname_ext = S.(S.func).save.suffix{:};
+        if ~exist(fullfile(S.path.prep,sname_ext),'dir')
+            mkdir(fullfile(S.path.prep,sname_ext));
+        end
+
+        loadpath = S.path.file;
 
         for f = 1:length(S.(S.func).filelist)
             file = S.(S.func).filelist{f};
             disp(['loading file index ' num2str(f)])
 
-            INEEG = pop_loadset('filename',file,'filepath',S.path.file);
+            INEEG = pop_loadset('filename',file,'filepath',loadpath);
             [sfiles,ia,ib] = unique({INEEG.epoch.file});
             for s = 1:length(sfiles)
                 ind = find(ib==s);
@@ -1531,19 +1417,15 @@ switch part
                     pop_saveset(EEG,'filename',sname,'filepath',spath);
                 end 
             end
-            
-            % update
-            S.(S.func).file_processed=file;
-            S = filehandler(S,'update');
              
         end
 
-%         if exist('prev_filelist','var')
-%             S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-%             S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-%             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-%             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-%         end
+        if exist('prev_filelist','var')
+            S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+            S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+            S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+            S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+        end
 end
 
 
@@ -1556,13 +1438,6 @@ switch step
         if ~exist(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}),'dir')
             mkdir(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}));
         end
-
-        % load directory
-        if isfield(S.(S.func),'S.path.file')
-            S.path.file = fullfile(S.path.(S.func),S.(S.func).load.suffix{:});
-        else
-            S.path.file = fullfile(S.path.(S.func),S.(S.func).load.suffix{:});
-        end
         
         % get previously processed files
         if isfield(S.(S.func),'designtab')
@@ -1573,6 +1448,7 @@ switch step
         end
         
         % GET DESIGNTAB, INCLUDING FILE LIST
+        S.path.file = fullfile(S.path.(S.func),S.(S.func).load.suffix{:});
         S = getfilelist(S,S.(S.func).load.suffix);
         
         % update designtab with those already processed and generate

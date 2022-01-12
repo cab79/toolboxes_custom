@@ -195,6 +195,7 @@ else % ~strcmp(cfg.keepindividual, 'yes')
   % average across subject dimension
   ResultDOF      = reshape(sum(avgdof, 1), datsiz);
   grandavg.avg   = reshape(sum(avgmat, 1), datsiz)./ResultDOF; % computes both means (plain and weighted)
+  grandavg.median   = reshape(median(avgmat, 1), datsiz); % CAB new: median
   % Nchan x Nsamples, skips the singleton
   % if strcmp(cfg.method, 'across')
   ResultVar      = reshape(sum(avgvar,1), datsiz)-reshape(sum(avgmat,1), datsiz).^2./ResultDOF;

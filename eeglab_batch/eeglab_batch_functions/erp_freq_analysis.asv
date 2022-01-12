@@ -114,8 +114,8 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
     if ~isempty(missing)
         % first ensure chanlocs and EEG.chanlocs are similar structures
         fdnames=fieldnames(EEG.chanlocs);
-        fm=~ismember(fdnames,fieldnames(chanlocs));
-        EEG.chanlocs=rmfield(EEG.chanlocs,fdnames(fm));
+        f=~ismember(fdnames,fieldnames(chanlocs));
+        EEG.chanlocs=rmfield(EEG.chanlocs,fdnames(f));
         % then replace missing channels
         for m = 1:length(missing)
             EEG.chanlocs(missing(m)+1:end+1) = EEG.chanlocs(missing(m):end);
@@ -281,23 +281,10 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 S.(S.func).summ.(['SNR_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
                 
                 % collect summary data: signal difference from zero (t-test over trials)
-                if size(sig,3)>1
-                    sig2d = reshape(sig,[],size(sig,3));
-                    hs=[];ts=[];
-                    for dp = 1:size(sig2d,1)
-                        if all(isnan(sig2d(dp,:)))
-                            hs(dp) = nan;
-                            ts(dp) = nan;
-                        else
-                            [hs(dp),~,~,stats] = ttest(sig2d(dp,:));
-                            ts(dp) = stats.tstat;
-                        end
-                    end
-                    S.(S.func).summ.(['ttest_meanT_' mname]){fn+f} = nanmean(ts); 
-                    S.(S.func).summ.(['ttest_fracSig_' mname]){fn+f} = nanmean(hs); 
-                else
-                    S.(S.func).summ.(['ttest_meanT_' mname]){fn+f} = nan; 
-                    S.(S.func).summ.(['ttest_fracSig_' mname]){fn+f} = nan; 
+                sig2d = reshape(sig,[],size(sig,3));
+                h=[];
+                for dp = 1:size(sig2d,1)
+                    [h(dp),p,ci,stats] = ttest(sig2d(dp,:));
                 end
 
             end

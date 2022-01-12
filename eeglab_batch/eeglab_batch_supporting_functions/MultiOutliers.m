@@ -1,4 +1,4 @@
-function S=MultiOutliers(S,data);
+function S=MultiOutliers(S,data)
 % Between-subject analysis: assumes data is a cell array of Fieldtrip data structures containing .avg
 % field
 % Within-subject analysis: assumes data is a 3D double array of
@@ -25,7 +25,7 @@ if iscell(data) && isfield(data{1},'avg') % SUBJECTS
     dattype='subjects'
     for f = 1:length(data)
         disp(['smoothing data ' num2str(f) '/' num2str(length(data))])
-        dat=data{f}.avg;
+        dat=data{f}.(S.ga.grand_avg.out_avg);
         for e = 1:size(dat,1)
             dat(e,:) = smooth(squeeze(dat(e,:)),30,'lowess');
         end

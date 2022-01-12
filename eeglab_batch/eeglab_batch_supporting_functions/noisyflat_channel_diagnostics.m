@@ -3,6 +3,11 @@ function S = noisyflat_channel_diagnostics(S,EEG,fname)
 metric = struct; oi=0;
 chan = S.(S.func).inclchan;
 
+if ~S.(S.func).clean.noisychan.visual_mode
+    S.fig =figure('Name',fname);
+    tiledlayout(length(S.(S.func).clean.noisychan.metrics)*length(S.(S.func).clean.noisychan.filtering),4)
+end
+
 % filter x 2
 for i = 1:length(S.(S.func).clean.noisychan.filtering)
 
@@ -67,8 +72,6 @@ for i = 1:length(S.(S.func).clean.noisychan.filtering)
         [~, ~, rejtrialfreq{i}] = intersect(FT.cfg.artfctdef.summary.artifact(:,1),FT.sampleinfo(:,1)); 
     else
     % reject
-        S.fig =figure('Name',fname);
-        tiledlayout(length(cfg.metric),4)
         for m = 1:length(cfg.metric)
             oi=oi+1;
             name = [S.(S.func).clean.noisychan.filtering{i} ', ' cfg.metric{m}];
@@ -84,10 +87,10 @@ for i = 1:length(S.(S.func).clean.noisychan.filtering)
             mdn = median(level,'all');
             OL = isoutlier(level,'gesd','ThresholdFactor',S.prep.clean.noisychan.gesd_ThresholdFactor);
             if strcmp(cfg.metric,'autocorr')
-                OL_upper = OL.*[level<S.prep.clean.noisychan.metric_cutoffs(m)];
+                OL_upper = OL.*[level<S.prep.clean.noisychan.metric_cutoffs.(S.(S.func).clean.noisychan.filtering{i})(m)];
             else
-                OL_upper = OL.*[level>S.prep.clean.noisychan.metric_cutoffs(m)];
-                OL_lower = OL.*[level<-S.prep.clean.noisychan.metric_cutoffs(m)];
+                OL_upper = OL.*[level>S.prep.clean.noisychan.metric_cutoffs.(S.(S.func).clean.noisychan.filtering{i})(m)];
+                OL_lower = OL.*[level<-S.prep.clean.noisychan.metric_cutoffs.(S.(S.func).clean.noisychan.filtering{i})(m)];
             end
             drawmax = prctile(level(:),90);
 
