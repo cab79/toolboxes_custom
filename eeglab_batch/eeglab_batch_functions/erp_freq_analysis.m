@@ -70,12 +70,6 @@ if isempty(S.(S.func).filelist)
     error('No files found!\n');
 end
 
-% save summary data in a table
-if ~isfield(S.(S.func),'summ') || S.(S.func).overwrite==1
-    S.(S.func).summ = table;
-end
-fn = height(S.(S.func).summ);
-
 % run though all files in a loop
 for f = S.(S.func).startfile:length(S.(S.func).filelist)
 
@@ -83,7 +77,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
     EEG = pop_loadset('filename',file,'filepath',S.path.file);
 
     % collect summary data
-    S.(S.func).outtable.file{fn+f} = file;
+    S.(S.func).outtable.file{S.fn+f} = file;
     
     if isempty(EEG.epoch)
         continue
@@ -265,16 +259,16 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 % collect summary data: number of trials
                 mname = S.(S.func).epoch.markers{mt};
                 mname(isspace(mname)) = [];
-                S.(S.func).outtable.(['Ntrials_' mname]){fn+f} = tldata{mt}.ntrials;
+                S.(S.func).outtable.(['Ntrials_' mname]){S.fn+f} = tldata{mt}.ntrials;
 
                 % collect summary data: SNR
                 basewin=dsearchn(EEG.times',1000*S.erp.SNR.basewin');
                 sigwin=dsearchn(EEG.times',1000*S.erp.SNR.signalwin');
                 base=EEG.data(:,basewin(1):basewin(2),:);
                 sig=EEG.data(:,sigwin(1):sigwin(2),:);
-                S.(S.func).outtable.(['signal_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
-                S.(S.func).outtable.(['noise_' mname]){fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
-                S.(S.func).outtable.(['SNR_' mname]){fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).outtable.(['signal_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).outtable.(['noise_' mname]){S.fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                S.(S.func).outtable.(['SNR_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
                 
                 % collect summary data: signal difference from zero (t-test over trials)
                 if size(sig,3)>1
@@ -289,21 +283,18 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                             ts(dp) = stats.tstat;
                         end
                     end
-                    S.(S.func).outtable.(['ttest_meanT_' mname]){fn+f} = nanmean(ts); 
-                    S.(S.func).outtable.(['ttest_fracSig_' mname]){fn+f} = nanmean(hs); 
+                    S.(S.func).outtable.(['ttest_meanT_' mname]){S.fn+f} = nanmean(ts); 
+                    S.(S.func).outtable.(['ttest_fracSig_' mname]){S.fn+f} = nanmean(hs); 
                 else
-                    S.(S.func).outtable.(['ttest_meanT_' mname]){fn+f} = nan; 
-                    S.(S.func).outtable.(['ttest_fracSig_' mname]){fn+f} = nan; 
+                    S.(S.func).outtable.(['ttest_meanT_' mname]){S.fn+f} = nan; 
+                    S.(S.func).outtable.(['ttest_fracSig_' mname]){S.fn+f} = nan; 
                 end
 
             end
-            S.(S.func).outtable.nMarkerTypes{fn+f} = sum(~cellfun(@isempty,tldata));
+            S.(S.func).outtable.nMarkerTypes{S.fn+f} = sum(~cellfun(@isempty,tldata));
             
             % SAVE
-            if ~exist(S.path.erp,'dir')
-                mkdir(S.path.erp);
-            end
-            save(fullfile(S.path.erp,sname),'tldata');
+            save(fullfile(S.path.erp,S.erp.save.dir{:},sname),'tldata');
             
         case {'Freq','TF','Coh'}
             
@@ -431,12 +422,12 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                     if ~exist(S.path.freq,'dir')
                         mkdir(S.path.freq)
                     end
-                    save(fullfile(S.path.freq,sname),'fdata');
+                    save(fullfile(S.path.freq,S.erp.save.dir{:},sname),'fdata');
                 case 'TF'
                     if ~exist(S.path.tf,'dir')
                         mkdir(S.path.tf)
                     end
-                    save(fullfile(S.path.tf,sname),'fdata');
+                    save(fullfile(S.path.tf,S.erp.save.dir{:},sname),'fdata');
             end
                     
     end

@@ -92,6 +92,7 @@ for i = 1:length(S.(S.func).clean.noisychan.filtering)
                 OL_upper = OL.*[level>S.prep.clean.noisychan.metric_cutoffs.(S.(S.func).clean.noisychan.filtering{i})(m)];
                 OL_lower = OL.*[level<-S.prep.clean.noisychan.metric_cutoffs.(S.(S.func).clean.noisychan.filtering{i})(m)];
             end
+            drawmin = prctile(level(:),0);
             drawmax = prctile(level(:),90);
 
             if 1
@@ -99,7 +100,7 @@ for i = 1:length(S.(S.func).clean.noisychan.filtering)
                 nexttile
                 boxplot(level(:));
                 nexttile
-                imagesc(level,[0 drawmax]); title(name)
+                imagesc(level,[drawmin drawmax]); title(name)
                 nexttile
                 imagesc(OL_upper,[0 1]); title([name ': upper outlier'])
                 nexttile
@@ -729,8 +730,15 @@ if strcmp(info.metric, 'zvalue') || strcmp(info.metric, 'maxzvalue')
 
   tic
   tempdat=cell(1,info.ntrl);
-  parfor i=1:info.ntrl
-    tempdat{i} = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
+  poolobj = gcp('nocreate');
+  if ~isempty(poolobj)
+      parfor i=1:info.ntrl
+        tempdat{i} = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
+      end
+  else
+      for i=1:info.ntrl
+        tempdat{i} = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
+      end
   end
   toc
 
@@ -749,37 +757,72 @@ else
 end
 level = cell(1,info.ntrl);
 tic
-parfor i=1:info.ntrl
-  dat = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
-  switch info.metric
-    case 'var'
-      level{i} = nanstd(dat, [], 2).^2;
-    case 'min'
-      level{i} = nanmin(dat, [], 2);
-    case 'max'
-      level{i} = nanmax(dat, [], 2);
-    case 'maxabs'
-      level{i} = nanmax(abs(dat), [], 2);
-    case 'range'
-      level{i} = nanmax(dat, [], 2) - nanmin(dat, [], 2);
-    case 'kurtosis'
-      level{i} = kurtosis(dat, [], 2);
-    case '1/var'
-      level{i} = 1./(nanstd(dat, [], 2).^2);
-    case 'zvalue'
-      level{i} = nanmean( (dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , 2);
-    case 'maxzvalue'
-      level{i} = nanmax( ( dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , [], 2);
-    case 'autocorr'
-        Ncorrint=round(20/(1000/info.fsample)); % number of samples for lag
-        for k=1:size(dat,1)
-            yy=xcorr(dat(k,:),Ncorrint,'coeff');
-            level{i}(k,1) = yy(1);
-        end
-    otherwise
-      ft_error('unsupported method');
+poolobj = gcp('nocreate');
+  if ~isempty(poolobj)
+    parfor i=1:info.ntrl
+      dat = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
+      switch info.metric
+        case 'var'
+          level{i} = nanstd(dat, [], 2).^2;
+        case 'min'
+          level{i} = nanmin(dat, [], 2);
+        case 'max'
+          level{i} = nanmax(dat, [], 2);
+        case 'maxabs'
+          level{i} = nanmax(abs(dat), [], 2);
+        case 'range'
+          level{i} = nanmax(dat, [], 2) - nanmin(dat, [], 2);
+        case 'kurtosis'
+          level{i} = kurtosis(dat, [], 2);
+        case '1/var'
+          level{i} = 1./(nanstd(dat, [], 2).^2);
+        case 'zvalue'
+          level{i} = nanmean( (dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , 2);
+        case 'maxzvalue'
+          level{i} = nanmax( ( dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , [], 2);
+        case 'autocorr'
+            Ncorrint=round(20/(1000/info.fsample)); % number of samples for lag
+            for k=1:size(dat,1)
+                yy=xcorr(dat(k,:),Ncorrint,'coeff');
+                level{i}(k,1) = yy(1);
+            end
+        otherwise
+          ft_error('unsupported method');
+      end
+    end
+  else
+    for i=1:info.ntrl
+      dat = preproc(info.data.trial{i}, info.data.label, offset2time(info.offset(i), info.fsample, size(info.data.trial{i}, 2)), info.cfg.preproc); % not entirely sure whether info.data.time{i} is correct, so making it on the fly
+      switch info.metric
+        case 'var'
+          level{i} = nanstd(dat, [], 2).^2;
+        case 'min'
+          level{i} = nanmin(dat, [], 2);
+        case 'max'
+          level{i} = nanmax(dat, [], 2);
+        case 'maxabs'
+          level{i} = nanmax(abs(dat), [], 2);
+        case 'range'
+          level{i} = nanmax(dat, [], 2) - nanmin(dat, [], 2);
+        case 'kurtosis'
+          level{i} = kurtosis(dat, [], 2);
+        case '1/var'
+          level{i} = 1./(nanstd(dat, [], 2).^2);
+        case 'zvalue'
+          level{i} = nanmean( (dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , 2);
+        case 'maxzvalue'
+          level{i} = nanmax( ( dat-repmat(mval, 1, size(dat, 2)) )./repmat(sd, 1, size(dat, 2)) , [], 2);
+        case 'autocorr'
+            Ncorrint=round(20/(1000/info.fsample)); % number of samples for lag
+            for k=1:size(dat,1)
+                yy=xcorr(dat(k,:),Ncorrint,'coeff');
+                level{i}(k,1) = yy(1);
+            end
+        otherwise
+          ft_error('unsupported method');
+      end
+    end
   end
-end
 toc
 info.level = horzcat(level{:});
 

@@ -1550,6 +1550,7 @@ switch part
 %         loadpath = S.path.file;
 
         S = filehandler(S,'start');
+        sname_ext = S.(S.func).save.suffix{:};
 
         for f = 1:length(S.(S.func).filelist)
             file = S.(S.func).filelist{f};

@@ -135,17 +135,25 @@ if plot_bads==0
                     parfor t = 1:size(tbt,1) % each trial with bad channels
                         tempeeg(t) = eval_tbt(EEG,chanlocs,tbt,t);
                     end
+                    parfevalOnAll(@clearvars, 0);
                     complete=1;
                 catch ME
                     disp(ME.identifier)
+%                     poolobj = gcp('nocreate');
+%                     nw = poolobj.NumWorkers;
+%                     if (nw/2)<1
+%                         error('not enough memory for TBT')
+%                     end
+%                     delete(poolobj)
+%                     parfevalOnAll(@clearvars, 0);
+%                     parpool('local',ceil(nw/2));
+%                     poolobj = gcp('nocreate');
                     poolobj = gcp('nocreate');
-                    nw = poolobj.NumWorkers;
-                    if (nw/2)<1
-                        error('not enough memory for TBT')
-                    end
                     delete(poolobj)
-                    parpool('local',ceil(nw/2));
-                    poolobj = gcp('nocreate');
+                    for t = 1:size(tbt,1) % each trial with bad channels
+                        tempeeg(t) = eval_tbt(EEG,chanlocs,tbt,t);
+                    end
+                    complete=1;
                 end
             end
         else
@@ -175,6 +183,7 @@ function tempeeg = eval_tbt(EEG,chanlocs,tbt,t)
             
         % split
         evalc('tempeeg = pop_selectevent(EEG, ''epoch'',tbt{t,1});');
+        clear EEG
 
         % remove bad channels
         evalc('tempeeg = pop_select(tempeeg,''nochannel'',tbt{t,2});');

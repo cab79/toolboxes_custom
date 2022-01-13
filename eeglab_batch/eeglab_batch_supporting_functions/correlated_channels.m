@@ -26,15 +26,29 @@ corrs = zeros(length(usable_channels),T);
 % calculate each channel's correlation to its RANSAC reconstruction for each window
 timePassedList = zeros(T,1);
 fprintf('corr_channels...'); 
-parfor t=1:T
-    %tic; % makoto
-    XX = X(:,:,t)';
-    YY = sort(reshape(XX*P,Sm,length(usable_channels),S.prep.clean.corrchan.NumSamples),3);
-    YY = YY(:,:,round(end/2));
-	corrs(:,t) = sum(XX.*YY)./(sqrt(sum(XX.^2)).*sqrt(sum(YY.^2)));
-    %timePassedList(t) = toc; % makoto
-    %medianTimePassed = median(timePassedList(1:t));
-    %fprintf('corr_channel: %3.0d/%d trials, %.1f minutes remaining.\n', t, T, medianTimePassed*(T-t)/60); % makoto
+poolobj = gcp('nocreate');
+if ~isempty(poolobj)
+    parfor t=1:T
+        %tic; % makoto
+        XX = X(:,:,t)';
+        YY = sort(reshape(XX*P,Sm,length(usable_channels),S.prep.clean.corrchan.NumSamples),3);
+        YY = YY(:,:,round(end/2));
+        corrs(:,t) = sum(XX.*YY)./(sqrt(sum(XX.^2)).*sqrt(sum(YY.^2)));
+        %timePassedList(t) = toc; % makoto
+        %medianTimePassed = median(timePassedList(1:t));
+        %fprintf('corr_channel: %3.0d/%d trials, %.1f minutes remaining.\n', t, T, medianTimePassed*(T-t)/60); % makoto
+    end
+else
+    for t=1:T
+        %tic; % makoto
+        XX = X(:,:,t)';
+        YY = sort(reshape(XX*P,Sm,length(usable_channels),S.prep.clean.corrchan.NumSamples),3);
+        YY = YY(:,:,round(end/2));
+        corrs(:,t) = sum(XX.*YY)./(sqrt(sum(XX.^2)).*sqrt(sum(YY.^2)));
+        %timePassedList(t) = toc; % makoto
+        %medianTimePassed = median(timePassedList(1:t));
+        %fprintf('corr_channel: %3.0d/%d trials, %.1f minutes remaining.\n', t, T, medianTimePassed*(T-t)/60); % makoto
+    end
 end
         
 S.(S.func).clean.corrchan.bad = corrs < S.prep.clean.corrchan.corr_threshold;

@@ -9,8 +9,8 @@ switch step
         end
 
         % load directory
-        if isfield(S.(S.func),'S.path.file')
-            S.path.file = fullfile(S.path.(S.func),S.(S.func).load.suffix{:});
+        if isfield(S.(S.func),'loaddir')
+            S.path.file = S.(S.func).loaddir;
         else
             S.path.file = fullfile(S.path.(S.func),S.(S.func).load.suffix{:});
         end
@@ -49,11 +49,14 @@ switch step
         S.(S.func).designtab.processed(idx_processed)=1;
 
         % save S
-        save(fullfile(S.path.prep,S.sname),'S'); % saves 'S' - will be overwritten each time
+        if ~isfield(S.(S.func),'save') || ~isfield(S.(S.func).save,'dir')
+            S.(S.func).save.dir{:} = '';
+        end
+        save(fullfile(S.path.(S.func),S.(S.func).save.dir{:},S.sname),'S'); % saves 'S' - will be overwritten each time
 
         % save table
-        if isfield(S.prep,'outtable_name')
-            writetable(S.prep.outtable,fullfile(fullfile(S.path.prep,S.prep.outtable_name)))
+        if isfield(S.(S.func),'outtable_name')
+            writetable(S.(S.func).outtable,fullfile(fullfile(S.path.(S.func),S.(S.func).save.dir{:},S.(S.func).outtable_name)))
         end
 
 %         if exist('prev_filelist','var')
