@@ -199,6 +199,7 @@ for ga = 1:length(uni_ind)
 
         % concatenate over event types
         temp{ga} = reshape(temp{ga},[],1);
+
         S.(S.func).noemp_vector = reshape(noemp,[],1);
 
         % file index matches to concatenated events
@@ -226,7 +227,7 @@ for ga = 1:length(uni_ind)
         cfg.keepindividual = 'no';
         cfg.normalizevar   = 'N-1';
         cfg.method         = method;
-        cfg.parameter      = S.ga.grand_avg.avg;
+        cfg.parameter      = S.ga.grand_avg.out_avg;
         for i = 1:size(data_all{ga},1)
             for n = 1:nev
                 if noemp(i,n)
@@ -251,7 +252,7 @@ for ga = 1:length(uni_ind)
         cfg.keepindividual = 'no';
         cfg.normalizevar   = 'N-1';
         cfg.method         = method;
-        cfg.parameter      = S.ga.grand_avg.avg;
+        cfg.parameter      = S.ga.grand_avg.out_avg;
 
         % average over all event types for each subject after selecting
         % chans and timewin
@@ -325,7 +326,7 @@ for ga = 1:length(uni_ind)
                 cfg.keepindividual = 'no';
                 cfg.normalizevar   = 'N-1';
                 cfg.method         = method;
-                cfg.parameter      = S.ga.grand_avg.avg;
+                cfg.parameter      = S.ga.grand_avg.out_avg;
                 % includes all subjects
                 S.(S.func).gadata{ga}.events{n} = ft_timelockgrandaverage_cab(cfg, data_all{ga}(noemp(:,n),n)); % for each event type
                 if n==1 % over all events
@@ -382,7 +383,7 @@ for ga = 1:length(uni_ind)
         cfg.keepindividual = 'no';
         cfg.normalizevar   = 'N-1';
         cfg.method         = method;
-        cfg.parameter      = S.ga.grand_avg.avg;
+        cfg.parameter      = S.ga.grand_avg.out_avg;
         sim_all{ga}=data_all{ga};
         if ~isempty(S.ga.grand_avg.out_win) || ~isempty(S.ga.grand_avg.out_chan) || ~isempty(S.ga.grand_avg.sim_win) || ~isempty(S.ga.grand_avg.sim_chan)
             for i = 1:size(data_all{ga}(:))

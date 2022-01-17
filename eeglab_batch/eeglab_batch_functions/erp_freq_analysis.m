@@ -273,21 +273,21 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 % collect summary data: signal difference from zero (t-test over trials)
                 if size(sig,3)>1
                     sig2d = reshape(sig,[],size(sig,3));
-                    hs=[];ts=[];
+                    hs=[];zs=[];
                     for dp = 1:size(sig2d,1)
                         if all(isnan(sig2d(dp,:)))
                             hs(dp) = nan;
-                            ts(dp) = nan;
+                            zs(dp) = nan;
                         else
-                            [hs(dp),~,~,stats] = ttest(sig2d(dp,:));
-                            ts(dp) = stats.tstat;
+                            [~,hs(dp),stats] = signrank(sig2d(dp,:),0,'method','approximate');
+                            zs(dp) = abs(stats.zval);
                         end
                     end
-                    S.(S.func).outtable.(['ttest_meanT_' mname]){S.fn+f} = nanmean(ts); 
-                    S.(S.func).outtable.(['ttest_fracSig_' mname]){S.fn+f} = nanmean(hs); 
+                    S.(S.func).outtable.(['signrank_meanabsZ_' mname]){S.fn+f} = nanmean(zs); 
+                    S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f} = nanmean(hs); 
                 else
-                    S.(S.func).outtable.(['ttest_meanT_' mname]){S.fn+f} = nan; 
-                    S.(S.func).outtable.(['ttest_fracSig_' mname]){S.fn+f} = nan; 
+                    S.(S.func).outtable.(['signrank_meanabsZ_' mname]){S.fn+f} = nan; 
+                    S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f} = nan; 
                 end
 
             end

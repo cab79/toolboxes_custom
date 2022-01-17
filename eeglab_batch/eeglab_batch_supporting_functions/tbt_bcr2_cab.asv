@@ -127,7 +127,7 @@ if plot_bads==0
         
         fprintf('pop_TBT(): Interpolating epoch-by-epoch..')
         poolobj = gcp('nocreate');
-        if 0%~isempty(poolobj)
+        if ~isempty(poolobj)
             complete=0;
             while complete==0
                 try

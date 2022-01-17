@@ -4,8 +4,10 @@ switch step
     case 'start'
 
         % create directory for saving if doesn't exist
-        if ~exist(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}),'dir')
-            mkdir(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}));
+        if isfield(S.(S.func),'save')
+            if ~exist(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}),'dir')
+                mkdir(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}));
+            end
         end
 
         % load directory

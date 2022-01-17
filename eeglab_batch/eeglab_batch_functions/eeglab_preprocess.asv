@@ -54,16 +54,16 @@ switch part
 
     % run though all files in a loop
     for f = S.prep.startfile:length(S.prep.filelist)
-        file = S.prep.filelist{f};
+        filename = S.prep.filelist{f};
 
-        fprintf('\nProcessing %s.\n\n', file);
+        fprintf('\nProcessing %s.\n\n', filename);
 
         % GET FILENAME PARTS
-        [pth nme ext] = fileparts(file); 
+        [pth nme ext] = fileparts(filename); 
         fparts = strsplit(nme,'_');
 
         % LOAD DATA
-        EEG = pop_loadset('filename',file,'filepath',S.path.file);
+        EEG = pop_loadset('filename',filename,'filepath',S.path.file);
 
         % adjust latencies - needed for MNP study
         if isfield(S.prep.epoch,'latency_correction') && S.prep.epoch.latency_correction~=0
@@ -668,7 +668,7 @@ switch part
                 end
 
                 % store bad trials
-                EEG.reject.trials = unique([find(all(trials_reject,1)),badlist.badtrial]);
+                EEG.reject.trials = unique([find(all(trials_reject,1),badlist.badtrial]);
 
                 close all
             end

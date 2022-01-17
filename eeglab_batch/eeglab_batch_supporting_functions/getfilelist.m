@@ -8,7 +8,7 @@ if nargin>1
     end
     
     S.(S.func).load.suffix = varargin;
-    if ~any(strcmp(S.(S.func).fname.parts,'suffix'))
+    if ~any(strcmp(S.(S.func).fname.parts,'suffix')) && isfield(S.(S.func).load,'suffix') && ~isempty(S.(S.func).load.suffix{:})
         S.(S.func).fname.parts = [S.(S.func).fname.parts 'suffix'];
     end
     %else

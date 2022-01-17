@@ -85,7 +85,11 @@ for i = 1:length(S.(S.func).clean.noisychan.filtering)
 %             drawmax = prctile(level(:),90);
 
             mdn = median(level,'all');
-            OL = isoutlier(level,'gesd','ThresholdFactor',S.prep.clean.noisychan.gesd_ThresholdFactor);
+            if S.prep.clean.noisychan.gesd_ThresholdFactor
+                OL = isoutlier(level,'gesd','ThresholdFactor',S.prep.clean.noisychan.gesd_ThresholdFactor);
+            else
+                OL = ones(size(level));
+            end
             if strcmp(cfg.metric,'autocorr')
                 OL_upper = OL.*[level<S.prep.clean.noisychan.metric_cutoffs.(S.(S.func).clean.noisychan.filtering{i})(m)];
             else
@@ -93,7 +97,7 @@ for i = 1:length(S.(S.func).clean.noisychan.filtering)
                 OL_lower = OL.*[level<-S.prep.clean.noisychan.metric_cutoffs.(S.(S.func).clean.noisychan.filtering{i})(m)];
             end
             drawmin = prctile(level(:),0);
-            drawmax = prctile(level(:),90);
+            drawmax = prctile(level(:),95);
 
             if 1
                 % plot
