@@ -518,7 +518,7 @@ switch part
             % clean bursts
             if isfield(S.prep.clean,'bursts')
                 EEGcont = eeg_epoch2continuous(EEG);
-                BUR = clean_asr(EEGcont,...
+                [BUR,state] = clean_asr(EEGcont,...
                     S.prep.clean.bursts.BurstCriterion,...
                     S.prep.clean.bursts.WindowLength,...
                     [], ...
@@ -530,7 +530,17 @@ switch part
                     false,... 
                     S.prep.clean.bursts.max_mem); 
                 EEG.data = reshape(BUR.data,size(EEG.data));
-                clear BUR EEGcont
+                frac_rej = reshape(state.frac_rej,size(EEG.data,2),size(EEG.data,3));
+                frac_rej = mean(frac_rej,1);
+                fig=figure('Name',file);
+                plot(frac_rej); 
+                title('BUR fraction components removed')
+                xlabel('trials')
+                savefig(fig,fullfile(S.path.prep,S.prep.save.suffix{:},strrep(file,'.set','_BURcorrection.fig'))); 
+                S.prep.outtable.BUR_fracrej_median(S.fn+f) = nanmedian(frac_rej);
+                S.prep.outtable.BUR_fracrej_95th(S.fn+f) = prctile(frac_rej,95);
+                clear BUR EEGcont state
+                close(fig)
             end
 
 
@@ -827,10 +837,9 @@ switch part
 
             % reject trials from previous chancorrect step
             if S.(S.func).clean.reject_trials_from_chancorrect && isfield(EEG.reject,'trials')
-                EEG = pop_select(EEG, 'notrial', EEG.reject.trials);
                 S.(S.func).outtable.Nbadtrials_from_chancorrect(S.fn+f) = length(EEG.reject.trials);
                 S.(S.func).outtable.Fracbadtrials_from_chancorrect(S.fn+f) = length(EEG.reject.trials)/S.prep.outtable.initial_trials(S.fn+f);
-                EEG.reject.trials = [];
+                EEG = pop_select(EEG, 'notrial', EEG.reject.trials);
             end
 
             % Auto trial rejection
