@@ -1,46 +1,12 @@
 function S=eeglab_preprocess(S,part)
-%% PREPROCESSING FOR CONTINUOUS EEGLAB .SET FILES
+% PREPROCESSING FOR CONTINUOUS EEGLAB .SET FILES
 S.func = 'prep';
 
 switch part
-
+    
+    %% EPOCH
     case 'epoch'
-        
-%     % load directory
-%     if ~isfield(S.prep,'S.path.file')
-%         S.prep.S.path.file = fullfile(S.path.(S.func),S.prep.load.suffix{:});
-%     end
-% 
-%     % previously processed files
-%     if isfield(S.(S.func),'filelist')
-%         if S.(S.func).overwrite==0
-%             prev_filelist = S.(S.func).filelist;
-%             prev_dirlist = S.(S.func).dirlist;
-%             prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%             prev_designtab = S.(S.func).designtab;
-%         end
-%         S.(S.func) = rmfield(S.(S.func),'dirlist');
-%         S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%         S.(S.func) = rmfield(S.(S.func),'designtab');
-%     end
-% 
-%     % GET FILE LIST
-%     S.path.file = S.prep.loaddir;
-%     if ~isempty(S.prep.load.suffix{:})
-%         S = getfilelist(S,S.prep.load.suffix);
-%     else
-%         S = getfilelist(S);
-%     end
-% 
-%     % select which to process
-%     if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%         idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%         S.(S.func).filelist(idx_remove)=[];
-%         S.(S.func).dirlist(idx_remove)=[];
-%         S.(S.func).subj_pdat_idx(idx_remove)=[];
-%         S.(S.func).designtab(idx_remove,:)=[];
-%     end
-
+   
     
     S = filehandler(S,'start');
 
@@ -277,7 +243,7 @@ switch part
 %         S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
 %     end
 
-%% COMBINE
+    %% COMBINE
     case 'combine'
     
 
@@ -285,58 +251,8 @@ switch part
     if S.prep.combinefiles.on
         clear OUTEEG
 
-%         S.prep.select.suffix = S.prep.load.suffix;
-% 
-%         % update last filenameparts
-%         for fnp = 1:length(S.prep.fname.parts)
-%             if strcmp(S.prep.fname.parts{fnp},'ext'); continue; end
-%             try 
-%                 partsubs = S.prep.select.([S.prep.fname.parts{fnp} 's']);
-%                 partname = [S.prep.fname.parts{fnp} 's'];
-%             catch
-%                 partsubs = S.prep.select.([S.prep.fname.parts{fnp}]);
-%                 partname = [S.prep.fname.parts{fnp}];
-%             end
-%             for i = 1:length(partsubs)
-% 
-%                 S.prep.select.(partname){i} = strrep(S.prep.select.(partname){i},'.','_');
-% 
-%                 %S.prep.([S.prep.fname.parts{end} 's']){i} = [S.prep.([S.prep.fname.parts{end} 's']){i} '_' sname_ext];
-%             end
-%             
-%         end
-
-        
-%         % previously processed files
-%         if isfield(S.(S.func),'filelist')
-%             if S.(S.func).overwrite==0
-%                 prev_filelist = S.(S.func).filelist;
-%                 prev_dirlist = S.(S.func).dirlist;
-%                 prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-%                 prev_designtab = S.(S.func).designtab;
-%             end
-%             S.(S.func) = rmfield(S.(S.func),'dirlist');
-%             S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-%             S.(S.func) = rmfield(S.(S.func),'designtab');
-%         end
-% 
-%         % GET FILE LIST
-%         S.path.file = fullfile(S.path.prep,S.prep.load.suffix{:});
-%         S = getfilelist(S,S.prep.load.suffix);
-% 
-% 
-%         % select which to process
-%         if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-%             idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-%             S.(S.func).filelist(idx_remove)=[];
-%             S.(S.func).dirlist(idx_remove)=[];
-%             S.(S.func).subj_pdat_idx(idx_remove)=[];
-%             S.(S.func).designtab(idx_remove,:)=[];
-%         end
-
         S = filehandler(S,'start');
-% 
-%         loadpath = fullfile(S.path.prep,S.prep.load.suffix{:});
+
         for s = 1:length(S.prep.select.subjects)
             if isempty(S.prep.select.sessions)
                 S.prep.select.sessions = {''};
@@ -410,17 +326,6 @@ switch part
 
     end
 
-
-%     if exist('prev_filelist','var')
-%         S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-%         S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-%         S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-%         S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
-%     end
-
-    % FIND THE NEW DATA FILES
-    %files = dir(fullfile(S.path.prep,['*' S.runsubject '*' S.prep.load.suffix{:}]));
-    %files_ana = 1:length(files);
 
     %% NOISY CHANNEL CORRECTION
     case 'chancorrect'
@@ -743,7 +648,7 @@ switch part
             S = filehandler(S,'update');
         end
 
-    %% NOISY TRIAL  REJECTION
+    %% NOISY TRIAL REJECTION
     case 'rejecttrials'
 
         S = filehandler(S,'start');
