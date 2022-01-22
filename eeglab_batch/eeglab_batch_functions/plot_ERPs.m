@@ -178,6 +178,8 @@ switch type
     
     case 'grandavg'
 
+        S.path.file = S.ploterp.loaddir;
+
         fname = dir(fullfile(S.path.file,[S.ploterp.select.sessions{:} '_' S.ploterp.select.blocks{:} '_' S.ploterp.select.conds{:} '_' S.ploterp.load.suffix{:} '.' S.ploterp.fname.ext{:}]));
         fname = fname.name;
         load(fullfile(S.path.file,fname));

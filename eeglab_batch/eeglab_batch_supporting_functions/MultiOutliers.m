@@ -138,6 +138,7 @@ if strcmp(dattype,'subjects')
     % NEW for MoNoPly
     % mean per subject
     [unifiles,~,fileidx] = unique(S.(S.func).fileidx,'stable');
+    unifiles(unifiles==0) = [];
     for i = unifiles'
         S.(S.func).multoutlist.RDsub(i) = mean(RD(fileidx==i));%num2cell(sortRD');
     end

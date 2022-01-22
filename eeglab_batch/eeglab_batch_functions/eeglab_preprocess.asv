@@ -1052,7 +1052,7 @@ switch part
             if S.prep.clean.brain_threshold>0 
                 EEG.reject.gcompreject = [brainvals<S.prep.clean.brain_threshold]';
             else
-                EEG.reject.gcompreject = ~brainmax';
+                EEG.reject.gcompreject = brainmax';
             end
 
             if S.prep.clean.IClabel_plot
@@ -1062,8 +1062,8 @@ switch part
             % save info to a table
             S.prep.outtable.file{S.fn+f} = file;
             S.prep.outtable.ncomp(S.fn+f) = size(EEG.icaweights,1);
-            S.prep.outtable.IClabel_nOverThresh(S.fn+f) = sum([brainvals>=S.prep.clean.brain_threshold]);
-            S.prep.outtable.IClabel_nBrainMax(S.fn+f) = sum(brainmax);
+            S.prep.outtable.IClabel_nOverThresh(S.fn+f) = sum(~EEG.reject.gcompreject);
+            S.prep.outtable.IClabel_nBrainMax(S.fn+f) = sum(~EEG.reject.gcompreject);
             S.prep.outtable.IClabel_nreject(S.fn+f) = sum(EEG.reject.gcompreject);
             S.prep.outtable.IClabel_nkeep(S.fn+f) = sum(~EEG.reject.gcompreject);
             S.prep.outtable.IClabel_fracreject(S.fn+f) = sum(EEG.reject.gcompreject)/size(EEG.icaweights,1);

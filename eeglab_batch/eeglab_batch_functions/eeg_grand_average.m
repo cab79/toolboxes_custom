@@ -57,12 +57,16 @@ for ga = 1:length(uni_ind)
     
     % savename
     tabcell = table2cell(designtab(first_ind(ga),:));
-    sname = datestr(now,30);
     if S.ga.grand_avg.outliers 
         S.(S.func).ganame{ga} = [strjoin(tabcell,'_') '_grandavg_outliers'];
     else
         S.(S.func).ganame{ga} = [strjoin(tabcell,'_') '_grandavg'];
     end
+
+    if ~S.ga.overwrite && exist(fullfile(S.path.outfile,S.(S.func).ganame{ga}),'file')
+        continue
+    end
+
     switch S.(S.func).select.datatype
         case {'TF','Freq'}
             fr_name = '_freq';
