@@ -54,11 +54,17 @@ switch step
         if ~isfield(S.(S.func),'save') || ~isfield(S.(S.func).save,'dir')
             S.(S.func).save.dir{:} = '';
         end
-        save(fullfile(S.path.(S.func),S.(S.func).save.dir{:},S.sname),'S'); % saves 'S' - will be overwritten each time
+        out_dir = fullfile(S.path.(S.func),S.(S.func).save.dir{:});
+        save(fullfile(out_dir,S.sname),'S'); % saves 'S' - will be overwritten each time
 
         % save table
         if isfield(S.(S.func),'outtable_name')
-            writetable(S.(S.func).outtable,fullfile(fullfile(S.path.(S.func),S.(S.func).save.dir{:},S.(S.func).outtable_name)))
+            if isfield(S.(S.func),'outtable_dir')
+                outtable_dir = S.(S.func).outtable_dir;
+            else
+                outtable_dir = fullfile(S.path.(S.func),S.(S.func).save.dir{:});
+            end
+            writetable(S.(S.func).outtable,fullfile(outtable_dir,S.(S.func).outtable_name))
         end
 
 %         if exist('prev_filelist','var')

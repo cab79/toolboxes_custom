@@ -183,6 +183,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
         case 'ERP'
             EEGall=EEG;
             tldata={};
+            maxlat_all=nan(1,S.(S.func).nMarkType);
             for mt = 1:S.(S.func).nMarkType
                 if S.(S.func).epoch.combinemarkers
                     if any(find(strcmp('STIM',EEG.epoch(1).eventtype))) % EGI
@@ -270,6 +271,30 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                 S.(S.func).outtable.(['noise_' mname]){S.fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
                 S.(S.func).outtable.(['SNR_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
                 
+                % SME (see ERPLAB)
+                tw=S.erp.SNR.timewin; % time window to average over
+                [~,maxlat] = max(mean(std(sig,[],1),3));
+                mlat = sigwin(1)+maxlat-1; % adjust to sig onset
+                meanamp = squeeze(mean(EEG.data(:,floor(mlat-EEG.srate/(tw*1000)):ceil(mlat+EEG.srate/(tw*1000)),:),2));
+                SME = std(meanamp,[],2)./sqrt(size(meanamp,2));
+                % mean over chans
+                S.(S.func).outtable.(['SME_' mname]){S.fn+f} = mean(SME);
+                % latency
+                S.(S.func).outtable.(['maxlat_' mname]){S.fn+f} = EEG.times(mlat);
+                maxlat_all(mt)=EEG.times(mlat);
+
+                % topo correlation
+                topo_rho=[];
+                topo_fracsig=[];
+                for sm = 1:size(sig,2)
+                    [rho, pval] = corr(squeeze(sig(:,sm,:)),'type','Spearman');
+                    upperT = triu(ones(size(rho)));
+                    topo_rho(sm)= median(rho(upperT==1));
+                    topo_fracsig(sm)= sum((pval(upperT==1)<0.05))/numel(pval);
+                end
+                S.(S.func).outtable.(['signal_topocorr_' mname]){S.fn+f} = mean(topo_rho);
+                S.(S.func).outtable.(['fracsig_topocorr_' mname]){S.fn+f} = mean(topo_fracsig);
+
                 % collect summary data: signal difference from zero (t-test over trials)
                 if size(sig,3)>1
                     sig2d = reshape(sig,[],size(sig,3));
@@ -292,6 +317,39 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
 
             end
             S.(S.func).outtable.nMarkerTypes{S.fn+f} = sum(~cellfun(@isempty,tldata));
+            
+            %summarise over events
+            totalNtrials = 0;
+            FracSigMean = nan(1,length(tldata));
+            SNRmean = nan(1,length(tldata));
+            Signalmean = nan(1,length(tldata));
+            Noisemean = nan(1,length(tldata));
+            topomean = nan(1,length(tldata));
+            topofracsig = nan(1,length(tldata));
+            meanSME = nan(1,length(tldata));
+            for mt = 1:length(tldata)
+                mname = S.(S.func).epoch.markers{mt};
+                mname(isspace(mname)) = [];
+                if isfield(tldata{mt},'ntrials')
+                    totalNtrials = totalNtrials+tldata{mt}.ntrials;
+                    FracSigMean(1,mt) = S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f};
+                    SNRmean(1,mt) = S.(S.func).outtable.(['SNR_' mname]){S.fn+f};
+                    Signalmean(1,mt) = S.(S.func).outtable.(['signal_' mname]){S.fn+f};
+                    Noisemean(1,mt) = S.(S.func).outtable.(['noise_' mname]){S.fn+f};
+                    topomean(1,mt) = S.(S.func).outtable.(['signal_topocorr_' mname]){S.fn+f};
+                    topofracsig(1,mt) = S.(S.func).outtable.(['fracsig_topocorr_' mname]){S.fn+f};
+                    meanSME(1,mt) = S.(S.func).outtable.(['SME_' mname]){S.fn+f};
+                end
+            end
+            S.(S.func).outtable.(['Ntrials_Total']){S.fn+f} = totalNtrials;
+            S.(S.func).outtable.(['SignRank_FracSigMean']){S.fn+f} = nanmean(FracSigMean);
+            S.(S.func).outtable.(['SNRmean']){S.fn+f} = nanmean(SNRmean);
+            S.(S.func).outtable.(['Signalmean']){S.fn+f} = nanmean(Signalmean);
+            S.(S.func).outtable.(['Noisemean']){S.fn+f} = nanmean(Noisemean);
+            S.(S.func).outtable.(['signal_topocorr_mean']){S.fn+f} = nanmean(topomean);
+            S.(S.func).outtable.(['fracsig_topocorr_mean']){S.fn+f} = nanmean(topofracsig);
+            S.(S.func).outtable.(['SME_mean']){S.fn+f} = nanmean(meanSME);
+            S.(S.func).outtable.(['SME_maxlat']){S.fn+f} = nanstd(maxlat_all,[],2)./sqrt(sum(~isnan(maxlat_all)));
             
             % SAVE
             save(fullfile(S.path.erp,S.erp.save.dir{:},sname),'tldata');

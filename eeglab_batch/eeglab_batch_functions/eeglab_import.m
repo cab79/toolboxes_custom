@@ -1,35 +1,10 @@
 function S=eeglab_import(S)
 
 S.func = 'import';
-
-% previously imported files
-if isfield(S.(S.func),'filelist')
-    if S.(S.func).overwrite==0
-        prev_filelist = S.(S.func).filelist;
-        prev_dirlist = S.(S.func).dirlist;
-        prev_subj_pdat_idx = S.(S.func).subj_pdat_idx;
-        prev_designtab = S.(S.func).designtab;
-    end
-    S.(S.func) = rmfield(S.(S.func),'dirlist');
-    S.(S.func) = rmfield(S.(S.func),'subj_pdat_idx');
-    S.(S.func) = rmfield(S.(S.func),'designtab');
-end
-
-% GET FILE LIST
-S.path.file = S.path.raw;
-S = getfilelist(S);
-
-% select which to import
-if S.(S.func).overwrite==0 && exist('prev_filelist','var')
-    idx_remove = ismember(S.(S.func).filelist,prev_filelist);
-    S.(S.func).filelist(idx_remove)=[];
-    S.(S.func).dirlist(idx_remove)=[];
-    S.(S.func).subj_pdat_idx(idx_remove)=[];
-    S.(S.func).designtab(idx_remove,:)=[];
-end
+S = filehandler(S,'start');
 
 % change to the input directory
-eval(sprintf('%s', ['cd(''' S.path.raw ''')']));
+eval(sprintf('%s', ['cd(''' S.path.import ''')']));
 
 % report if there are no such files
 if isempty(S.(S.func).filelist)
@@ -37,21 +12,21 @@ if isempty(S.(S.func).filelist)
 end
 
 % indices of S.filelist for each subject
-col_ind = find(ismember(S.(S.func).designtab(1,:),{'subjects'}));
-designtab = cell2table(S.(S.func).designtab(2:end,col_ind)); % convert to table because unique with rows does not work on cell arrays!
-[~,first_ind,file_ind]=unique(designtab,'rows','stable');
-uni_ind = unique(file_ind);
+% col_ind = find(ismember(S.(S.func).designtab(1,:),{'subjects'}));
+% designtab = cell2table(S.(S.func).designtab(2:end,col_ind)); % convert to table because unique with rows does not work on cell arrays!
+% [~,first_ind,file_ind]=unique(S.(S.func).designtab,'rows','stable');
+% uni_ind = unique(file_ind);
 
-for sub = 1:length(uni_ind)
+for f = 1:length(S.(S.func).filelist)
     
-    % FIND THE FILES
-    subfiles = S.(S.func).filelist(file_ind==uni_ind(sub));
-    subdirs = S.(S.func).dirlist(file_ind==uni_ind(sub));
+%     % FIND THE FILES
+%     subfiles = S.(S.func).filelist(sub);
+%     subdirs = S.(S.func).designtab.dir(S.fn+sub);
 
     % run though subject files in a loop and convert
-    for f = 1:length(subfiles)
-        filename = subfiles{f};
-        dirname = subdirs{f};
+%     for f = 1:length(subfiles)
+        filename = S.(S.func).filelist{f};
+        dirname = S.(S.func).designtab.dir{ismember(S.(S.func).designtab.file,filename)};
         %if length(file) > 1
         %    error('Expected 1 recording file. Found %d.\n',length(file));
         %else
@@ -65,6 +40,13 @@ for sub = 1:length(uni_ind)
                     EEG = pop_fileio(fullfile(dirname,filename));
                 else
                     EEG = pop_loadbv_CAB(dirname,filename); % CAB version changes filesnames to be the same as those on disk
+                    % get impedances
+                    imptable = import_impedance_vhdr(fullfile(dirname,filename),S);
+                    S.(S.func).outtable.file{S.fn+f} = filename;
+                    S.(S.func).outtable(S.fn+f,2:end)=array2table(NaN(1,width(S.(S.func).outtable)-1));
+                    for ch=1:height(imptable)
+                        S.(S.func).outtable.(imptable.chan(ch))(S.fn+f) = imptable.imp(ch);
+                    end
                 end
             case 'cnt' % Neuroscan
                 EEG = pop_loadcnt(fullfile(dirname,filename));
@@ -112,14 +94,46 @@ for sub = 1:length(uni_ind)
 
         fprintf('Saving %s%s.\n', EEG.filepath, EEG.filename);
         pop_saveset(EEG,'filename', EEG.filename, 'filepath', EEG.filepath);
-    end
+
+        S.(S.func).file_processed=filename;
+        S = filehandler(S,'update');
+%     end
 end
 
-if exist('prev_filelist','var')
-    S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
-    S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
-    S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
-    S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+function outtable = import_impedance_vhdr(filename, S)
+
+%% Set up the Import Options and import the data
+opts = delimitedTextImportOptions("NumVariables", 3);
+
+% Specify range and delimiter
+opts.DataLines = [1, Inf];
+opts.Delimiter = ["     ", ":"];
+
+% Specify column names and types
+opts.VariableNames = ["VarName1", "VarName2", "Var3"];
+opts.SelectedVariableNames = ["VarName1", "VarName2"];
+opts.VariableTypes = ["string", "string", "string"];
+
+% Specify file level properties
+opts.ExtraColumnsRule = "ignore";
+opts.EmptyLineRule = "read";
+opts.ConsecutiveDelimitersRule = "join";
+
+% Specify variable properties
+opts = setvaropts(opts, ["VarName1", "Var3"], "WhitespaceRule", "preserve");
+opts = setvaropts(opts, ["VarName1", "Var3"], "EmptyFieldRule", "auto");
+% opts = setvaropts(opts, "VarName2", "ThousandsSeparator", ",");
+
+% Import the data
+dat = readtable(filename, opts);
+
+imline = find(contains(dat.VarName1,"Impedance [kOhm]"))+1;
+
+outtable = table;
+outtable.chan = dat.VarName1(imline:end);
+outtable.imp = dat.VarName2(imline:end);
+
+if isfield(S.import,'Ref')
+    outtable(ismember(outtable.chan,"Ref"),:)=[];
+    outtable.chan(ismember(outtable.chan,S.import.Ref))="Ref";
 end
-
-
