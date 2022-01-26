@@ -352,7 +352,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
             S.(S.func).outtable.(['SME_maxlat']){S.fn+f} = nanstd(maxlat_all,[],2)./sqrt(sum(~isnan(maxlat_all)));
             
             % SAVE
-            save(fullfile(S.path.erp,S.erp.save.dir{:},sname),'tldata');
+            save(S.erp.save.dir,sname),'tldata');
             
         case {'Freq','TF','Coh'}
             
@@ -485,7 +485,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                     if ~exist(S.path.tf,'dir')
                         mkdir(S.path.tf)
                     end
-                    save(fullfile(S.path.tf,S.erp.save.dir{:},sname),'fdata');
+                    save(fullfile(S.erp.save.dir,sname),'fdata');
             end
                     
     end

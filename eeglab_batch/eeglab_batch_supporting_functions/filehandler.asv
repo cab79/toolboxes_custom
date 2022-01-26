@@ -34,20 +34,18 @@ switch step
 %             end
 %         end
         % create directories for saving if doesn't exist
-        if isfield(S.(S.func),'save') 
-            if isfield(S.(S.func).save,'dir') && ~exist(fullfile(S.(S.func).save.dir),'dir')
-                mkdir(fullfile(S.(S.func).save.dir));
-            end
-            if isfield(S.(S.func).save,'dir_S') && ~exist(fullfile(S.(S.func).save.dir_S),'dir')
-                mkdir(fullfile(S.(S.func).save.dir_S));
-            end
-            if isfield(S.(S.func).save,'dir_outtable') && ~exist(fullfile(S.(S.func).save.dir_outtable),'dir')
-                mkdir(fullfile(S.(S.func).save.dir_outtable));
+        if isfield(S.(S.func),'save') && isfield(S.(S.func).save,'dir')
+            if ~exist(fullfile(S.(S.func).save.dir),'dir')
+                mkdir(fullfile(S.path.(S.func),S.(S.func).save.suffix{:}));
             end
         end
 
         % load directory
-        S.path.file = S.(S.func).load.dir;
+        if isfield(S.(S.func),'loaddir')
+            S.path.file = S.(S.func).loaddir;
+        else
+            S.path.file = fullfile(S.path.(S.func),S.(S.func).load.suffix{:});
+        end
         
         % get previously processed files
         if isfield(S.(S.func),'designtab')
@@ -83,11 +81,27 @@ switch step
         S.(S.func).designtab.processed(idx_processed)=1;
 
         % save S
-        save(fullfile(S.(S.func).save.dir_S,S.sname),'S'); % saves 'S' - will be overwritten each time
+        if ~isfield(S.(S.func),'save') || ~isfield(S.(S.func).save,'dir')
+            S.(S.func).save.dir{:} = '';
+        end
+        out_dir = fullfile(S.path.(S.func),S.(S.func).save.dir{:});
+        save(fullfile(out_dir,S.sname),'S'); % saves 'S' - will be overwritten each time
 
         % save table
         if isfield(S.(S.func),'outtable_name')
-            writetable(S.(S.func).outtable,fullfile(S.(S.func).save.dir_outtable,S.(S.func).outtable_name))
+            if isfield(S.(S.func),'outtable_dir')
+                outtable_dir = S.(S.func).outtable_dir;
+            else
+                outtable_dir = fullfile(S.path.(S.func),S.(S.func).save.dir{:});
+            end
+            writetable(S.(S.func).outtable,fullfile(outtable_dir,S.(S.func).outtable_name))
         end
+
+%         if exist('prev_filelist','var')
+%             S.(S.func).filelist = [S.(S.func).filelist prev_filelist];
+%             S.(S.func).dirlist = [S.(S.func).dirlist prev_dirlist];
+%             S.(S.func).subj_pdat_idx = [S.(S.func).subj_pdat_idx prev_subj_pdat_idx];
+%             S.(S.func).designtab = [S.(S.func).designtab; prev_designtab];
+%         end
 
 end

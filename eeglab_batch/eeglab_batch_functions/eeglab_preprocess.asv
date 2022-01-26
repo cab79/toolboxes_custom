@@ -226,10 +226,7 @@ switch part
 
         % SAVE
         sname = [nme '_' S.prep.save.suffix{:} '.' S.prep.fname.ext{:}];
-        if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
-            mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
-        end
-        EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:})); 
+        EEG = pop_saveset(EEG,'filename',sname,'filepath',S.prep.save.dir); 
 
         % update
         S.(S.func).file_processed=file;
@@ -316,13 +313,11 @@ switch part
 %                 if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
 %                     mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
 %                 end
-                EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.dir{:}));
+                EEG = pop_saveset(EEG,'filename',sname,'filepath',S.prep.save.dir);
+
             end
         end
         
-    % update
-    S.(S.func).file_processed=file;
-    S = filehandler(S,'update');
 
     end
 
@@ -646,7 +641,7 @@ switch part
             % SAVE
             sname = strrep(file,S.prep.load.suffix{:},S.prep.save.suffix{:});
             disp(['saving file index ' num2str(f)])
-            EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:})); 
+            EEG = pop_saveset(EEG,'filename',sname,'filepath',S.prep.save.dir); 
             
             % update
             S.(S.func).file_processed=file;
@@ -829,7 +824,7 @@ switch part
             % SAVE
             sname = strrep(file,S.prep.load.suffix{:},S.prep.save.suffix{:});
             disp(['saving file index ' num2str(f)])
-            EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:})); 
+            EEG = pop_saveset(EEG,'filename',sname,'filepath',S.prep.save.dir); 
             
             % update
             S.(S.func).file_processed=file;
@@ -914,10 +909,10 @@ switch part
                 %[pth nme ext] = fileparts(file);
                 %sname = [nme '_' S.prep.save.suffix{:} '.' S.prep.fname.ext{:}];
                 sname = strrep(file,S.prep.load.suffix{:},S.prep.save.suffix{:});
-                if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
-                    mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
-                end
-                EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:}));
+%                 if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
+%                     mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
+%                 end
+                EEG = pop_saveset(EEG,'filename',sname,'filepath',S.prep.save.dir);
 
                 % update
                 S.(S.func).file_processed=file;
@@ -991,10 +986,10 @@ switch part
             %[pth nme ext] = fileparts(file);
             %sname = [nme '_' S.prep.save.suffix{:} '.' S.prep.fname.ext{:}];
             sname = strrep(file,S.prep.load.suffix{:},S.prep.save.suffix{:});
-            if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
-                mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
-            end
-            EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:}));
+%             if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
+%                 mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
+%             end
+            EEG = pop_saveset(EEG,'filename',sname,'filepath',S.prep.save.dir);
             
             % update
             S.(S.func).file_processed=file;
@@ -1082,10 +1077,10 @@ switch part
             %[pth nme ext] = fileparts(file);
             %sname = [nme '_' S.prep.save.suffix{:} '.' S.prep.fname.ext{:}];
             sname = strrep(file,S.prep.load.suffix{:},S.prep.save.suffix{:});
-            if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
-                mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
-            end
-            EEG = pop_saveset(EEG,'filename',sname,'filepath',fullfile(S.path.prep,S.prep.save.suffix{:}));
+%             if ~exist(fullfile(S.path.prep,S.prep.save.suffix{:}),'dir')
+%                 mkdir(fullfile(S.path.prep,S.prep.save.suffix{:}));
+%             end
+            EEG = pop_saveset(EEG,'filename',sname,'filepath',S.prep.save.dir);
 
             % update
             S.(S.func).file_processed=file;
@@ -1162,7 +1157,7 @@ switch part
 
                     % put into sub-directory according to original
                     % block/condition (needed for MoNoPly study)
-                    spath = fullfile(S.path.prep,sname_ext,[S.prep.designtab.blocks{f} '_' S.prep.designtab.conds{f}]);
+                    spath = fullfile(S.prep.save.dir,[S.prep.designtab.blocks{f} '_' S.prep.designtab.conds{f}]);
                     if ~exist(spath,'dir')
                         mkdir(spath);
                     end

@@ -19,11 +19,11 @@ end
 
 
 % save directory
-if ~isfield(S.(S.func),'outdir')
-    S.path.outfile = fullfile(S.path.ga,S.(S.func).select.datatype);
-else
-    S.path.outfile = S.(S.func).outdir;
-end
+% if ~isfield(S.(S.func),'outdir')
+%     S.path.outfile = fullfile(S.path.ga,S.(S.func).select.datatype);
+% else
+    S.path.outfile = S.(S.func).save.dir;
+% end
 if ~exist(S.path.outfile,'dir')
     mkdir(S.path.outfile)
 end

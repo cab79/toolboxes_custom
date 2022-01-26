@@ -4,7 +4,7 @@ S.func = 'import';
 S = filehandler(S,'start');
 
 % change to the input directory
-eval(sprintf('%s', ['cd(''' S.path.import ''')']));
+%eval(sprintf('%s', ['cd(''' S.path.import ''')']));
 
 % report if there are no such files
 if isempty(S.(S.func).filelist)
@@ -86,7 +86,7 @@ for f = 1:length(S.(S.func).filelist)
         savename = nme;
         EEG.setname = sprintf([S.(S.func).save.prefix{:} '%s' S.(S.func).save.suffix{:}],savename); % the output file is called: basename_orig
         EEG.filename = sprintf([S.(S.func).save.prefix{:} '%s' S.(S.func).save.suffix{:} '.set'],savename);
-        EEG.filepath = fullfile(S.path.prep,'imported');
+        EEG.filepath = S.(S.func).save.dir;
         
         if ~exist(EEG.filepath,'dir')
             mkdir(EEG.filepath)
