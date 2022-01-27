@@ -284,11 +284,8 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                         % marker for it
                         if length(S.erp.bin(bn).event{bi})==1
                             for tl = 1:length(tldata_cell)
-                                if strcmp(tldata_cell{tl}.bin_name,S.(S.func).epoch.markers(S.erp.bin(bn).event{bi}))
-                                    tldata_cell{tl}.bin_name = S.erp.bin(bn).name{bi};
-                                end
+                                if strcmp(tldata_cell{tl}.bin_name,
                             end
-                            continue
                         end
 
                         nb=nb+1;
