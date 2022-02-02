@@ -133,21 +133,22 @@ if plot_bads==0
             while complete==0
                 try
                     disp(['pop_TBT(): using ' num2str(poolobj.NumWorkers) ' workers...'])
-                    maxNtrial=size(tbt,1)%;100; % max number of trials to go through parfor
-                    nchunks = ceil(size(tbt,1)/maxNtrial); % how many times to loop through multiple parfor calls
+                    nchunks = poolobj.NumWorkers;
+                    maxNtrial=ceil(size(tbt,1)/nchunks);
                     TR={}; % index of trials to process each time
                     for n=1:nchunks
                         TR{n} = (n-1)*maxNtrial+1 : min(maxNtrial*n, size(tbt,1));
                     end
-                    tempeegcell={};
                     tic
-                    for n=1:nchunks
+                    tempeegcell={};
+                    clear tempeeg
+                    opts = parforOptions(poolobj,'RangePartitionMethod','fixed','SubrangeSize',1);
+                    parfor (n=1:nchunks,opts)
                         disp(['pop_TBT(): chunk ' num2str(n) '/' num2str(nchunks)])
                         t_idx = TR{n};
-                        clear tempeeg
-                        parfor t = 1:length(t_idx)%size(tbt,1) % each trial with bad channels
-                            tempeeg(t) = eval_tbt(EEG,chanlocs,tbt,t_idx(t));
-                        end
+                        %tic
+                        tempeeg = eval_tbt2(EEG,chanlocs,tbt,t_idx);
+                        %toc
                         tempeegcell{n}=tempeeg;
                     end
                     toc
@@ -211,4 +212,22 @@ function outeeg = eval_tbt(EEG,chanlocs,tbt,t)
 
         outeeg=struct;
         outeeg.data=tempeeg.data;
+end
+
+function outeeg = eval_tbt2(EEG,chanlocs,tbt,tt)
+    %if ~mod(t,5), fprintf('.'); end
+        
+    outeeg=struct;
+    for t = 1:length(tt)
+        % split
+        evalc('tempeeg = pop_selectevent(EEG, ''epoch'',tbt{tt(t),1});');
+
+        % remove bad channels
+        evalc('tempeeg = pop_select(tempeeg,''nochannel'',tbt{tt(t),2});');
+
+        % interp single trial
+        evalc('tempeeg = pop_interp(tempeeg, chanlocs, ''spherical'');');
+
+        outeeg(t).data=tempeeg.data;
+    end
 end

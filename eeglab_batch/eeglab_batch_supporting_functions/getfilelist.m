@@ -314,6 +314,7 @@ for g = 1:length(grps)
                     i=i+1;
                     S.(S.func).designtab.dir{i} = fullfile(S.path.file,grpdir,subdir);
                     S.(S.func).designtab.file{i} = fname;
+%                     S.(S.func).designtab.file_genname{i} = genname;
                     S.(S.func).designtab.subj_pdat_idx(i) = subj_pdat_idx;
                     S.(S.func).designtab.groups{i} = grp{:}(1:end-1);
                     S.(S.func).designtab.subjects{i} = subj{:}(1:end-1);

@@ -147,7 +147,7 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
     
     % This is study-specific code for data recorded from the Cambridge EGI system
     if any(find(strcmp('STIM',EEG.epoch(1).eventtype)))
-        [conds, tnums, fnums, bnums] = get_markers(EEG);
+        [conds, tnums, fnums, bnums] = get_markers(EEG,'EGI');
     end
     
 %     % This is study-specific code for MoNoPly study where there are
@@ -168,11 +168,15 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
 %     end
 
     % flip channels right to left (e.g. CORE study)
-    if isfield(S.(S.func),'flipchans') && ~isempty(S.(S.func).flipchans)
-        flipidx = find(ismember(fnums,S.(S.func).flipchans));
-        EEG.data(:,:,flipidx) = flipchan(EEG.data(:,:,flipidx),EEG.chanlocs);
+    if isfield(S.(S.func),'flipchan_markers') && ~isempty(S.(S.func).flipchan_markers)
+        flipidx = find(ismember(conds,S.(S.func).flipchan_markers));
+        EEG.data(:,:,flipidx) = flipchan(EEG.data(:,:,flipidx),EEG.chanlocs,S.erp.flipchan_flipmap);
     end
     
+    if ~iscell(S.(S.func).epoch.markers)
+        S.(S.func).epoch.markers = arrayfun(@num2str, S.(S.func).epoch.markers, 'Uniform', false);
+    end
+
     % switch to selected analysis
     switch S.(S.func).select.datatype
         case 'ERP'
@@ -181,27 +185,19 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
             maxlat_all=[];
             totalNtrials = 0;
             for mt = 1:length(S.(S.func).epoch.markers)
-%                 if S.(S.func).epoch.combinemarkers
-%                     if any(find(strcmp('STIM',EEG.epoch(1).eventtype))) % EGI
-%                         % not complete
-%                     else
-%                         EEG = pop_selectevent(EEGall,'type',S.(S.func).epoch.markers,'latency',S.(S.func).epoch.latency); 
-%                     end
-%                 else
-%                     %if any(find(strcmp('STIM',EEG.epoch(1).eventtype))) % EGI
-%                         % not complete
-%                     %else
-%                         try
-%                             EEG = pop_selectevent(EEGall,'type',S.(S.func).epoch.markers{mt},'latency',S.(S.func).epoch.latency);
-%                         catch
-%                             continue
-%                         end
-%                     %end
-%                 end
-                try
-                    EEG = pop_selectevent(EEGall,'type',S.(S.func).epoch.markers{mt},'latency',S.(S.func).epoch.latency);
-                catch
-                    continue
+                
+                if exist('conds','var')
+                    try
+                        EEG = pop_select(EEGall,'trial',find(conds==str2double(S.(S.func).epoch.markers{mt})));
+                    catch
+                        continue
+                    end
+                else
+                    try
+                        EEG = pop_selectevent(EEGall,'type',S.(S.func).epoch.markers{mt},'latency',S.(S.func).epoch.latency);
+                    catch
+                        continue
+                    end
                 end
 
                 % This is study-specific code for MoNoPly study where there are
@@ -276,23 +272,42 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                     for bi = 1:length(S.erp.bin(bn).name)
                         
                         % select by condition/task
-                        if ~strcmp(S.erp.bin(bn).cond{bi},S.erp.designtab.conds{f})
-                            continue
+                        if isfield(S.erp.bin,'cond') && ~isempty(S.erp.bin(bn).cond)
+                            if ~strcmp(S.erp.bin(bn).cond{bi},S.erp.designtab.conds{f})
+                                continue
+                            end
                         end
 
                         % re-name an existing bin if there is only one
                         % marker for it
                         if length(S.erp.bin(bn).event{bi})==1
                             for tl = 1:length(tldata_cell)
-                                if strcmp(tldata_cell{tl}.bin_name,S.(S.func).epoch.markers(S.erp.bin(bn).event{bi}))
-                                    tldata_cell{tl}.bin_name = S.erp.bin(bn).name{bi};
+                                if isfield(tldata_cell{tl},'ntrials') && ~isempty(tldata_cell{tl}.ntrials)
+                                    if strcmp(tldata_cell{tl}.bin_name,S.(S.func).epoch.markers(S.erp.bin(bn).event{bi}))
+                                        tldata_cell{tl}.bin_name = S.erp.bin(bn).name{bi};
+                                    end
+                                else
+                                    continue
                                 end
                             end
                             continue
                         end
 
                         nb=nb+1;
-                        EEG = pop_selectevent(EEGall,'type',S.(S.func).epoch.markers(S.erp.bin(bn).event{bi}),'latency',S.(S.func).epoch.latency);
+                        if exist('conds','var')
+                            try
+                                EEG = pop_select(EEGall,'trial',find(ismember(conds,S.erp.bin(bn).event{bi})));
+                            catch
+                                continue
+                            end
+                        else
+                            try
+                                EEG = pop_selectevent(EEGall,'type',S.(S.func).epoch.markers(S.erp.bin(bn).event{bi}),'latency',S.(S.func).epoch.latency);
+                            catch
+                                continue
+                            end
+                        end
+                        
         
                         % This is study-specific code for MoNoPly study where there are
                         % duplicate events - only use the second event in each epoch
@@ -380,15 +395,16 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
             for nb = 1:length(tldata)
                 mname = tldata(nb).bin_name;
                 mname(isspace(mname)) = [];
-                if isfield(tldata(nb),'ntrials')
+                if isfield(tldata(nb),'ntrials') && ~isempty(tldata(nb).ntrials)
 
                     S.(S.func).outtable.(['Ntrials_' mname]){S.fn+f} = tldata(nb).ntrials;
     
                     % collect summary data: SNR
-                    basewin=dsearchn(EEG.times',1000*S.erp.SNR.basewin');
-                    sigwin=dsearchn(EEG.times',1000*S.erp.SNR.signalwin');
-                    base=EEG.data(:,basewin(1):basewin(2),:);
-                    sig=EEG.data(:,sigwin(1):sigwin(2),:);
+                    basewin=dsearchn(tldata(nb).time',S.erp.SNR.basewin');
+                    sigwin=dsearchn(tldata(nb).time',S.erp.SNR.signalwin');
+                    data = permute(tldata(nb).trial,[2 3 1]);
+                    base=data(:,basewin(1):basewin(2),:);
+                    sig=data(:,sigwin(1):sigwin(2),:);
                     S.(S.func).outtable.(['signal_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
                     S.(S.func).outtable.(['noise_' mname]){S.fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
                     S.(S.func).outtable.(['SNR_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
@@ -397,13 +413,13 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
                     tw=S.erp.SNR.timewin; % time window to average over
                     [~,maxlat] = max(mean(std(sig,[],1),3));
                     mlat = sigwin(1)+maxlat-1; % adjust to sig onset
-                    meanamp = squeeze(mean(EEG.data(:,floor(mlat-EEG.srate/(tw*1000)):ceil(mlat+EEG.srate/(tw*1000)),:),2));
+                    meanamp = squeeze(mean(data(:,max(1,floor(mlat-EEG.srate/(tw*1000))):min(size(data,2),ceil(mlat+EEG.srate/(tw*1000))),:),2));
                     SME = std(meanamp,[],2)./sqrt(size(meanamp,2));
                     % mean over chans
                     S.(S.func).outtable.(['SME_' mname]){S.fn+f} = mean(SME);
                     % latency
-                    S.(S.func).outtable.(['maxlat_' mname]){S.fn+f} = EEG.times(mlat);
-                    maxlat_all(nb)=EEG.times(mlat);
+                    S.(S.func).outtable.(['maxlat_' mname]){S.fn+f} = tldata(nb).time(mlat);
+                    maxlat_all(nb)=tldata(nb).time(mlat);
     
                     % topo correlation
                     topo_rho=[];

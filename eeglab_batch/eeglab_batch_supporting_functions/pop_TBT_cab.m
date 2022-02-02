@@ -164,9 +164,9 @@ elseif nargin < 4
 else
     if ~exist('plot_bads','var'), plot_bads = 1; end
     if exist('chanlocs','var')
-        [EEG, nbadchan, nbadtrial, bTrial_num] = tbt_bcr2_cab2(EEG,bads,badsegs,badchans,plot_bads,chanlocs);
+        [EEG, nbadchan, nbadtrial, bTrial_num] = tbt_bcr2_cab3(EEG,bads,badsegs,badchans,plot_bads,chanlocs);
     else
-        [EEG, nbadchan, nbadtrial, bTrial_num] = tbt_bcr2_cab2(EEG,bads,badsegs,badchans,plot_bads);
+        [EEG, nbadchan, nbadtrial, bTrial_num] = tbt_bcr2_cab3(EEG,bads,badsegs,badchans,plot_bads);
     end
     
     badlist.nbadchan  = nbadchan;

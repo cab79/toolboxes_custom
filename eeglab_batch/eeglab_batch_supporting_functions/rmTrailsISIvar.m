@@ -1,4 +1,4 @@
-function EEG = rmTrailsISIvar(EEG,errormarg,timebin,isi,marker)
+function [EEG,rmepochs] = rmTrailsISIvar(EEG,errormarg,timebin,isi,marker)
 
 %dins = [];
 %stims = [];
@@ -36,7 +36,7 @@ np = [];
 for p = pri_range
     np = [np length(find(dinisis_plot<isi-p | dinisis_plot>isi+p))];
 end
-figure
+fig=figure
 plot(pri_range,np);
 
 %qd_handle = questdlg('Error margin acceptable at 0.003?', ...
@@ -73,3 +73,4 @@ selectepochs = ones(1,length(EEG.epoch));
 selectepochs(1) = 0; % remove first trial
 selectepochs(rmepochs+1)=0;
 EEG = pop_select(EEG,'trial',find(selectepochs));
+close(fig)

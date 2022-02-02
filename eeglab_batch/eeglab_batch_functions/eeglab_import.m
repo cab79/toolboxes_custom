@@ -61,6 +61,12 @@ for f = 1:length(S.(S.func).filelist)
         EEG = eeg_checkset(EEG);
 
 
+%         % if load suffix was a wildcard, remove it (for CORE study)
+%         if strcmp(S.(S.func).load.suffix{:},'*')
+%             genname = S.(S.func).designtab.file_genname{ismember(S.(S.func).designtab.file,filename)};
+%             filename = strrep(genname,'*','');
+%         end
+
         %add channel locations
         if S.(S.func).chan.addloc
             EEG=pop_chanedit(EEG, 'lookup',S.path.locfile);
@@ -84,6 +90,7 @@ for f = 1:length(S.(S.func).filelist)
             end
         end
         savename = nme;
+
         EEG.setname = sprintf([S.(S.func).save.prefix{:} '%s' S.(S.func).save.suffix{:}],savename); % the output file is called: basename_orig
         EEG.filename = sprintf([S.(S.func).save.prefix{:} '%s' S.(S.func).save.suffix{:} '.set'],savename);
         EEG.filepath = S.(S.func).save.dir;

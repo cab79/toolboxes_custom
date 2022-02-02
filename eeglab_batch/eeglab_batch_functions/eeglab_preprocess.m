@@ -31,12 +31,26 @@ switch part
         % LOAD DATA
         EEG = pop_loadset('filename',file,'filepath',S.path.file);
 
+        % collect summary data
+        S.prep.outtable.file{S.fn+f} = file;
+
         % adjust latencies - needed for MNP study
         if isfield(S.prep.epoch,'latency_correction') && S.prep.epoch.latency_correction~=0
-            eventi = find(ismember({EEG.event(:).code},'Stimulus'));
-            for e = eventi
-                EEG.event(e).latency = EEG.event(e).latency + S.prep.epoch.latency_correction*EEG.srate;
-                EEG.urevent(e).latency = EEG.event(e).latency; % samples to add to marker latency to correct for delays in stimulus markers in SCIn
+            
+            if isfield(S.prep.epoch,'latency_correction_subjects') && ~isempty(S.prep.epoch.latency_correction_subjects)
+                if ismember(S.(S.func).designtab.subjects{f},S.prep.epoch.latency_correction_subjects)
+                    correct_latency=1;
+                else
+                    correct_latency=0;
+                end
+            end
+            
+            if correct_latency
+                eventi = find(ismember({EEG.event(:).(S.prep.epoch.latency_correction_eventfield{1})},S.prep.epoch.latency_correction_eventfield{2}));
+                for e = eventi
+                    EEG.event(e).latency = EEG.event(e).latency + S.prep.epoch.latency_correction*EEG.srate;
+                    EEG.urevent(e).latency = EEG.event(e).latency; % samples to add to marker latency to correct for delays in stimulus markers in SCIn
+                end
             end
         end
 
@@ -130,7 +144,7 @@ switch part
 
         % EPOCH
         %create epochs if markers exist
-        if iscell(S.prep.epoch.markers) % markers set by condition
+        if isfield(S.prep.epoch,'timewin_padding') && ~isempty(S.prep.epoch.timewin_padding) && iscell(S.prep.epoch.markers) % markers set by condition
 
             % this bit is complicated - need to pad the data for conditions
             % that have fewer data points that other conditions, if they
@@ -144,7 +158,11 @@ switch part
             EEG = pop_epoch( EEG, S.prep.epoch.markers, max_tw);
 
             % for this file
-            timewin = S.prep.epoch.timewin{ismember(S.prep.select.conds,S.prep.designtab.conds{f})};
+            if ~isempty(S.prep.epoch.timewinby)
+                timewin = S.prep.epoch.timewin{ismember(S.prep.select.(S.prep.epoch.timewinby{:}),S.prep.designtab.(S.prep.epoch.timewinby{:}){f})};
+            else
+                timewin = S.prep.epoch.timewin{:};
+            end
             %EEGtemp2 = pop_epoch( EEG, S.prep.epoch.markers, timewin);
         
             if timewin(1)>max_tw(1)
@@ -170,9 +188,13 @@ switch part
             end
 
         elseif ~isempty(S.prep.epoch.markers)
-            try
-                EEG = pop_epoch( EEG, S.prep.epoch.markers, S.prep.epoch.timewin);
+            % for this file
+            if ~isempty(S.prep.epoch.timewinby)
+                timewin = S.prep.epoch.timewin{ismember(S.prep.select.(S.prep.epoch.timewinby{:}),S.prep.designtab.(S.prep.epoch.timewinby{:}){f})};
+            else
+                timewin = S.prep.epoch.timewin{:};
             end
+            EEG = pop_epoch( EEG, S.prep.epoch.markers, timewin);
         end
 
         % if markers don't exist, add markers and epoch
@@ -200,6 +222,47 @@ switch part
             EEG = pop_epoch( EEG, S.prep.epoch.markers(1), S.prep.epoch.timewin);
         end
 
+        % study-specific code for CORE study, where DIN2 is use to time
+        % the events, but the even information (marker type) is stored in
+        % STIM
+        if strcmp(S.prep.epoch.markers{:},'DIN2')
+            rm_trials = [];
+            for ep = 1:length(EEG.epoch)
+                stimevidx = find(strcmp('STIM',EEG.epoch(ep).eventtype));
+                if ep<length(EEG.epoch); stimevidx1 = find(strcmp('STIM',EEG.epoch(ep+1).eventtype));end;
+                if isempty(stimevidx)
+                    if length(stimevidx1)>1
+                        event = EEG.epoch(ep+1).eventurevent{1, stimevidx1(1)};
+                        event_idx = find([EEG.event.urevent]==event);
+                        %EEG = pop_editeventvals(EEG, 'changefield', {event_idx 'latency' eeg_point2lat(EEG.event(event_idx-1).latency,[],EEG.srate, [EEG.xmin EEG.xmax])});
+                        EEG.event(event_idx).latency = EEG.event(event_idx-1).latency;
+                    else
+                        rm_trials = [rm_trials ep];
+                    %
+                    %    try 
+                            
+                    %    catch
+                    %        error(['not enough stims in epoch ' num2str(ep+1)]);
+                    %    end
+                    end
+                end
+            end
+            EEG = pop_select(EEG,'notrial',rm_trials);
+            % EPOCH AGAIN AFTER STIM CORRECTION
+            EEG = pop_epoch( EEG, S.prep.epoch.markers, timewin);
+        end
+
+        S.prep.outtable.initial_trials(S.fn+f) = EEG.trials;
+
+        if isfield(S.prep.epoch,'expected_ISIs') && ~isempty(S.prep.epoch.expected_ISIs)
+            if isfield(S.prep.epoch,'expected_ISIs_by') && ~isempty(S.prep.epoch.expected_ISIs_by)
+                isi = S.prep.epoch.expected_ISIs(ismember(S.prep.select.(S.prep.epoch.expected_ISIs_by{:}),S.prep.designtab.(S.prep.epoch.expected_ISIs_by{:}){f}));
+            else
+                isi = S.prep.epoch.expected_ISIs;
+            end
+            [EEG,rmepochs] = rmTrailsISIvar(EEG,S.prep.epoch.expected_ISIs_errormargin,timewin,isi,S.prep.epoch.markers{:});
+            S.prep.outtable.remove_Ntrials_ISIerror(S.fn+f) = length(rmepochs);
+        end
 
         % LINEAR DETREND
         if S.prep.epoch.detrend
@@ -208,8 +271,12 @@ switch part
 
         % REMOVE BASELINE
         if S.prep.epoch.rmbase
-            if iscell(S.prep.epoch.basewin) % markers set by condition
-                basewin = S.prep.epoch.basewin{ismember(S.prep.select.conds,S.prep.designtab.conds{f})};
+            if iscell(S.prep.epoch.basewin) % markers set by condition/block
+                if ~isempty(S.prep.epoch.basewinby)
+                    basewin = S.prep.epoch.basewin{ismember(S.prep.select.(S.prep.epoch.basewinby{:}),S.prep.designtab.(S.prep.epoch.basewinby{:}){f})};
+                else
+                    basewin = S.prep.epoch.basewin{:};
+                end
                 EEG = pop_rmbase( EEG, [basewin(1)*1000, basewin(2)*1000]);
             else
                 EEG = pop_rmbase( EEG, [S.prep.epoch.basewin(1)*1000, S.prep.epoch.basewin(2)*1000]);
@@ -336,7 +403,11 @@ switch part
         for f = S.(S.func).startfile:length(S.prep.filelist)
             file = S.(S.func).filelist{f};
             disp(['loading file index ' num2str(f)])
-            EEG = pop_loadset('filename',file,'filepath',S.path.file);
+            try
+                EEG = pop_loadset('filename',file,'filepath',S.path.file);
+            catch
+                continue
+            end
 
             % collect summary data
             S.prep.outtable.file{S.fn+f} = file;
@@ -345,6 +416,11 @@ switch part
             % remove selected ICA components (MUST HAVE ALREADY SELECTED THESE MANUALLY)
             if S.(S.func).epoch.ICAremove
                 if ~strcmp(S.(S.func).load.suffix{:},S.(S.func).load.ica_suffix{:})
+
+                    if ~exist(fullfile(strrep(S.path.file,S.(S.func).load.suffix{:},S.(S.func).load.ica_suffix{:}), strrep(file,S.(S.func).load.suffix{:},S.(S.func).load.ica_suffix{:})),'file')
+                        continue
+                    end
+
                     EEG_ica = pop_loadset('filename',strrep(file,S.(S.func).load.suffix{:},S.(S.func).load.ica_suffix{:}),'filepath',strrep(S.path.file,S.(S.func).load.suffix{:},S.(S.func).load.ica_suffix{:}));
                     EEG.icawinv = EEG_ica.icawinv;
                     EEG.icasphere = EEG_ica.icasphere;
@@ -374,9 +450,13 @@ switch part
             end
     
             % REMOVE BASELINE
-            if S.(S.func).epoch.rmbase
-                if iscell(S.prep.epoch.basewin) % markers set by condition
-                    basewin = S.prep.epoch.basewin{ismember(S.prep.select.conds,S.prep.designtab.conds{f})};
+            if S.prep.epoch.rmbase
+                if iscell(S.prep.epoch.basewin) % markers set by condition/block
+                    if ~isempty(S.prep.epoch.basewinby)
+                        basewin = S.prep.epoch.basewin{ismember(S.prep.select.(S.prep.epoch.basewinby{:}),S.prep.designtab.(S.prep.epoch.basewinby{:}){f})};
+                    else
+                        basewin = S.prep.epoch.basewin{:};
+                    end
                     EEG = pop_rmbase( EEG, [basewin(1)*1000, basewin(2)*1000]);
                 else
                     EEG = pop_rmbase( EEG, [S.prep.epoch.basewin(1)*1000, S.prep.epoch.basewin(2)*1000]);
@@ -662,7 +742,11 @@ switch part
         for f = S.(S.func).startfile:length(S.prep.filelist)
             file = S.(S.func).filelist{f};
             disp(['loading file index ' num2str(f)])
-            EEG = pop_loadset('filename',file,'filepath',S.path.file);
+            try
+                EEG = pop_loadset('filename',file,'filepath',S.path.file);
+            catch
+                continue;
+            end
 
             % collect summary data
             S.prep.outtable.file{S.fn+f} = file;
@@ -695,9 +779,13 @@ switch part
             end
     
             % REMOVE BASELINE
-            if S.(S.func).epoch.rmbase
-                if iscell(S.prep.epoch.basewin) % markers set by condition
-                    basewin = S.prep.epoch.basewin{ismember(S.prep.select.conds,S.prep.designtab.conds{f})};
+            if S.prep.epoch.rmbase
+                if iscell(S.prep.epoch.basewin) % markers set by condition/block
+                    if ~isempty(S.prep.epoch.basewinby)
+                        basewin = S.prep.epoch.basewin{ismember(S.prep.select.(S.prep.epoch.basewinby{:}),S.prep.designtab.(S.prep.epoch.basewinby{:}){f})};
+                    else
+                        basewin = S.prep.epoch.basewin{:};
+                    end
                     EEG = pop_rmbase( EEG, [basewin(1)*1000, basewin(2)*1000]);
                 else
                     EEG = pop_rmbase( EEG, [S.prep.epoch.basewin(1)*1000, S.prep.epoch.basewin(2)*1000]);
@@ -879,14 +967,18 @@ switch part
                 end
         
                 % REMOVE BASELINE
-                if isfield(S.(S.func),'epoch') && isfield(S.(S.func).epoch,'rmbase') && S.(S.func).epoch.rmbase
-                    if iscell(S.prep.epoch.basewin) % markers set by condition
-                        basewin = S.prep.epoch.basewin{ismember(S.prep.select.conds,S.prep.designtab.conds{f})};
+                if S.prep.epoch.rmbase
+                    if iscell(S.prep.epoch.basewin) % markers set by condition/block
+                        if ~isempty(S.prep.epoch.basewinby)
+                            basewin = S.prep.epoch.basewin{ismember(S.prep.select.(S.prep.epoch.basewinby{:}),S.prep.designtab.(S.prep.epoch.basewinby{:}){f})};
+                        else
+                            basewin = S.prep.epoch.basewin{:};
+                        end
                         EEG = pop_rmbase( EEG, [basewin(1)*1000, basewin(2)*1000]);
                     else
                         EEG = pop_rmbase( EEG, [S.prep.epoch.basewin(1)*1000, S.prep.epoch.basewin(2)*1000]);
                     end
-                end               
+                end           
     
                 %RUN ICA 
                 if isfield(S.prep,'clean') && isfield(S.prep.clean,'ignore_stim_artefact') && ~isempty(S.prep.clean.ignore_stim_artefact)
