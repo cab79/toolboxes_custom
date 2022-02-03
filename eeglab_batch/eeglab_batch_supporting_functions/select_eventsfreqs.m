@@ -10,14 +10,17 @@ for f = 1:length(S.(S.func).files)
 
     switch S.(S.func).select.datatype
         case 'ERP'
+            S.(S.func).data{f} = cell(1,max(S.(S.func).select.events));
             % select events
             if isstruct(tldata)
-                S.(S.func).data{f} = {tldata};
-            elseif iscell(tldata)
-                S.(S.func).data{f} = cell(1,max(S.(S.func).select.events));
-                selectevents=intersect(S.(S.func).select.events,find(~cellfun(@isempty,tldata)));
-                S.(S.func).data{f}(selectevents) = tldata(selectevents);
+                % convert to cell
+                for tl = 1:length(tldata)
+                    tldata_cell{tl} = tldata(tl);
+                end
+                tldata=tldata_cell;
             end
+            selectevents=intersect(S.(S.func).select.events,find(~cellfun(@isempty,tldata)));
+            S.(S.func).data{f}(selectevents) = tldata(selectevents);
         case {'TF','Freq'}
             % select events
             if isstruct(fdata)

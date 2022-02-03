@@ -66,7 +66,7 @@ switch type
         load(file)
         
         if exist('gadata','var')
-            tldata{1}=gadata;
+            tldata(1)=gadata;
         else
             % select events
             if iscell(S.ploterp.select.events)
@@ -80,23 +80,28 @@ switch type
                 end
                 tldata=newdata;
             else
-                temp=intersect(S.ploterp.select.events,find(~cellfun(@isempty,tldata)));
+                temp=intersect(S.ploterp.select.events,find(~cellfun(@isempty,{tldata(:).avg})));
                 tldata = tldata(temp);
             end
         end
         
         % calculate weighted mean
-        noemp = find(~cellfun(@isempty,tldata));
+        noemp = find(~cellfun(@isempty,{tldata(:).avg}));
         tldata = tldata(noemp);
-        avgdata = tldata{1};
-        datstruct = cell2mat(tldata);
+        avgdata = tldata(1);
+        datstruct = tldata;
         datmat = cat(3,datstruct(:).avg);
         weights = cat(3,datstruct(:).ntrials);
         weighted_data = bsxfun(@times,datmat,weights/mean(weights));
         avgdata.avg = mean(weighted_data,3);
         %avgdata.avg = sum(datmat*weights,2)./sum(datmat,2);
 
-        [f,f2]=plotmulti(S,datmat,tldata,file,avgdata)
+        % convert to cell
+        for tl = 1:length(tldata)
+            tldata_cell{tl} = tldata(tl)
+        end
+
+        [f,f2]=plotmulti(S,datmat,tldata_cell,file,avgdata)
         waitfor(f)
         close(f2)
 %         % show outlier-ness
@@ -178,9 +183,10 @@ switch type
     
     case 'grandavg'
 
-        S.path.file = S.ploterp.loaddir;
-
-        fname = dir(fullfile(S.path.file,[S.ploterp.select.sessions{:} '_' S.ploterp.select.blocks{:} '_' S.ploterp.select.conds{:} '_' S.ploterp.load.suffix{:} '.' S.ploterp.fname.ext{:}]));
+        S.path.file = S.ploterp.load.dir;
+        fnamegen=fullfile(S.path.file,[S.ploterp.select.sessions{:} '*' S.ploterp.select.blocks{:} '*' S.ploterp.select.conds{:} '*' S.ploterp.load.suffix{:} '.' S.ploterp.fname.ext{:}])
+        fnamegen=strrep(fnamegen,'**','*');
+        fname = dir(fnamegen);
         fname = fname.name;
         load(fullfile(S.path.file,fname));
         avgdata = gadata.gavg;
@@ -222,15 +228,15 @@ f=figure('units','normalized','outerposition',[0 0 1 1]);
 cfg = [];
 cfg.layout = S.ploterp.layout;
 cfg.ylim = [prctile(datmat(:),0.1),prctile(datmat(:),99.9)];%S.ploterp.ylim;
-if ~isfield(S.ploterp,'event_labels') || isempty(S.ploterp.event_labels{:})
+if ~isfield(S.ploterp,'event_labels') || isempty(S.ploterp.event_labels)
     temp=1:length(tldata);
     labels = cellstr(num2str(temp(:)))';
 else
     labels = S.ploterp.event_labels;
 end
-if isfield(tldata{1},'trial')
+if isfield(tldata(1),'trial')
     for d = 1:length(tldata)
-        cfg.dataname{d} = ['event: ' labels{d} ', num trials: ' num2str(size(tldata{d}.trial,1))];
+        cfg.dataname{d} = ['event: ' labels{d} ', num trials: ' num2str(size(tldata(d).trial,1))];
     end
 else
     for d = 1:length(tldata)

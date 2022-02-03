@@ -8,7 +8,7 @@ S = filehandler(S,'start');
 
 % report if there are no such files
 if isempty(S.(S.func).filelist)
-    error('No files found to import!\n');
+    disp('No files found to import!\n');
 end
 
 % indices of S.filelist for each subject

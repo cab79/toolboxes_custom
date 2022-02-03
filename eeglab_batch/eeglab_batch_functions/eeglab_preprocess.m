@@ -43,6 +43,8 @@ switch part
                 else
                     correct_latency=0;
                 end
+            else 
+                correct_latency=1;
             end
             
             if correct_latency
@@ -225,7 +227,7 @@ switch part
         % study-specific code for CORE study, where DIN2 is use to time
         % the events, but the even information (marker type) is stored in
         % STIM
-        if strcmp(S.prep.epoch.markers{:},'DIN2')
+        if any(strcmp(S.prep.epoch.markers,'DIN2'))
             rm_trials = [];
             for ep = 1:length(EEG.epoch)
                 stimevidx = find(strcmp('STIM',EEG.epoch(ep).eventtype));

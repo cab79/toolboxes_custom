@@ -381,98 +381,100 @@ for f = S.(S.func).startfile:length(S.(S.func).filelist)
 
             % SAVE
             disp('saving ERP file...')
-            save(fullfile(S.erp.save.dir,sname),'tldata');
+            save(fullfile(S.erp.save.dir,sname),'tldata','-v7.3');
 
-            % summary data per bin
-            disp('calculating summary statistics...')
-            FracSigMean = nan(1,length(tldata));
-            SNRmean = nan(1,length(tldata));
-            Signalmean = nan(1,length(tldata));
-            Noisemean = nan(1,length(tldata));
-            topomean = nan(1,length(tldata));
-            topofracsig = nan(1,length(tldata));
-            meanSME = nan(1,length(tldata));
-            for nb = 1:length(tldata)
-                mname = tldata(nb).bin_name;
-                mname(isspace(mname)) = [];
-                if isfield(tldata(nb),'ntrials') && ~isempty(tldata(nb).ntrials)
-
-                    S.(S.func).outtable.(['Ntrials_' mname]){S.fn+f} = tldata(nb).ntrials;
+            if ~isempty(S.erp.outtable_name)
+                % summary data per bin
+                disp('calculating summary statistics...')
+                FracSigMean = nan(1,length(tldata));
+                SNRmean = nan(1,length(tldata));
+                Signalmean = nan(1,length(tldata));
+                Noisemean = nan(1,length(tldata));
+                topomean = nan(1,length(tldata));
+                topofracsig = nan(1,length(tldata));
+                meanSME = nan(1,length(tldata));
+                for nb = 1:length(tldata)
+                    mname = tldata(nb).bin_name;
+                    mname(isspace(mname)) = [];
+                    if isfield(tldata(nb),'ntrials') && ~isempty(tldata(nb).ntrials)
     
-                    % collect summary data: SNR
-                    basewin=dsearchn(tldata(nb).time',S.erp.SNR.basewin');
-                    sigwin=dsearchn(tldata(nb).time',S.erp.SNR.signalwin');
-                    data = permute(tldata(nb).trial,[2 3 1]);
-                    base=data(:,basewin(1):basewin(2),:);
-                    sig=data(:,sigwin(1):sigwin(2),:);
-                    S.(S.func).outtable.(['signal_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
-                    S.(S.func).outtable.(['noise_' mname]){S.fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
-                    S.(S.func).outtable.(['SNR_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
-                    
-                    % SME (see ERPLAB)
-                    tw=S.erp.SNR.timewin; % time window to average over
-                    [~,maxlat] = max(mean(std(sig,[],1),3));
-                    mlat = sigwin(1)+maxlat-1; % adjust to sig onset
-                    meanamp = squeeze(mean(data(:,max(1,floor(mlat-EEG.srate/(tw*1000))):min(size(data,2),ceil(mlat+EEG.srate/(tw*1000))),:),2));
-                    SME = std(meanamp,[],2)./sqrt(size(meanamp,2));
-                    % mean over chans
-                    S.(S.func).outtable.(['SME_' mname]){S.fn+f} = mean(SME);
-                    % latency
-                    S.(S.func).outtable.(['maxlat_' mname]){S.fn+f} = tldata(nb).time(mlat);
-                    maxlat_all(nb)=tldata(nb).time(mlat);
-    
-                    % topo correlation
-                    topo_rho=[];
-                    topo_fracsig=[];
-                    for sm = 1:size(sig,2)
-                        [rho, pval] = corr(squeeze(sig(:,sm,:)),'type','Spearman');
-                        upperT = triu(ones(size(rho)));
-                        topo_rho(sm)= median(rho(upperT==1));
-                        topo_fracsig(sm)= sum((pval(upperT==1)<0.05))/numel(pval);
-                    end
-                    S.(S.func).outtable.(['signal_topocorr_' mname]){S.fn+f} = mean(topo_rho);
-                    S.(S.func).outtable.(['fracsig_topocorr_' mname]){S.fn+f} = mean(topo_fracsig);
-    
-                    % collect summary data: signal difference from zero (t-test over trials)
-                    if size(sig,3)>1
-                        sig2d = reshape(sig,[],size(sig,3));
-                        hs=[];zs=[];
-                        for dp = 1:size(sig2d,1)
-                            if all(isnan(sig2d(dp,:)))
-                                hs(dp) = nan;
-                                zs(dp) = nan;
-                            else
-                                [~,hs(dp),stats] = signrank(sig2d(dp,:),0,'method','approximate');
-                                zs(dp) = abs(stats.zval);
-                            end
+                        S.(S.func).outtable.(['Ntrials_' mname]){S.fn+f} = tldata(nb).ntrials;
+        
+                        % collect summary data: SNR
+                        basewin=dsearchn(tldata(nb).time',S.erp.SNR.basewin');
+                        sigwin=dsearchn(tldata(nb).time',S.erp.SNR.signalwin');
+                        data = permute(tldata(nb).trial,[2 3 1]);
+                        base=data(:,basewin(1):basewin(2),:);
+                        sig=data(:,sigwin(1):sigwin(2),:);
+                        S.(S.func).outtable.(['signal_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                        S.(S.func).outtable.(['noise_' mname]){S.fn+f} = mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                        S.(S.func).outtable.(['SNR_' mname]){S.fn+f} = mean(rms(std(sig,0,1),2),3) / mean(rms(std(base,0,1),2),3); % mean over trials of the RMS over time of the GFP over channels
+                        
+                        % SME (see ERPLAB)
+                        tw=S.erp.SNR.timewin; % time window to average over
+                        [~,maxlat] = max(mean(std(sig,[],1),3));
+                        mlat = sigwin(1)+maxlat-1; % adjust to sig onset
+                        meanamp = squeeze(mean(data(:,max(1,floor(mlat-EEG.srate/(tw*1000))):min(size(data,2),ceil(mlat+EEG.srate/(tw*1000))),:),2));
+                        SME = std(meanamp,[],2)./sqrt(size(meanamp,2));
+                        % mean over chans
+                        S.(S.func).outtable.(['SME_' mname]){S.fn+f} = mean(SME);
+                        % latency
+                        S.(S.func).outtable.(['maxlat_' mname]){S.fn+f} = tldata(nb).time(mlat);
+                        maxlat_all(nb)=tldata(nb).time(mlat);
+        
+                        % topo correlation
+                        topo_rho=[];
+                        topo_fracsig=[];
+                        for sm = 1:size(sig,2)
+                            [rho, pval] = corr(squeeze(sig(:,sm,:)),'type','Spearman');
+                            upperT = triu(ones(size(rho)));
+                            topo_rho(sm)= median(rho(upperT==1));
+                            topo_fracsig(sm)= sum((pval(upperT==1)<0.05))/numel(pval);
                         end
-                        S.(S.func).outtable.(['signrank_meanabsZ_' mname]){S.fn+f} = nanmean(zs); 
-                        S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f} = nanmean(hs); 
-                    else
-                        S.(S.func).outtable.(['signrank_meanabsZ_' mname]){S.fn+f} = nan; 
-                        S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f} = nan; 
+                        S.(S.func).outtable.(['signal_topocorr_' mname]){S.fn+f} = mean(topo_rho);
+                        S.(S.func).outtable.(['fracsig_topocorr_' mname]){S.fn+f} = mean(topo_fracsig);
+        
+                        % collect summary data: signal difference from zero (t-test over trials)
+                        if size(sig,3)>1
+                            sig2d = reshape(sig,[],size(sig,3));
+                            hs=[];zs=[];
+                            for dp = 1:size(sig2d,1)
+                                if all(isnan(sig2d(dp,:)))
+                                    hs(dp) = nan;
+                                    zs(dp) = nan;
+                                else
+                                    [~,hs(dp),stats] = signrank(sig2d(dp,:),0,'method','approximate');
+                                    zs(dp) = abs(stats.zval);
+                                end
+                            end
+                            S.(S.func).outtable.(['signrank_meanabsZ_' mname]){S.fn+f} = nanmean(zs); 
+                            S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f} = nanmean(hs); 
+                        else
+                            S.(S.func).outtable.(['signrank_meanabsZ_' mname]){S.fn+f} = nan; 
+                            S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f} = nan; 
+                        end
+        
+                        FracSigMean(1,nb) = S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f};
+                        SNRmean(1,nb) = S.(S.func).outtable.(['SNR_' mname]){S.fn+f};
+                        Signalmean(1,nb) = S.(S.func).outtable.(['signal_' mname]){S.fn+f};
+                        Noisemean(1,nb) = S.(S.func).outtable.(['noise_' mname]){S.fn+f};
+                        topomean(1,nb) = S.(S.func).outtable.(['signal_topocorr_' mname]){S.fn+f};
+                        topofracsig(1,nb) = S.(S.func).outtable.(['fracsig_topocorr_' mname]){S.fn+f};
+                        meanSME(1,nb) = S.(S.func).outtable.(['SME_' mname]){S.fn+f};
+    
                     end
     
-                    FracSigMean(1,nb) = S.(S.func).outtable.(['signrank_fracSig_' mname]){S.fn+f};
-                    SNRmean(1,nb) = S.(S.func).outtable.(['SNR_' mname]){S.fn+f};
-                    Signalmean(1,nb) = S.(S.func).outtable.(['signal_' mname]){S.fn+f};
-                    Noisemean(1,nb) = S.(S.func).outtable.(['noise_' mname]){S.fn+f};
-                    topomean(1,nb) = S.(S.func).outtable.(['signal_topocorr_' mname]){S.fn+f};
-                    topofracsig(1,nb) = S.(S.func).outtable.(['fracsig_topocorr_' mname]){S.fn+f};
-                    meanSME(1,nb) = S.(S.func).outtable.(['SME_' mname]){S.fn+f};
-
                 end
-
+    
+                S.(S.func).outtable.(['SignRank_FracSigMean']){S.fn+f} = nanmean(FracSigMean);
+                S.(S.func).outtable.(['SNRmean']){S.fn+f} = nanmean(SNRmean);
+                S.(S.func).outtable.(['Signalmean']){S.fn+f} = nanmean(Signalmean);
+                S.(S.func).outtable.(['Noisemean']){S.fn+f} = nanmean(Noisemean);
+                S.(S.func).outtable.(['signal_topocorr_mean']){S.fn+f} = nanmean(topomean);
+                S.(S.func).outtable.(['fracsig_topocorr_mean']){S.fn+f} = nanmean(topofracsig);
+                S.(S.func).outtable.(['SME_mean']){S.fn+f} = nanmean(meanSME);
+                S.(S.func).outtable.(['SME_maxlat']){S.fn+f} = nanstd(maxlat_all,[],2)./sqrt(sum(~isnan(maxlat_all)));
             end
-
-            S.(S.func).outtable.(['SignRank_FracSigMean']){S.fn+f} = nanmean(FracSigMean);
-            S.(S.func).outtable.(['SNRmean']){S.fn+f} = nanmean(SNRmean);
-            S.(S.func).outtable.(['Signalmean']){S.fn+f} = nanmean(Signalmean);
-            S.(S.func).outtable.(['Noisemean']){S.fn+f} = nanmean(Noisemean);
-            S.(S.func).outtable.(['signal_topocorr_mean']){S.fn+f} = nanmean(topomean);
-            S.(S.func).outtable.(['fracsig_topocorr_mean']){S.fn+f} = nanmean(topofracsig);
-            S.(S.func).outtable.(['SME_mean']){S.fn+f} = nanmean(meanSME);
-            S.(S.func).outtable.(['SME_maxlat']){S.fn+f} = nanstd(maxlat_all,[],2)./sqrt(sum(~isnan(maxlat_all)));
             
             
         case {'Freq','TF','Coh'}
