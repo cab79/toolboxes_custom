@@ -15,7 +15,7 @@ switch part
 
     % report if there are no such files
     if isempty(S.prep.filelist)
-        error('No files found!\n');
+        disp('No files found!\n');
     end
 
     % run though all files in a loop

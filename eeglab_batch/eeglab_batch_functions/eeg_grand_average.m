@@ -89,7 +89,12 @@ for ga = 1:length(uni_ind)
     keepev = find(keepind);
     data_all{ga} = data_all{ga}(:,keepind);
     nev = size(data_all{ga},2); % number of events
-    noemp = ~cellfun(@isempty,data_all{ga}); % some files might be missing conditions
+    noemp = false(size(data_all{ga}));
+    for i = 1:numel(data_all{ga})
+        if ~isempty(data_all{ga}{i}) && ~isempty(data_all{ga}{i}.avg)
+            noemp(i) = true; % some files might be missing conditions
+        end
+    end
     clear temp
 
     method = {'across','within'}; if S.(S.func).grand_avg.weighted; method = method{2}; else method = method{1};end
