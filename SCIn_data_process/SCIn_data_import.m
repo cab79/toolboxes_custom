@@ -9,6 +9,10 @@ S.load.prefix = S.load.prefixes(1);
 S.path.file = S.path.raw;
 S = getfilelist(S);
 
+% UPDATE Feb 2022
+S.filelist = S.designtab.file;
+S.dirlist = S.designtab.dir;
+
 % change to the input directory
 eval(sprintf('%s', ['cd(''' S.path.file ''')']));
 
