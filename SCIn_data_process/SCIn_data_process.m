@@ -449,12 +449,23 @@ if S.save.tables
         fraction_trials_retained_table.subject{d,1} = D(d).subname;
         total_summary_table.subject{d,1} = D(d).subname;
 
+
 %         % missing data
 %         if isempty(D(d).Processed)
 %             continue; 
 %         end
 
         try
+
+            % add date recorded from filename
+            fn_split = strsplit(D(d).Output.filename,{'startblock1_','.mat'},'CollapseDelimiters',true);
+            formatIn = 'yyyymmddTHHMMSS';
+            dn=datenum(fn_split{2},formatIn);
+            formatOut = 'dd/mm/yyyy';
+            total_summary_table.date{d,1} = {datestr(dn,formatOut)};
+            % add group info
+            total_summary_table.group{d,1} = S.designtab.groups(ismember(S.designtab.subjects,total_summary_table.subject{d,1}));
+            % add data
             fraction_options_table.('total')(d,1) = D(d).Processed(1).totaloptionfract(2);
             fraction_correct_table.('total')(d,1) = D(d).Processed(1).totalcorrectfract;
             log_response_time_table.('total')(d,1) = D(d).Processed(1).mean_logrt;
