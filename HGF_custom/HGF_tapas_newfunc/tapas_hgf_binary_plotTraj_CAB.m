@@ -60,7 +60,7 @@ else
 end
 
 if plotsd
-    if isfield(r.traj.(priormodel),'g')
+    if isfield(r.traj.(priormodel),'g') && l==1
         sa = r.traj.(priormodel).sa;
         sa_0=sa(1);
     else

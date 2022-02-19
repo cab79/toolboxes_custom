@@ -26,7 +26,7 @@ res  = NaN(n,1);
 % Predictions
 %x = infStates(:,1,1);
 if strcmp(r.c_prc.response.rep,'xc')
-    x = r.traj.(r.c_obs.model).xchat(:,1);
+    
 else
     x = r.traj.(r.c_obs.model).muhat(:,1);
 end

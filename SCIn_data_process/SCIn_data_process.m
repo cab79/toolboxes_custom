@@ -5,7 +5,7 @@ if ~isfield(S,'trialmax')
     S.trialmax = {1000};
 end
 if ~isfield(S,'movingavg')
-    S.movingavg = 20;
+    S.movingavg = [5 10];
 end
 if ~isfield(S,'response_to_analyse')
     S.response_to_analyse = 'first'; % by default, analyse first response per trial only
@@ -394,52 +394,53 @@ end
 % display missing data
 missing_data
 
-% calculate correlation between group mean and subject accuracy over
-% conditions
-all_Acc = [];
-for c = 1:length(conds)
-    for d = 1:length(D)
-        try
-            all_Acc(c,d) = D(d).Processed(1).condcorrectfract{1}(c);
-        catch
-            all_Acc(c,d) = nan;
-        end
-    end
-end
-mean_Acc_cond = nanmean(all_Acc,2);
-for d = 1:length(D)
-    if isempty(D(d).Processed)
-        continue; 
-    end
-    % correlation between subject and group
-    idx = ~isnan(D(d).Processed.condcorrectfract{1});
-    D(d).Processed.cond_Acc_groupcorr = corr(mean_Acc_cond(idx),D(d).Processed.condcorrectfract{1}(idx)', 'type', 'Spearman');
-end
-
-% calculate correlation between group mean and subject logRT over
-% conditions
-all_logRT = [];
-for c = 1:length(conds)
-    for d = 1:length(D)
-        try
-            all_logRT(c,d) = D(d).Processed(1).cond_logrt{1}(c);
-        catch
-            all_logRT(c,d) = nan;
-        end
-    end
-end
-mean_logRT_cond = nanmean(all_logRT,2);
-for d = 1:length(D)
-    if isempty(D(d).Processed)
-        continue; 
-    end
-    % correlation between subject and group
-    idx = ~isnan(D(d).Processed.cond_logrt{1});
-    D(d).Processed.cond_logrt_groupcorr = corr(mean_logRT_cond(idx),D(d).Processed.cond_logrt{1}(idx)', 'type', 'Spearman');
-end
-
 % save a single table for all subjects' total and also condition-mean data
 if S.save.tables
+    
+    % calculate correlation between group mean and subject accuracy over
+    % conditions
+    all_Acc = [];
+    for c = 1:length(conds)
+        for d = 1:length(D)
+            try
+                all_Acc(c,d) = D(d).Processed(1).condcorrectfract{1}(c);
+            catch
+                all_Acc(c,d) = nan;
+            end
+        end
+    end
+    mean_Acc_cond = nanmean(all_Acc,2);
+    for d = 1:length(D)
+        if isempty(D(d).Processed)
+            continue; 
+        end
+        % correlation between subject and group
+        idx = ~isnan(D(d).Processed.condcorrectfract{1});
+        D(d).Processed.cond_Acc_groupcorr = corr(mean_Acc_cond(idx),D(d).Processed.condcorrectfract{1}(idx)', 'type', 'Spearman');
+    end
+    
+    % calculate correlation between group mean and subject logRT over
+    % conditions
+    all_logRT = [];
+    for c = 1:length(conds)
+        for d = 1:length(D)
+            try
+                all_logRT(c,d) = D(d).Processed(1).cond_logrt{1}(c);
+            catch
+                all_logRT(c,d) = nan;
+            end
+        end
+    end
+    mean_logRT_cond = nanmean(all_logRT,2);
+    for d = 1:length(D)
+        if isempty(D(d).Processed)
+            continue; 
+        end
+        % correlation between subject and group
+        idx = ~isnan(D(d).Processed.cond_logrt{1});
+        D(d).Processed.cond_logrt_groupcorr = corr(mean_logRT_cond(idx),D(d).Processed.cond_logrt{1}(idx)', 'type', 'Spearman');
+    end
+
 
     % add data to group condition table
     for d = 1:length(D)

@@ -61,10 +61,11 @@ if any(strcmp(c.responses , 'Ch'))
     c = paramvec(c,type);
 end
 
-c.params = S.resp_modelspec.params;
 
 if any(strcmp(c.responses, 'RT')) || any(strcmp(c.responses, 'EEG')) || any(strcmp(c.responses, 'HGFvar')) || any(strcmp(c.responses, 'CCAcomp'))  || any(strcmp(c.responses, 'CCA_FApred'))
     % USE REGRESSION MODEL
+    
+    c.params = S.resp_modelspec.params;
     
     % Sufficient statistics of Gaussian parameter priors
     
