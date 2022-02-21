@@ -32,16 +32,16 @@ switch S.resp_modelspec.responses{:}
 
                 % to create benchmark for predictions, randomise simulated
                 % responses over trials 
+                rand_choices = nan(length(fitted_choices),1);
 
-%                 %separately for each stimulus type (0 and 1)
-%                 rand_choices = nan(length(fitted_choices),1);
-%                 u0i = find(D_sim(d).HGF(rep).sim.u(:,1)==0);
-%                 u1i = find(D_sim(d).HGF(rep).sim.u(:,1)==1);
-%                 rand_choices(u0i) = D_sim(d).HGF(rep).sim.y(u0i(randperm(length(u0i))),1);
-%                 rand_choices(u1i) = D_sim(d).HGF(rep).sim.y(u1i(randperm(length(u1i))),1);
+                %separately for each stimulus type (0 and 1)
+                u0i = find(D_sim(d).HGF(rep).sim.u(:,1)==0);
+                u1i = find(D_sim(d).HGF(rep).sim.u(:,1)==1);
+                rand_choices(u0i) = D_sim(d).HGF(rep).sim.y(u0i(randperm(length(u0i))),1);
+                rand_choices(u1i) = D_sim(d).HGF(rep).sim.y(u1i(randperm(length(u1i))),1);
 
                 %over both stimulus types (0 and 1)
-                rand_choices = D_sim(d).HGF(rep).sim.y(randperm(length(D_sim(d).HGF(rep).sim.y)),1);
+                rand_choices = D_sim(d).HGF(rep).sim.y(length(D_sim(d).HGF(rep).sim.y),1);
                 rand_correct(rep) = sum(rand_choices == actual_choices)/length(actual_choices);
             end
             means_fitted(d,1)=mean(fitted_correct);

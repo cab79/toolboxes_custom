@@ -67,8 +67,8 @@ end
 % fit = tapas_fitModel_CAB([], D(1).HGF(1).u, prc_model, S.bayesopt_config, opt_algo,S, 0);
 % sim=fit;
 fit=cell(length(D),1);sim=cell(length(D),1);
-parfor (d = 1:length(D),parforArg)
-% for d = 1:length(D)
+% parfor (d = 1:length(D),parforArg)
+for d = 1:length(D)
     
     disp(['testing perc model ' num2str(S.perc_model) ', resp model ' num2str(S.resp_model) ', subject ' num2str(d) '/' num2str(length(D))])
 
@@ -155,14 +155,14 @@ parfor (d = 1:length(D),parforArg)
         end
     end
 
-%     if S.parallel==0
-%         % assign parameters to D
-%         if sim_on==1
-%             D(d).HGF(yn).sim = sim{d};
-%         else
-%             D(d).HGF(yn).fit = fit{d};
-%         end
-%     end
+    if S.parallel==0
+        % assign parameters to D
+        if sim_on==1
+            D(d).HGF(yn).sim = sim{d};
+        else
+            D(d).HGF(yn).fit = fit{d};
+        end
+    end
 
     % PLOTS
     if sim_on==1

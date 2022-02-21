@@ -9,10 +9,6 @@ fitfields = {'p_prc','p_obs','traj'};
 %fitfields = {'p_prc','traj'};
 ignorefields = {'p','ptrans'};
 
-if size(S.condmean,1)>1
-    S.condmean = S.condmean(:);
-end
-
 % compile parameters and trajectories into  param and traj structures
 for d = 1:length(D) 
     for ff = 1:length(fitfields)
@@ -51,13 +47,15 @@ for pf = 1:length(paramfields)
 end
 
 % create results table
-if length(D)>1
-    T = cell2table(S.designmat(2:end,:),...
-        'VariableNames',S.designmat(1,:));
-    T = [T,struct2table(tablecols)];
-else
-    T=struct2table(tablecols);
-end
+T = S.designtab;
+T = [T,struct2table(tablecols)];
+% if length(D)>1
+%     T = cell2table(S.designmat(2:end,:),...
+%         'VariableNames',S.designmat(1,:));
+%     T = [T,struct2table(tablecols)];
+% else
+%     T=struct2table(tablecols);
+% end
 
 
 % for traj, first split into levels, then create means and stds, and then add values to table
@@ -94,6 +92,10 @@ for tf = 1:length(trajfields)
 end
 
 if isfield(S,'condmean') && ~isempty(S.condmean)
+    if size(S.condmean,1)>1
+        S.condmean = S.condmean(:);
+    end
+
     condfields = fieldnames(S.cond);
     for tf = 1:length(S.condmean) % for each traj
         for d = 1:length(traj) % for each subject

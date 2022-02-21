@@ -536,6 +536,7 @@ al(1,:,:)     = [];
 vj_mu(1) = [];
 xc(1) = [];
 xchat(1) = [];
+xcpihat(1) = [];
 
 % Remove other dummy initial values
 muhat(1,:,:) = [];
@@ -601,6 +602,7 @@ for m=1:nModels
     traj.like.vj_mu = vj_mu;
     traj.like.xc = xc;
     traj.like.xchat = xchat;
+    traj.like.xcsahat = 1./xcpihat;
 
     traj.(type).mu0    = mu0(:,:,m);
     traj.(type).mu     = mu(:,:,m);

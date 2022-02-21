@@ -1,6 +1,6 @@
 function varargout=HGF_group_model_comparison(S,varargin)
 % OUTPUT: varargout is {posterior,out,gposterior,gout}
-addpath('G:\Q_backup\MATLAB\toolboxes_external\cbrewer'); % (https://uk.mathworks.com/matlabcentral/fileexchange/34087-cbrewer---colorbrewer-schemes-for-matlab)
+addpath('E:\Q_backup\MATLAB\toolboxes_external\cbrewer'); % (https://uk.mathworks.com/matlabcentral/fileexchange/34087-cbrewer---colorbrewer-schemes-for-matlab)
 
 if nargin>1 && ~isempty(varargin{1})
     LME = varargin{1};
@@ -23,10 +23,12 @@ if ~LME_input
 end
 
 % group info
-if isfield(S,'designmat')
-    grplist = S.designmat(2:end,strcmp(S.designmat(1,:),'groups'));
-elseif isfield(S,'grplist')
+if isfield(S,'grplist')
     grplist = S.grplist;
+elseif isfield(S,'designmat')
+    grplist = S.designmat(2:end,strcmp(S.designmat(1,:),'groups'));
+elseif isfield(S,'designtab')
+    grplist = S.designtab.groups;
 end
 grpuni = unique(grplist,'stable');
 

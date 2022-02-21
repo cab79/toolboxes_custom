@@ -5,10 +5,12 @@ for d = 1:length(D)
     %sim=[];
     for ns = 1:S.numsimrep
         S.HGF.selectrep=1;
-        D_out=HGF_run(D(d),S,1);
+        S.parallel = 0;
+        D_out=HGF_run_nopara(D(d),S,1);
         D(d).HGF(ns).sim = D_out.HGF(1).sim;
     end
 
+    % for binary choices
     for ns = 1:S.numsimrep
         if length(D(d).HGF(ns).sim.y)==length(D(d).HGF(1).u)
             D(d).Output(ns).presstrial = 1:length(D(d).HGF(ns).sim.y);
