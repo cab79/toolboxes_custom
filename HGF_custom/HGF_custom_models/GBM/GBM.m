@@ -496,8 +496,13 @@ for k=2:1:n
             % respectively.
             % So, when vj_mu is close to 0 and precise, xchat approaches 0
         
-        rt=exp(((eta1-vj_mu(k,1))^2 - (eta0-vj_mu(k,1))^2)/(vj_phi^-2));
-        xchat(k,1) = 1/(1+rt);
+        if 0 
+            % bimodal likelihood
+            rt=exp(((eta1-vj_mu(k,1))^2 - (eta0-vj_mu(k,1))^2)/(vj_phi^-2));
+            xchat(k,1) = 1/(1+rt);
+        else
+            xchat(k,1) = vj_mu(k,1);
+        end
         
         % Precision of prediction
         xcpihat(k,1) = 1/(xchat(k,1)*(1 -xchat(k,1)));

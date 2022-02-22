@@ -19,7 +19,7 @@ if nargin < 2
 end
 % one frequency for all
 L = horzcat(Ls{:});
-options.figName = 'RFX-BMS: all subjects';
+
 [posterior,out] = VBA_groupBMC_cab(L,options,pep_flag);
 Fe = out.F(end);
 varargout = {out};
@@ -27,23 +27,22 @@ varargout = {out};
 % separate frequencies
 Fd = 0;
 for g = 1:length(Ls)
-    options.figName = ['RFX-BMS: group ' options.grpNames{g}];
     [~,out] = VBA_groupBMC_cab(Ls{g},options,pep_flag);
     Fd = Fd+out.F(end);
-    varargout = [varargout,{out}];
+    varargout = {
 end
-% if length(Ls)==2
-%     [posterior1,out1] = VBA_groupBMC_cab(Ls{1},options,pep_flag);
-%     [posterior2,out2] = VBA_groupBMC_cab(Ls{2},options,pep_flag);
-%     Fd = out1.F(end) + out2.F(end);
-%     varargout = {[varargout,{out1},{out2}]};
-% elseif length(Ls)==3
-%     [posterior1,out1] = VBA_groupBMC_cab(Ls{1},options,pep_flag);
-%     [posterior2,out2] = VBA_groupBMC_cab(Ls{2},options,pep_flag);
-%     [posterior3,out3] = VBA_groupBMC_cab(Ls{3},options,pep_flag);
-%     Fd = out1.F(end) + out2.F(end) + out3.F(end);
-%     varargout = {[varargout,{out1},{out2},{out3}]};
-% end
+if length(Ls)==2
+    [posterior1,out1] = VBA_groupBMC_cab(Ls{1},options,pep_flag);
+    [posterior2,out2] = VBA_groupBMC_cab(Ls{2},options,pep_flag);
+    Fd = out1.F(end) + out2.F(end);
+    varargout = {[varargout,{out1},{out2}]};
+elseif length(Ls)==3
+    [posterior1,out1] = VBA_groupBMC_cab(Ls{1},options,pep_flag);
+    [posterior2,out2] = VBA_groupBMC_cab(Ls{2},options,pep_flag);
+    [posterior3,out3] = VBA_groupBMC_cab(Ls{3},options,pep_flag);
+    Fd = out1.F(end) + out2.F(end) + out3.F(end);
+    varargout = {[varargout,{out1},{out2},{out3}]};
+end
 
 p = 1./(1+exp(Fd-Fe));
 h = p<.05;

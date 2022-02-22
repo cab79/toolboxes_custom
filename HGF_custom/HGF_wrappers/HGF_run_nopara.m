@@ -189,6 +189,7 @@ for d = 1:length(D)
     end
     if isfield(S.HGF,'plotdiag') && S.HGF.plotdiag
         tapas_fit_plotResidualDiagnostics(fit{d});
+        tapas_fit_plotCorr(fit{d});
     end
 
     if S.parallel ==0
