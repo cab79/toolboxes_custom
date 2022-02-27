@@ -400,8 +400,6 @@ for k=2:1:n
                     % Representation prediction error
                     da(k,1,m) = mu(k,1,m) -muhat(k,1,m);
                 else
-                    % just make these zero for plotting, but they are not
-                    % used for estimating the model (only muhat for joint models)
                     mu(k,1,m) = 0;
                     mu0(k,1,m) = 0;
                 end

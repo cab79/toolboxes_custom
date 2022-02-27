@@ -32,6 +32,10 @@ for g = 1:length(Ls)
     Fd = Fd+out.F(end);
     varargout = [varargout,{out}];
 end
+
+if length(varargout)>1
+    varargout = {varargout};
+end
 % if length(Ls)==2
 %     [posterior1,out1] = VBA_groupBMC_cab(Ls{1},options,pep_flag);
 %     [posterior2,out2] = VBA_groupBMC_cab(Ls{2},options,pep_flag);

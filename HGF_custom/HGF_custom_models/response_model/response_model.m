@@ -50,26 +50,30 @@ if any(strcmp(r.c_obs.responses, 'Ch'))
     ys = r.y(:,ycol);
     ys(r.irr) = [];
 
-    if size(r.u,2) == 3
-        r0 = r.u(:,2);
-        r0(r.irr) = [];
-        r1 = r.u(:,3);
-        r1(r.irr) = [];
-    end
+    % CAB removed code below that weights the inputs according to columns 2
+    % and 3, since I now us these columns to indicate conditions and cue
+    % values respectively.
+
+%     if size(r.u,2) == 3
+%         r0 = r.u(:,2);
+%         r0(r.irr) = [];
+%         r1 = r.u(:,3);
+%         r1(r.irr) = [];
+%     end
 
     % Calculate log-probabilities for non-irregular trials
     % If input matrix has only one column, assume the weight (reward value)
     % of both options is equal to 1
-    if size(r.u,2) == 2 % CAB changed to 2 from 1, as second column now contains conditions
+%     if size(r.u,2) == 2 % CAB changed to 2 from 1, as second column now contains conditions
         % Probability of observed choice
         probc = 1./(1+exp(-be.*(2.*x-1).*(2.*ys-1)));
-    end
-    % If input matrix has three columns, the second contains the weights of
-    % outcome 0 and the third contains the weights of outcome 1
-    if size(r.u,2) == 3 % CAB changed to 3 from 2, as second column now contains conditions
-        % Probability of observed choice
-        probc = 1./(1+exp(-be.*(r1.*x-r0.*(1-x)).*(2.*ys-1)));
-    end
+%     end
+%     % If input matrix has three columns, the second contains the weights of
+%     % outcome 0 and the third contains the weights of outcome 1
+%     if size(r.u,2) == 3 % CAB changed to 3 from 2, as second column now contains conditions
+%         % Probability of observed choice
+%         probc = 1./(1+exp(-be.*(r1.*x-r0.*(1-x)).*(2.*ys-1)));
+%     end
     logp_so(reg) = log(probc);
     yh = ys.*probc +(1-ys).*(1-probc);
     yhat(reg) = yh;
@@ -118,16 +122,18 @@ if any(strcmp(r.c_obs.responses, 'RT')) || any(strcmp(r.c_obs.responses, 'EEG'))
         poo = m1hreg.^u.*(1-m1hreg).^(1-u); % probability of observed outcome
         surp = -log2(poo);
 
-        % Bernoulli variance (aka irreducible uncertainty, risk) 
-        % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        xcsahat = r.traj.(r.c_obs.model).xcsahat(:,1);
-        
-        bernvhat = xcsahat;
-        bernvhat(r.irr) = [];
-    
-        % Calculate predicted log-response
-        % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        logresp = be0 +be1.*surp +be2.*bernvhat;
+%         % Bernoulli variance (aka irreducible uncertainty, risk) 
+%         % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%         xcsahat = r.traj.(r.c_obs.model).xcsahat(:,1);
+%         
+%         bernvhat = xcsahat;
+%         bernvhat(r.irr) = [];
+%     
+%         % Calculate predicted log-response
+%         % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%         logresp = be0 +be1.*surp +be2.*bernvhat;
+
+        logresp = be0 +be1.*surp;
 
     else
         % Extract trajectories of interest from infStates

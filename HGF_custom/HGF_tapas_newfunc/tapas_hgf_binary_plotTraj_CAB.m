@@ -21,7 +21,7 @@ scrsz = get(0,'screenSize');
 outerpos = [0.2*scrsz(3),0.2*scrsz(4),0.8*scrsz(3),0.8*scrsz(4)];
 figure(...
     'OuterPosition', outerpos,...
-    'Name', 'HGF trajectories');
+    'Name', ['HGF trajectories ' priormodel]);
 
 % Time axis
 %if size(r.u,2) > 1
@@ -107,6 +107,8 @@ try
     plot(ts, [tapas_sgm(mu_0(2), 1); tapas_sgm(mu(:,2), 1)], 'b', 'LineWidth', 2);
     hold all;
     plot(0, tapas_sgm(mu_0(2), 1), 'ob', 'LineWidth', 2); % prior
+    plot(ts, [mu_0(1); mu(:,1)], 'r', 'LineWidth', 1);
+    plot(0, mu_0(1), 'or', 'LineWidth', 1); % prior
 catch
     plot(ts, [mu_0(1); mu(:,1)], 'r', 'LineWidth', 1);
     hold all;
@@ -128,15 +130,17 @@ if (ploty == true) && ~isempty(find(strcmp(fieldnames(r),'y'))) && ~isempty(r.y)
         end
     end
     plot(ts(2:end), y, '.', 'Color', [1 0.7 0]); % responses
-    title(['Response y (orange), input u (green), learning rate (fine black), and posterior expectation of input s(\mu_2) ', ...
-           '(red) for \rho=', num2str(rho(2:end)), ', \kappa=', ...
+    title(['Response y (orange), input u (green), learning rate (fine black), posterior expectation of input s(\mu_2) (blue), ', ...
+           ', \mu_0 (red), ',...
+           'for \rho=', num2str(rho(2:end)), ', \kappa=', ...
            num2str(ka(2:end)), ', \omega=', num2str(om(2:end))], ...
       'FontWeight', 'bold');
     ylabel('y, u, s(\mu_2), mu_1');
     axis([0 ts(end) -0.15 1.15]);
 else
-    title(['Input u (green), learning rate (fine black), and posterior expectation of input s(\mu_2) ', ...
-           '(red) for \rho=', num2str(rho(2:end)), ', \kappa=', ...
+    title(['Response y (orange), input u (green), learning rate (fine black), posterior expectation of input s(\mu_2) (blue), ', ...
+           ', \mu_0 (red), ',...
+           'for \rho=', num2str(rho(2:end)), ', \kappa=', ...
            num2str(ka(2:end)), ', \omega=', num2str(om(2:end))], ...
       'FontWeight', 'bold');
     ylabel('u, s(\mu_2), mu_1');
@@ -150,13 +154,13 @@ hold off;
 if ll
     subplot(l+ll,1,l+ll);
     
-    xchat = r.traj.like.xchat;
+    xc = r.traj.like.xc;
     vj_mu = r.traj.like.vj_mu;
-    plot(ts, [NaN; xchat(:,1)], 'm', 'LineWidth', 2);
+    plot(ts, [NaN; xc(:,1)], 'm', 'LineWidth', 2);
     hold all;
     plot(ts, [NaN; vj_mu(:,1)], 'k--', 'LineWidth', 2);
     
-    title(['posterior expectation of input xchat (magenta) and the joint probablity vj_mu (black) '], ...
+    title(['posterior expectation of input xc (magenta) and the joint prior vj_mu (black) '], ...
       'FontWeight', 'bold');
     axis([0 ts(end) -0.1 1.1]);
     

@@ -108,16 +108,16 @@ if any(strcmp(r.c_obs.responses, 'RT'))
         poo = m1hreg.^u.*(1-m1hreg).^(1-u); % probability of observed outcome
         surp = -log2(poo);
 
-        % Bernoulli variance (aka irreducible uncertainty, risk) 
-        % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        xcsahat = r.traj.(r.c_obs.model).xcsahat(:,1);
-        
-        bernvhat = xcsahat;
-        %bernvhat(r.irr) = [];
+%         % Bernoulli variance (aka irreducible uncertainty, risk) 
+%         % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%         xcsahat = r.traj.(r.c_obs.model).xcsahat(:,1);
+%         
+%         bernvhat = xcsahat;
+%         %bernvhat(r.irr) = [];
     
         % Calculate predicted log-response
         % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        logresp = be0 +be1.*surp +be2.*bernvhat;
+        logresp = be0 +be1.*surp;
 
     else
         % Extract trajectories of interest from infStates

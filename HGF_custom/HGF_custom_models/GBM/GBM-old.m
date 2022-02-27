@@ -208,13 +208,45 @@ for k=2:1:n
     for m=1:nModels
         if no_ign(k-1)
             
+%             % Unpack likelihood parameters
+%             type='like';
+%             pnames = fieldnames(M.(type).p);
+%             for pn=1:length(pnames)
+%                 p.(pnames{pn}) = M.(type).p.(pnames{pn});
+%             end
+% 
+           % type = r.c_prc.type{m};
+%             
+%             % Unpack prior parameters
+%             pnames = fieldnames(M.(type).p);
+%             for pn=1:length(pnames)
+%                 p.(pnames{pn}) = M.(type).p.(pnames{pn});
+%             end
+%             
+%             %Unpack prior traj
+%             tnames = fieldnames(M.(type).tr);
+%             for tn=1:length(tnames)
+%                 tr.(tnames{tn}) = M.(type).tr.(tnames{tn});
+%             end
         
             %% Predictions (from previous trial or static parameters)
             if hierarchical(m)
+                if static(m)
+                    %if r.c_prc.(type).n_muin>1
+                    %    muhat(1,2,m) = mu_0(1+u(k,2),1,m);
+                    %    pihat(1,2,m) = 1./sa_0(1+u(k,2),1,m);
+                    %else
+                        muhat(1,2,m) = mu_0(2,1,m);
+                        pihat(1,2,m) = 1./sa_0(2,1,m);
+                    %end
+                    % 2nd level prediction
+                    muhat(k,2,m) = muhat(1,2,m);%mu(k-1,2) +t(k) *rho(2); % fixed to initial value - not updated on each trial
 
-                % 2nd level prediction
-                muhat(k,2,m) = mu(k-1,2,m) +t(k) *rho(2,1,m);
+                elseif dynamic(m)
+                    % 2nd level prediction
+                    muhat(k,2,m) = mu(k-1,2,m) +t(k) *rho(2,1,m);
 
+                end
                 % Prediction from level 2 (which can be either static or dynamic)
                 muhat(k,1,m) = 1./(1+exp(-muhat(k,2,m)));
 
@@ -234,6 +266,10 @@ for k=2:1:n
             % "innovation"
             dau(k,1,m) = u(k,1) -muhat(k,1,m);
 
+            % set alpha
+%             if no_al1
+%                 al1=al0;
+%             end
             al(k,1,m)=al0(1);
             if n_inputfactors >0
                 % apply gain to alpha according to input factors
@@ -245,7 +281,7 @@ for k=2:1:n
                     end
                 end
             end
-            
+            % 
             if hierarchical(m)
                 % Likelihood functions: one for each
                 % possible signal
@@ -283,22 +319,29 @@ for k=2:1:n
                 da(k,1,m) = mu(k,1,m) -muhat(k,1,m);
 
                 % second level predictions and precisions
-                % Precision of prediction
-                if l(m)>2 
-                    % if there is a third level
-                    pihat(k,2,m) = 1/(1/pi(k-1,2,m) +exp(ka(2,1,m) *mu(k-1,3,m) +om(2,1,m)));
-                else
-                    % otherwise, use theta since this is the highest
-                    % level
-                    pihat(k,2,m) = 1/(1/pi(k-1,2,m)  +t(k) *th(1,1,m));
-                end
-                % Updates
-                pi(k,2,m) = pihat(k,2,m) +1/pihat(k,1,m);
-                mu(k,2,m) = muhat(k,2,m) +1/pi(k,2,m) *da(k,1,m);
+                if static(m)
+                    mu(k,2,m) = muhat(k,2,m); % for a model with higher level predictions, which are static
+                    % At second level, assume Inf precision for a model with invariable predictions
+                    pi(k,2,m) = Inf;
+                    pihat(k,2,m) = Inf;
 
-                % Volatility prediction error
-                da(k,2,m) = (1/pi(k,2,m) +(mu(k,2,m) -muhat(k,2,m))^2) *pihat(k,2,m) -1;
-                
+                elseif dynamic(m)
+                    % Precision of prediction
+                    if l(m)>2 
+                        % if there is a third level
+                        pihat(k,2,m) = 1/(1/pi(k-1,2,m) +exp(ka(2,1,m) *mu(k-1,3,m) +om(2,1,m)));
+                    else
+                        % otherwise, use theta since this is the highest
+                        % level
+                        pihat(k,2,m) = 1/(1/pi(k-1,2,m)  +t(k) *th(1,1,m));
+                    end
+                    % Updates
+                    pi(k,2,m) = pihat(k,2,m) +1/pihat(k,1,m);
+                    mu(k,2,m) = muhat(k,2,m) +1/pi(k,2,m) *da(k,1,m);
+
+                    % Volatility prediction error
+                    da(k,2,m) = (1/pi(k,2,m) +(mu(k,2,m) -muhat(k,2,m))^2) *pihat(k,2,m) -1;
+                end
 
                 if l(m) > 3
                     % Pass through higher levels
@@ -360,51 +403,44 @@ for k=2:1:n
                 pi(k,1,m) = pi(k,2,m)/(sgmmu2*(1-sgmmu2));
 
 
-            elseif state(m) 
-                if nModels==1 % Kalman - CANNOT APPLY TO HYBRID MODELS
-                    % Gain update - optimal gain is calculated from ratio of input
-                    % variance to representation variance
-    
-                    % Same gain function modified by two different alphas
-                    g(k,1,m) = (g(k-1,1,m) +al(k,1,m)*expom(1,1,m))/(g(k-1,1,m) +al(k,1,m)*expom(1,1,m) +1);
-                    % Hidden state mean update
-                    mu(k,1,m) = muhat(k,1,m)+g(k,1,m)*dau(k,1,m);
-                    mu0(k,1,m) = mu(k,1,m);
-                    pi(k,1,m) = (1-g(k,1,m)) *al(k,1,m)*expom(1,1,m); 
-    
-                    % Alternative: separate gain functions for each stimulus type
-              %      if r.c_prc.(type).one_alpha
-              %          pi_u=al0(u(k,2));
-              %          g(k,1) = (g(k-1,1) +pi_u*expom)/(g(k-1,1) +pi_u*expom +1);
-              %          % Hidden state mean update
-              %          mu(k,1,m) = muhat(k,1,m)+g(k,1)*dau(k);
-              %          pi(k,1,m) = (1-g(k,1)) *pi_u*expom;
-              %      else
-              %          if u(k,1)==0
-              %              pi_u=al0(u(k,2));
-              %              g(k,1) = (g(k-1,1) +pi_u*expom)/(g(k-1,1) +pi_u*expom +1);
-              %              g(k,2) = g(k-1,2);
-              %              % Hidden state mean update
-              %              mu(k,1,m) = muhat(k,1,m)+g(k,1)*dau(k);
-              %              pi(k,1,m) = (1-g(k,1)) *pi_u*expom;
-              %          elseif u(k,1)==1
-              %              pi_u=al1(u(k,2));
-              %              g(k,2) = (g(k-1,2) +pi_u*expom)/(g(k-1,2) +pi_u*expom +1);
-              %              g(k,1) = g(k-1,1);
-              %              % Hidden state mean update
-              %              mu(k,1,m) = muhat(k,1,m)+g(k,2)*dau(k);
-              %              pi(k,1,m) = (1-g(k,2)) *pi_u*expom;
-              %          end
-              %      end
-    
-                    % Representation prediction error
-                    da(k,1,m) = mu(k,1,m) -muhat(k,1,m);
-                else
-                    % just make these zero for plotting, but they are not
-                    % used for estimating the model (only muhat for joint models)
-                    mu(k,1,m) = 0;
-                    mu0(k,1,m) = 0;
-                end
+            elseif state(m) % Kalman
+                % Gain update - optimal gain is calculated from ratio of input
+                % variance to representation variance
+
+                % Same gain function modified by two different alphas
+                g(k,1,m) = (g(k-1,1,m) +al(k,1,m)*expom(1,1,m))/(g(k-1,1,m) +al(k,1,m)*expom(1,1,m) +1);
+                % Hidden state mean update
+                mu(k,1,m) = muhat(k,1,m)+g(k,1,m)*dau(k,1,m);
+                mu0(k,1,m) = mu(k,1,m);
+                pi(k,1,m) = (1-g(k,1,m)) *al(k,1,m)*expom(1,1,m); 
+
+                % Alternative: separate gain functions for each stimulus type
+          %      if r.c_prc.(type).one_alpha
+          %          pi_u=al0(u(k,2));
+          %          g(k,1) = (g(k-1,1) +pi_u*expom)/(g(k-1,1) +pi_u*expom +1);
+          %          % Hidden state mean update
+          %          mu(k,1,m) = muhat(k,1,m)+g(k,1)*dau(k);
+          %          pi(k,1,m) = (1-g(k,1)) *pi_u*expom;
+          %      else
+          %          if u(k,1)==0
+          %              pi_u=al0(u(k,2));
+          %              g(k,1) = (g(k-1,1) +pi_u*expom)/(g(k-1,1) +pi_u*expom +1);
+          %              g(k,2) = g(k-1,2);
+          %              % Hidden state mean update
+          %              mu(k,1,m) = muhat(k,1,m)+g(k,1)*dau(k);
+          %              pi(k,1,m) = (1-g(k,1)) *pi_u*expom;
+          %          elseif u(k,1)==1
+          %              pi_u=al1(u(k,2));
+          %              g(k,2) = (g(k-1,2) +pi_u*expom)/(g(k-1,2) +pi_u*expom +1);
+          %              g(k,1) = g(k-1,1);
+          %              % Hidden state mean update
+          %              mu(k,1,m) = muhat(k,1,m)+g(k,2)*dau(k);
+          %              pi(k,1,m) = (1-g(k,2)) *pi_u*expom;
+          %          end
+          %      end
+
+                % Representation prediction error
+                da(k,1,m) = mu(k,1,m) -muhat(k,1,m);
 
             end
 
@@ -450,9 +486,8 @@ for k=2:1:n
         
         % joint probability
         vj_phi = sum(phi(1,1,:));
-%         vj_mu(k,1) = sum(phi(1,1,:).*mu0(k,1,:))/vj_phi;
-        vj_mu(k,1) = sum(phi(1,1,:).*muhat(k,1,:))/vj_phi; % new - weight muhat for use by RT response model - surprise
-        xchat(k,1) = vj_mu(k,1);
+        vj_mu(k,1) = sum(phi(1,1,:).*mu0(k,1,:))/vj_phi;
+        xchat(k,1) = sum(phi(1,1,:).*muhat(k,1,:))/vj_phi; % new - weight muhat for use by RT response model - surprise
 
         % joint prediction
             % ((eta1-vj_mu(k,1))^2 - (eta0-vj_mu(k,1))^2) gives a value between
@@ -462,23 +497,25 @@ for k=2:1:n
             % these results in a large positive or small positive number
             % respectively.
             % So, when vj_mu is close to 0 and precise, xchat approaches 0
-        if 0
+        if 1
             % bimodal likelihood - calculate xc here, not xchat
             rt=exp(((eta1-vj_mu(k,1))^2 - (eta0-vj_mu(k,1))^2)/(vj_phi^-2));
             xc(k,1) = 1/(1+rt);
 %             rt=exp(((eta1-vj_muhat(k,1))^2 - (eta0-vj_muhat(k,1))^2)/(vj_phi^-2));
 %             xchat(k,1) = 1/(1+rt);
-%         elseif 0
-%             % bimodal likelihood - probably wrong
-%             rt=exp(((eta1-vj_mu(k,1))^2 - (eta0-vj_mu(k,1))^2)/(vj_phi^-2));
-%             xchat(k,1) = 1/(1+rt);  
+        elseif 0
+            % bimodal likelihood - probably wrong
+            rt=exp(((eta1-vj_mu(k,1))^2 - (eta0-vj_mu(k,1))^2)/(vj_phi^-2));
+            xchat(k,1) = 1/(1+rt);
+        else
+            xchat(k,1) = vj_mu(k,1);
         end
         
         % Precision of prediction - INCORRECT SINCE XCHAT IS EQUIVALENT TO
         % MU NOT MUHAT
         %xcpihat(k,1) = 1/(xchat(k,1)*(1 -xchat(k,1)));
         
-        if 1
+        if 0
             % Likelihood functions: one for each
             % possible signal - INCORRECT SINCE WE ALREADY APPLIED THIS FOR
             % AL/PL MODELS
