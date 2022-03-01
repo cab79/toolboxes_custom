@@ -24,6 +24,9 @@ for d = 1:length(D)
                 traj(d).(subfields{sf}) = D(d).HGF.fit.(fitfields{ff}).(subfields{sf});
             elseif strcmp(fitfields{ff},'p_prc') || strcmp(fitfields{ff},'p_obs')
                 param(d).(subfields{sf}) = D(d).HGF.fit.(fitfields{ff}).(subfields{sf});
+                if all(param(d).(subfields{sf}))==0
+                    param(d).(subfields{sf})(:)=NaN;
+                end
             end
         end
     end
@@ -31,6 +34,7 @@ end
 
 % for param, add values to table
 clear tablecols
+tablecols.subjects = {D(:).subname}';
 paramfields = fieldnames(param);
 for pf = 1:length(paramfields)
     if length(param(1).(paramfields{pf}))>1
@@ -48,7 +52,8 @@ end
 
 % create results table
 T = S.designtab;
-T = [T,struct2table(tablecols)];
+T = join(T,struct2table(tablecols),'Keys','subjects');
+% T = [T,struct2table(tablecols)];
 % if length(D)>1
 %     T = cell2table(S.designmat(2:end,:),...
 %         'VariableNames',S.designmat(1,:));

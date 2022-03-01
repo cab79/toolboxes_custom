@@ -131,6 +131,7 @@ for m=1:r.c_prc.nModels
         expom(:,1,m) = exp(om(:,1,m));
     end
 end
+xc(1) = 0.5; % for joint models
 
 %% Efficiacy
 % Unpack from struct to double for efficiency
@@ -402,6 +403,7 @@ for k=2:1:n
                 else
                     % just make these zero for plotting, but they are not
                     % used for estimating the model (only muhat for joint models)
+                    muhat(k,1,m) =  xc(k-1,1);
                     mu(k,1,m) = 0;
                     mu0(k,1,m) = 0;
                 end

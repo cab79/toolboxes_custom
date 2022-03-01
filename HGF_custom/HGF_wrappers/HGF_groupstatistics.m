@@ -23,6 +23,7 @@ for stf = 1:length(Stfields)
     % number of group pairs
     C = nchoosek(1:length(grps),2);
     for c = 1:size(C,1)
+        gdat={};
         for g = 1:2
             for d = 1:length(grpind{C(c,g)})
                 gdat{g}(d) = St(grpind{C(c,g)}(d)).(Stfields{stf});
