@@ -55,7 +55,13 @@ function bpa = tapas_bayesian_parameter_average_CAB(strc,varargin)
 % COPYING or <http://www.gnu.org/licenses/>.
 
 if strc % CAB feed in all data as a singel struct array
-    varargin = varargin{:};
+    if isfield(varargin{1}(1),'HGF')
+        temp=varargin{:};
+        clear varargin
+        for d = 1:length(temp)
+            varargin{d} = temp(d).HGF.fit;
+        end
+    end
 end
 
 % Number of estimates to average
