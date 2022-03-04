@@ -95,8 +95,7 @@ switch step
         % temporary - can remove this later as it's a patch
         % remove duplicate earlier entries from table if they have been re-processed
         [~,ia,~] = unique(S.(S.func).outtable.file,'last');
-        newtable = S.(S.func).outtable;
-        S.(S.func).outtable =newtable(ia,:);
+        S.(S.func).outtable =S.(S.func).outtable(ia,:);
 
         % save S
         save(fullfile(S.(S.func).save.dir_S,S.sname),'S'); % saves 'S' - will be overwritten each time
