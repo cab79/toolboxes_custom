@@ -721,7 +721,7 @@ switch part
                 waitfor(h) 
             end
 
-            if isfield(S.(S.func),'epoch') && isfield(S.(S.func).epoch,'reref')
+            if isfield(S.(S.func),'epoch') && isfield(S.(S.func).epoch,'reref') && S.(S.func).epoch.reref==1
                 % re-reference to the common average
                 EEG = pop_reref( EEG, []);
             end
@@ -912,7 +912,7 @@ switch part
                 waitfor(h) 
             end
 
-            if isfield(S.(S.func),'epoch') && isfield(S.(S.func).epoch,'reref')
+            if isfield(S.(S.func),'epoch') && isfield(S.(S.func).epoch,'reref') && S.(S.func).epoch.reref==1
                 % re-reference to the common average
                 EEG = pop_reref( EEG, []);
             end
