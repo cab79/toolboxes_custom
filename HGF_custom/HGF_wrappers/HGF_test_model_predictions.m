@@ -84,6 +84,9 @@ switch type
             for rep = 1:S.numsimrep
                 fitted_rt = D_sim(d).HGF(rep).sim.y(:,2);
 
+                % NaNs
+                ii = find(~isnan(actual_rt) & ~isnan(fitted_rt));
+
                 % condition means
                 fitted_condmeans(rep,:) = mean_by_condition(fitted_rt ,condnum); 
                 

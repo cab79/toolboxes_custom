@@ -52,7 +52,10 @@ end
 
 % create results table
 T = S.designtab;
-T = join(T,struct2table(tablecols),'Keys','subjects');
+Tp = struct2table(tablecols);
+Tp(~ismember(Tp.subjects,T.subjects),:)=[];
+T(~ismember(T.subjects,Tp.subjects),:)=[];
+T = join(T,Tp,'Keys','subjects');
 % T = [T,struct2table(tablecols)];
 % if length(D)>1
 %     T = cell2table(S.designmat(2:end,:),...

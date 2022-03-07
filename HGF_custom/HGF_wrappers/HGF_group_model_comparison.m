@@ -92,6 +92,10 @@ for pm = 1:length(S.perc_models)
                     ls = load(fullfile(fitted_path,fname));
                 end
                 D_fit=ls.D_fit;
+
+                % select subjects (only those within designtab)
+                D_fit(~ismember({D_fit(:).subname}, S.designtab.subjects)) = [];
+
                 % mean evidence for each fitted model over repetitions
                 for d = 1:length(D_fit)
                     try

@@ -61,6 +61,8 @@ if strc % CAB feed in all data as a singel struct array
         for d = 1:length(temp)
             varargin{d} = temp(d).HGF.fit;
         end
+    elseif isfield(varargin{1}{1},'traj')
+        varargin=varargin{:};
     end
 end
 

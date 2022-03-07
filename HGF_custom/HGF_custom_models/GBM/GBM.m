@@ -241,7 +241,7 @@ for k=2:1:n
                 % alpha multipliers are not variances, but have to be positive
                 if_str = num2str(u(k,2));
                 for nif = 1:n_inputfactors 
-                    if strcmp(if_str(inputfactors(nif)),'1') % e.g. higher intensity stimulus
+                    if strcmp(if_str(inputfactors(nif)),'1') % e.g. lower intensity stimulus where options are '1' or '2' - more uncertainty expected for lower intensity
                         al(k,1,m)=al(k,1,m) * al0(inputfactors(nif)+1);
                     end
                 end
