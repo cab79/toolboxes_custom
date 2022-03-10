@@ -47,7 +47,11 @@ switch step
         end
 
         % load directory
-        S.path.file = S.(S.func).load.dir;
+        try
+            S.path.file = S.(S.func).load.dir;
+        catch
+            S.path.file = S.(S.func).loaddir;
+        end
         
         % get previously processed files
         if isfield(S.(S.func),'designtab')
