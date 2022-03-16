@@ -22,9 +22,13 @@ GFL.path.datfile = S.prep.path.inputs.subjects;
 if isfield(S.prep.select,'prefixes') && ~isempty(S.prep.select.prefixes); GFL.(GFL.func).load.prefix = S.prep.select.prefixes; end
 if isfield(S.prep.select,'suffixes') && ~isempty(S.prep.select.suffixes); GFL.(GFL.func).load.suffix = S.prep.select.suffixes; end
 GFL = getfilelist(GFL);
-designmat=cell2table(GFL.(GFL.func).designmat(2:end,:));
-designmat.Properties.VariableNames = GFL.(GFL.func).designmat(1,:);
-filelist = GFL.(GFL.func).filelist;
+if isfield(GFL.(GFL.func),'designtab')
+    designmat=GFL.(GFL.func).designtab;
+else
+    designmat=cell2table(GFL.(GFL.func).designmat(2:end,:));
+    designmat.Properties.VariableNames = GFL.(GFL.func).designmat(1,:);
+end
+filelist = designmat.file;
 subjects = GFL.(GFL.func).select.subjects;
 if isempty(filelist)
     error('No files found to import!\n');
@@ -149,8 +153,16 @@ for d = 1:length(subjects)
     else
         data= timecourse;  
     end
-    total_samples=S.prep.original_samples;
-    select_samples=S.prep.select.samples;
+    if isfield(D(d).prep,'times')
+        total_samples = D(d).prep.times.dat;
+    else
+        total_samples=S.prep.original_samples;
+    end
+    if ~isempty(S.prep.select.samples)
+        select_samples=S.prep.select.samples;
+    else
+        select_samples=total_samples;
+    end
     
     
     %% Predictors: factors from EEG markers - ASSUMES THEY ARE NUMERIC IN EEG DATA FILE but this can be updated if needed
@@ -230,9 +242,11 @@ for d = 1:length(subjects)
 
     % downsample
     if S.prep.calc.eeg.dsample
-        data = downsample(data',S.prep.calc.eeg.dsample)';
+        orig_samples = total_samples;
         total_samples = downsample(total_samples',S.prep.calc.eeg.dsample)';
-        select_samples = downsample(S.prep.select.samples',S.prep.calc.eeg.dsample)';
+        select_samples = downsample(select_samples',S.prep.calc.eeg.dsample)';
+        idx = repmat(ismember(orig_samples,total_samples),1,n_trials);
+        data = data(:,idx);
     end
     
     % make 3D
@@ -269,7 +283,7 @@ for d = 1:length(subjects)
     end
 
     % select samples
-    if exist('select_samples','var')
+    if exist('select_samples','var') && ~isempty(select_samples)
         select = dsearchn(total_samples',[select_samples(1),select_samples(end)]');
         data = data(:,select(1):select(2),:);
     end

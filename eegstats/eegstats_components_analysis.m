@@ -833,7 +833,7 @@ end
 % parallel processing
 checkp = gcp('nocreate');
 if isempty(checkp)
-    myPool = parpool;
+    myPool = parpool(S.para);
 end
  
 out_Y=[];
