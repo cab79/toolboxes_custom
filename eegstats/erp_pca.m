@@ -119,7 +119,7 @@ end
 D = diag(varSD);  %diagonal matrix of standard deviations of variables
 
 R=cov(data,'partialrows');
-R=cov2corr(R);
+[~,R]=cov2corr(R);
 %R=corrcoef(data);  % OLD VERSION - does not allow for NaNs
 
 goodVars=find(std(data) ~= 0);

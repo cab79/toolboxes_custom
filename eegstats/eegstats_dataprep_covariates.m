@@ -29,14 +29,14 @@ for d = 1:length(D)
                         D(d).prep.subname{:},...
                         D(d).prep.dtab.tnums',...
                         S.prep.path.subjects,...
-                        0);
+                        0,S);
                 case 'HGF_trialback1'
                     pred_out = HGF_covariates(...
                         CVs(ci),...
                         D(d).prep.subname{:},...
                         D(d).prep.dtab.tnums',...
                         S.prep.path.subjects,...
-                        1);
+                        1,S);
                 case 'trials'
                     pred_out = trial_covariate(...
                         CVs(ci),...
@@ -126,7 +126,7 @@ else
     pred.trial=tnums';
 end
 
-function pred = HGF_covariates(cv,subname,tnums,datfile,trialback)
+function pred = HGF_covariates(cv,subname,tnums,datfile,trialback,S)
 % remove trials not in EEG and later use tnums to put in EEG trial order
 if ~any(diff(tnums)>1)
     error('tnums is probably wrong')
@@ -175,40 +175,51 @@ for ci = 1:length(cv.def)
     end
 end
 
-if 0
+if 1
+
+    % replace NaNs
+    dat.u(isnan(dat.u))=0;
+
     % calculate predictive surprise
     u = dat.u(tnums,1);
     pred.HGF_PL_PSurp = -log2(pred.HGF_PL_muhat_1.^u.*(1-pred.HGF_PL_muhat_1).^(1-u));
 
     % calculate Bayesian surprise
-    x = [-3:.1:3];
-    for n = 1:length(pred.HGF_PL_muhat_1)
-        P = normpdf(x,pred.HGF_PL_muhat_1(n),pred.HGF_PL_sahat_1(n)^(1/2));
-        Q = normpdf(x,pred.HGF_PL_mu_1(n),pred.HGF_PL_sa_1(n)^(1/2));
-        try
-            pred.HGF_PL_BSurp(n)=KLDiv(P,Q);
-        catch
-            pred.HGF_PL_BSurp(n)=NaN;
+%     if isfield(pred,'HGF_PL_sa_1')
+    if ismember('HGF_PL_sa_1',pred.Properties.VariableNames)
+        x = [-3:.1:3];
+        for n = 1:length(pred.HGF_PL_muhat_1)
+            P = normpdf(x,pred.HGF_PL_muhat_1(n),pred.HGF_PL_sahat_1(n)^(1/2));
+            Q = normpdf(x,pred.HGF_PL_mu_1(n),pred.HGF_PL_sa_1(n)^(1/2));
+            try
+                pred.HGF_PL_BSurp(n)=KLDiv(P,Q);
+            catch
+                pred.HGF_PL_BSurp(n)=NaN;
+            end
         end
-    end
-    if any(isinf(pred.HGF_PL_BSurp))
-        warning('inf values');
-        pred.HGF_PL_BSurp(isinf(pred.HGF_PL_BSurp))=NaN;
+        if any(isinf(pred.HGF_PL_BSurp))
+            warning('inf values');
+            pred.HGF_PL_BSurp(isinf(pred.HGF_PL_BSurp))=NaN;
+        end
     end
 end
 
 % remove almost identical data
-dat = corr(table2array(pred));
-rm_dat = find(dat(1,2:end)>0.99999);
-if ~isempty(rm_dat)
-    pred(:,rm_dat+1) = [];
+if S.prep.remove_identical_pred
+    dat = corr(table2array(pred));
+    rm_dat = find(dat(1,2:end)>0.99999);
+    if ~isempty(rm_dat)
+        pred(:,rm_dat+1) = [];
+    end
 end
-% remove data with almost no variance
-dat = std(table2array(pred));
-rm_dat = dat<0.000001;
-if any(rm_dat)
-    pred(:,rm_dat) = [];
-end 
+if S.prep.remove_novar_pred
+    % remove data with almost no variance
+    dat = std(table2array(pred));
+    rm_dat = dat<0.000001;
+    if any(rm_dat)
+        pred(:,rm_dat) = [];
+    end 
+end
 
 function pred = eegfile_covariate(cv,dat,tnums)
 % imports from substructure within eeg data file. Designed for Andrej's

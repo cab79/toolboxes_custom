@@ -4,7 +4,7 @@ addpath('E:\Q_backup\MATLAB\toolboxes_external\cbrewer'); % (https://uk.mathwork
 
 % Set up display
 scrsz = get(0,'screenSize');
-outerpos = [0.2*scrsz(3),0.2*scrsz(4),0.8*scrsz(3),0.8*scrsz(4)];
+outerpos = [0.05*scrsz(3),0.05*scrsz(4),0.95*scrsz(3),0.95*scrsz(4)];
 
 if nargin>1 && ~isempty(varargin{1})
     LME = varargin{1};
@@ -208,20 +208,20 @@ if S.family_on
     % compare perc model families
     options.families = pm_family;
     if length(LMEgrp)==1
-        [~,pm_out] = VBA_groupBMC_cab(LME,options,S.pep_flag);
+        [~,pm_out] = VBA_groupBMC_cab(LME,options,0);
         pm_out = {pm_out};
     elseif length(LMEgrp)>1
         options.grpNames = grpuni;
-        [~,~,pm_out] = VBA_groupBMC_btwGroups_CAB(LMEgrp,options,S.pep_flag);
+        [~,~,pm_out] = VBA_groupBMC_btwGroups_CAB(LMEgrp,options,0);
     end
 
     % compare resp model families
     options.families = rm_family;
     if length(LMEgrp)==1
-        [~,rm_out] = VBA_groupBMC_cab(LME,options,S.pep_flag);
+        [~,rm_out] = VBA_groupBMC_cab(LME,options,0);
         rm_out = {rm_out};
     elseif length(LMEgrp)>1
-        [~,~,rm_out] = VBA_groupBMC_btwGroups_CAB(LMEgrp,options,S.pep_flag);
+        [~,~,rm_out] = VBA_groupBMC_btwGroups_CAB(LMEgrp,options,0);
     end
     varargout=[varargout {pm_out,rm_out}];
     
@@ -336,11 +336,21 @@ if isempty(family)
     family{1} = mean(data,2)';
     family{2} = mean(data,1);
 end
-figure('OuterPosition', outerpos);
-ax1=subplot('Position',[0.1 0.2 0.5*(size(data,2)/6) 0.05*size(data,1)]); % [left bottom width height]
+figure('OuterPosition', outerpos,'Name',title_text);
+ax1=subplot('Position',[0.1 0.2 0.5 0.5]); % [left bottom width height]
 imagesc(data,clims)
 set(gca,'XTick',1:length(S.resp_models),'YTick',1:length(S.perc_models))
-set(gca,'XTickLabel',strsplit(num2str(xt)),'YTickLabel',strsplit(num2str(yt)),'FontSize',12)
+if isnumeric(xt)
+    xt=strsplit(num2str(xt));
+elseif iscell(xt{1})
+    xt=horzcat(xt{:});
+end
+if isnumeric(yt)
+    yt=strsplit(num2str(yt));
+elseif iscell(yt{1})
+    yt=horzcat(yt{:});
+end
+set(gca,'XTickLabel',xt,'YTickLabel',yt,'FontSize',10)
 ax1.XAxisLocation = 'top';
 ax1.YAxisLocation = 'left';
 ylabel(yl)
@@ -349,19 +359,19 @@ t=title(title_text,'position',[0 -0.8]);
 set(t,'horizontalAlignment','left');
 if size(data,1)>1 && size(data,2)>1
     % right family
-    ax2=subplot('Position',[0.5*(size(data,2)/6)+0.12 0.2 0.5/6 0.05*size(data,1)]) % [left bottom width height] 
+    ax2=subplot('Position',[0.5+0.12 0.2 0.1 0.5]) % [left bottom width height] 
     imagesc(family{1}',clims)
-    set(gca,'XTick',1,'XTickLabel',XYlabel,'FontSize',12)
+    set(gca,'XTick',1,'XTickLabel',XYlabel,'FontSize',10)
     set(gca,'YTick',[])
     ax2.XAxisLocation = 'top';
     % lower family
-    ax3=subplot('Position',[0.1 0.08 0.5*(size(data,2)/6) 0.1])
+    ax3=subplot('Position',[0.1 0.08 0.5 0.1])
     imagesc(family{2},clims)
-    set(gca,'YTick',1,'YTickLabel',XYlabel,'FontSize',12)
+    set(gca,'YTick',1,'YTickLabel',XYlabel,'FontSize',10)
     set(gca,'XTick',[])
-    colorbar('Position',[0.5*(size(data,2)/6)+0.24 0.08 0.03 0.05*size(data,1)+0.12]) % [left bottom width height]
+    colorbar('Position',[0.5+0.24 0.08 0.03 0.5+0.12]) % [left bottom width height]
 else
-    colorbar('Position',[0.5*(size(data,2)/6)+0.12 0.2 0.03 0.05*size(data,1)+0.12]) % [left bottom width height]
+    colorbar('Position',[0.5+0.12 0.2 0.03 0.5+0.12]) % [left bottom width height]
 end
 
 colormap(flipud(cbrewer('seq', 'Reds', 100, 'pchip')))

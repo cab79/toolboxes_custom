@@ -49,6 +49,7 @@ for s = 1:length(Y)
         
         ftd = train_pred*brr.muB; % Predicted responses at each data point.
         resid = train_data-ftd; % Residuals.
+        M.model(i).samples(s).ktest_normality = kstest(resid);
         % residuals
         if S.encode.save_residuals
             M.model(i).samples(s).resid=resid;

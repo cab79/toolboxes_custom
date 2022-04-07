@@ -162,6 +162,8 @@ for d = 1:nD % subject
         if strcmp(S.encode.method,'BRR')
             D(d).model(i).waic = nan(ddim(1:end-1)');
             D(d).model(i).waic(sinz) = vertcat([M.model(i).samples(:).waic]');
+            D(d).model(i).ktest = nan(ddim(1:end-1)');
+            D(d).model(i).ktest(sinz) = vertcat([M.model(i).samples(:).ktest_normality]');
         end
         
         % filenames for resid, fitted, input

@@ -39,7 +39,11 @@ for d = 1:length(D)
         for pr = 1:length(col_idx)
             tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
             if any(tempdat<0); tempdat = tempdat-min(tempdat); end
-            tempdat(tempdat==0) = min(tempdat(tempdat~=0));
+            if min(tempdat(tempdat~=0)) ~= max(tempdat(tempdat~=0))
+                tempdat(tempdat==0) = min(tempdat(tempdat~=0));
+            else
+                tempdat(tempdat==0) = realmin;
+            end
             temp = log(tempdat);
             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
         end

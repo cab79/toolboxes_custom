@@ -192,7 +192,7 @@ for d = 1:length(D)
         tapas_fit_plotCorr(fit{d});
     end
 
-    if S.parallel ==0 && sim_on==0
+    if S.parallel ==0 && sim_on==0 && S.bayes_opt==0
         save(fullfile(S.path.hgf,['temp_percmodel' num2str(S.perc_model) '_respmodel' num2str(S.resp_model) '_fractrain' num2str(S.frac_train) '_' S.sname '.mat']), 'D', 'S');
     end
 end
