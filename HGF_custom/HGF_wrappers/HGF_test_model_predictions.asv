@@ -28,18 +28,14 @@ for d = 1:length(D_act)
     allcond = unique([allcond, unique(D_act(d).Processed.condnum{1})]);
 end
 actual_condmeans=nan(length(D_act),length(allcond));
-fitted_condmeans=nan(length(D_act),length(allcond));
+fitted_condmeans=nan(S.numsimrep,length(allcond));
 
 switch type
     case 'Ch' % choices
         actual_macorrect=[];
         fitted_macorrect=[];
         for d = 1:length(D_act)
-            try
-                actual_choices = D_act(d).HGF(1).yALL(:,1);
-            catch
-                actual_choices = D_act(d).HGF(1).y(:,1);
-            end
+            actual_choices = D_act(d).HGF(1).yALL(:,1);
 
             % condition fraction correct
             condnum = D_act(d).Processed.condnum{1};
@@ -125,14 +121,11 @@ switch type
         varargout = {means_fitted,stds_fitted,means_randcorr_fitted,stds_randcorr_fitted,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans,actual_macorrect,fitted_macorrect};
 
     case 'RT' % response times
+        
         for d = 1:length(D_act)
 
             % subject's responses
-            try
-                actual_rt = D_act(d).HGF(1).yALL(:,2);
-            catch
-                actual_rt = D_act(d).HGF(1).y(:,2);
-            end
+            actual_rt = D_act(d).HGF(1).yALL(:,2);
 
             % condition means
             condnum = D_act(d).Processed.condnum{1};

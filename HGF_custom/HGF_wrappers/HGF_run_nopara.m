@@ -37,15 +37,15 @@ end
 if ~isfield(S,'parallel')
     S.parallel = 0;
 end
-if S.parallel
-    checkp = gcp('nocreate');
-    if isempty(checkp)
-        myPool = parpool;
-    end
-    parforArg = Inf;
-else
-    parforArg = 0;
-end
+% if S.parallel
+%     checkp = gcp('nocreate');
+%     if isempty(checkp)
+%         myPool = parpool;
+%     end
+%     parforArg = Inf;
+% else
+%     parforArg = 0;
+% end
 
 % If S contains D_perc, this is used to update the perceptual model
 % parameters and fixed them (variance zero) per subject. Used for

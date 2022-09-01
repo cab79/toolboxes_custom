@@ -153,6 +153,7 @@ elseif strcmp(S.encode.parallel.option,'local')
         cc=new_ind(ni,:);
         cc=cc(~isnan(cc));
         parfor (c = cc)
+%         for (c = cc)
             disp(['running model: chunk ' num2str(c) '/' num2str(LC)])
             C(c).M=func_model(S,C(c).Y);
             C(c).Y=[]; % save memory

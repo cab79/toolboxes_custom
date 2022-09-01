@@ -28,30 +28,25 @@ for d = 1:length(D_act)
     allcond = unique([allcond, unique(D_act(d).Processed.condnum{1})]);
 end
 actual_condmeans=nan(length(D_act),length(allcond));
-fitted_condmeans=nan(length(D_act),length(allcond));
+fitted_condmeans=nan(S.numsimrep,length(allcond));
 
 switch type
     case 'Ch' % choices
         actual_macorrect=[];
         fitted_macorrect=[];
         for d = 1:length(D_act)
-            try
-                actual_choices = D_act(d).HGF(1).yALL(:,1);
-            catch
-                actual_choices = D_act(d).HGF(1).y(:,1);
-            end
+            actual_choices = D_act(d).HGF(1).y(:,1);
 
             % condition fraction correct
             condnum = D_act(d).Processed.condnum{1};
-            ii = find(~isnan(actual_choices)); 
+            ii = find(~isnan(actual_choices));
             unicond = unique(condnum(ii));
             actual_condmeans(d,unicond) = mean_by_condition(actual_choices(ii)==D_act(d).HGF(1).u(ii,1),condnum(ii)); 
 
             % split into stim intensity per block
-            blocknum = D_act(d).Sequence.blocks;
-            stimnum = D_act(d).Sequence.signal(S.signal.target,:);
-            [~,~,blockstimnum] = unique([blocknum;stimnum]','rows');
-            uniblockstim = unique(blockstimnum);
+            blocknum = D(d).Sequence.blocks;
+            stimnum = D(d).Sequence.signal(S.signal.target,:);
+            [uniblockstim,~,blockstimnum] = unique([blocknum;stimnum]','rows');
             actual_blockstimmeans(d,uniblockstim) = mean_by_condition(actual_choices(ii)==D_act(d).HGF(1).u(ii,1),blockstimnum(ii)); 
 
             % MA correct
@@ -75,7 +70,6 @@ switch type
             fitted_blockstimmeans_rep = [];
             fitted_correct = [];
             rand_correct = [];
-            temp_macorrect=[];
             for rep = 1:S.numsimrep
                 fitted_choices = D_sim(d).HGF(rep).sim.y(:,1);
                 fitted_condmeans_rep(rep,unicond) = mean_by_condition(fitted_choices(ii)==D_act(d).HGF(1).u(ii,1),condnum(ii)); 
@@ -97,6 +91,7 @@ switch type
                 rand_correct(rep) = sum(rand_choices(ii) == actual_choices(ii))/length(actual_choices(ii));
 
                 % MA correct
+                temp_macorrect=[];
                 correct = nan(length(fitted_choices),1);
                 correct(ii) = fitted_choices(ii)==D_act(d).HGF(1).u(ii,1);
                 if ~isempty(ma) 
@@ -122,17 +117,13 @@ switch type
             fitted_condmeans(d,:) = mean(fitted_condmeans_rep,1);
             fitted_blockstimmeans(d,:) = mean(fitted_blockstimmeans_rep,1);
         end
-        varargout = {means_fitted,stds_fitted,means_randcorr_fitted,stds_randcorr_fitted,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans,actual_macorrect,fitted_macorrect};
+        varargout = {means_fitted,stds_fitted,means_randcorr_fitted,stds_randcorr_fitted,actual_condmeans,fitted_condmeans,actual_macorrect,fitted_macorrect};
 
     case 'RT' % response times
         for d = 1:length(D_act)
 
             % subject's responses
-            try
-                actual_rt = D_act(d).HGF(1).yALL(:,2);
-            catch
-                actual_rt = D_act(d).HGF(1).y(:,2);
-            end
+            actual_rt = D_act(d).HGF(1).y(:,2);
 
             % condition means
             condnum = D_act(d).Processed.condnum{1};
@@ -140,67 +131,36 @@ switch type
             unicond = unique(condnum(ii));
             actual_condmeans(d,unicond) = mean_by_condition(actual_rt(ii),condnum(ii)); 
 
-            % split into stim intensity per block
-            blocknum = D_act(d).Sequence.blocks;
-            stimnum = D_act(d).Sequence.signal(S.signal.target,:);
-            [~,~,blockstimnum] = unique([blocknum;stimnum]','rows');
-            uniblockstim = unique(blockstimnum);
-            actual_blockstimmeans(d,uniblockstim) = mean_by_condition(actual_rt(ii),blockstimnum(ii)); 
 
             fitted_condmeans_rep = [];
-            fitted_blockstimmeans_rep = [];
-            fitted_rt_all=[];
-            cc=[];
-            clear brr
-            disp(['BRR on RTs, ppt ' num2str(d)])
-            tic
-            HGF = D_sim(d).HGF;
-            parfor rep = 1:S.numsimrep
-                fitted_rt = HGF(rep).sim.y(:,2);
-               
+            for rep = 1:S.numsimrep
+                fitted_rt = D_sim(d).HGF(rep).sim.y(:,2);
+
                 % NaNs
                 ii = find(~isnan(actual_rt) & ~isnan(fitted_rt));
 
                 % condition means
                 fitted_condmeans_rep(rep,:) = mean_by_condition(fitted_rt ,condnum); 
                 
-                % blockstim means
-                fitted_blockstimmeans_rep(rep,:) = mean_by_condition(fitted_rt ,blockstimnum); 
-
                 %correlate
                 cc(rep) = corr(fitted_rt(ii),actual_rt(ii),'type','Spearman');
                 
-                if S.BRR_on_each_rep
-                    % bayes reg
-                    brr(d,rep) = bayesreg_crossval(fitted_rt(ii),actual_rt(ii),S,{});
-                else
-                    fitted_rt_all(:,rep) = fitted_rt;
-                end
+                % bayes reg
+                brr(d,rep) = bayesreg_crossval(fitted_rt(ii),actual_rt(ii),S,{});
                 
             end
-            toc
             cc_mean(d,1)=mean(cc);
-
-            if S.BRR_on_each_rep
-                fdnames = fieldnames(brr);
-                for fd = 1:length(fdnames)
-                    brr_mean.(fdnames{fd})(d,1)=mean([brr(:).(fdnames{fd})]);
-                end
-            else
-                % bayes reg
-                fitted_rt_mean = nanmean(fitted_rt_all,2);
-                ii = find(~isnan(actual_rt) & ~isnan(fitted_rt_mean));
-                brr_mean(d,1) = bayesreg_crossval(fitted_rt_mean(ii),actual_rt(ii),S,{});
+            fdnames = fieldnames(brr);
+            for fd = 1:length(fdnames)
+                brr_mean.(fdnames{fd})(d,1)=mean([brr(:).(fdnames{fd})]);
             end
-
             fitted_condmeans(d,:) = mean(fitted_condmeans_rep,1);
-            fitted_blockstimmeans(d,:) = mean(fitted_blockstimmeans_rep,1);
         end
-        varargout = {cc_mean,brr_mean,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans};
+        varargout = {cc_mean,brr_mean,actual_condmeans,fitted_condmeans};
         
     case {'HGFvar','CCA_FApred'} % decoded HGF trajectories
         for d = 1:length(D_act)
-            actual_var(d,:,:) = D_act(d).HGF(1).yALL(:,3:end);
+            actual_var(d,:,:) = D_act(d).HGF(1).y(:,3:end);
             for rep = 1:S.numsimrep
                 sim_var = D_sim(d).HGF(rep).sim.y(:,3:end);
                 

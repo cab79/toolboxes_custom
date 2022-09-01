@@ -318,6 +318,7 @@ for d = 1:length(D)
             end
 
             % split into stim intensity per cue (not split by condition)
+            cn=1;
             if S.signal.cue
                 cues = unique(D(d).Sequence.signal(S.signal.cue,:));
                 for i = 1:length(cues)
@@ -328,6 +329,18 @@ for d = 1:length(D)
                     end
                 end
             end
+
+            % split into stim intensity per block
+            blocks = unique(D(d).Sequence.blocks);
+            stims = unique(D(d).Sequence.signal(S.signal.target,:));
+            for b = 1:length(blocks)
+                for s = 1:length(stims)
+                    D(d).Processed(op).blockstimcorrect{cn}{b}{s} = D(d).Processed(op).correct(D(d).Sequence.blocks==blocks(b) & D(d).Sequence.signal(S.signal.target,:)==stims(s)); 
+                    D(d).Processed(op).blockstimnumtrials{cn}{b}{s} = sum(~isnan(D(d).Processed(op).blockstimcorrect{cn}{b}{s}));
+                    D(d).Processed(op).blockstimcorrectfract{cn}{b}(s) = nansum(D(d).Processed(op).blockstimcorrect{cn}{b}{s}/D(d).Processed(op).blockstimnumtrials{cn}{b}{s});
+                end
+            end
+
         end
        
     end
