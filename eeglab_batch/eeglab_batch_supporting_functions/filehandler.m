@@ -60,7 +60,7 @@ switch step
 
                 % if subjects have been specifically selected, re-process them even if they
                 % were already processed
-                if ~isempty(S.(S.func).select.subjects) && ~strcmp(S.(S.func).select.subjects,{''})
+                if ~isempty(S.(S.func).select.subjects) && ~any(strcmp(S.(S.func).select.subjects,{''}))
                     prev_designtab.processed(ismember(prev_designtab.subjects,S.(S.func).select.subjects))=0;
                 end
             end

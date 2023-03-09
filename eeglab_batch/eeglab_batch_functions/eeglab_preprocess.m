@@ -415,7 +415,7 @@ switch part
             S.prep.outtable.file{S.fn+f} = file;
             S.prep.outtable.initial_trials(S.fn+f) = EEG.trials;
 
-            % remove selected ICA components (MUST HAVE ALREADY SELECTED THESE MANUALLY)
+            % remove selected ICA components
             if S.(S.func).epoch.ICAremove
                 if ~strcmp(S.(S.func).load.suffix{:},S.(S.func).load.ica_suffix{:})
 

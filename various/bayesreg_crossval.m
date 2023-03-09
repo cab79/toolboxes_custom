@@ -15,7 +15,9 @@ for s = 1:size(Y,2)
     contvars(catvars)=[];
     if S.zscore
         [X(:,contvars), X_mean(:,contvars), X_stand_de(:,contvars)] = zscore(X(:,contvars), [], 1);
-        [y, y_mean, Y_stand_de] = zscore(y);
+        if ~strcmp(S.brr.model,'binomial')
+            [y, y_mean, Y_stand_de] = zscore(y);
+        end
     end
 
     N=size(X,1);
@@ -88,12 +90,14 @@ for s = 1:size(Y,2)
     end
 
     out(s).muB = nanmean([stt(:).muB],2);
-    out(s).muSigma2 = nanmean([stt(:).muSigma2]);
+    out(s).r2 = nanmean(r2);
     out(s).waic = nanmean(waic);
     out(s).logl = nanmean(logl);
-    out(s).r2 = nanmean(r2);
     out(s).neglike = nanmean([predstt(:).neglike]);
-    out(s).r2test = nanmean([predstt(:).r2]);
+    try
+        out(s).muSigma2 = nanmean([stt(:).muSigma2]);
+        out(s).r2test = nanmean([predstt(:).r2]);
+    end
     try
         out(s).xmean = X_mean;
         out(s).xstd = X_stand_de;

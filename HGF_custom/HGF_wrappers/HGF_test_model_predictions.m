@@ -43,7 +43,7 @@ switch type
 
             % condition fraction correct
             condnum = D_act(d).Processed.condnum{1};
-            ii = find(~isnan(actual_choices)); 
+            ii = ~isnan(actual_choices); 
             unicond = unique(condnum(ii));
             actual_condmeans(d,unicond) = mean_by_condition(actual_choices(ii)==D_act(d).HGF(1).u(ii,1),condnum(ii)); 
 
@@ -71,6 +71,7 @@ switch type
                 end
             end
 
+            fitted_choices_rep = nan(1,length(actual_choices));
             fitted_condmeans_rep = [];
             fitted_blockstimmeans_rep = [];
             fitted_correct = [];
@@ -78,6 +79,7 @@ switch type
             temp_macorrect=[];
             for rep = 1:S.numsimrep
                 fitted_choices = D_sim(d).HGF(rep).sim.y(:,1);
+                fitted_choices_rep(rep,ii) = fitted_choices(ii);
                 fitted_condmeans_rep(rep,unicond) = mean_by_condition(fitted_choices(ii)==D_act(d).HGF(1).u(ii,1),condnum(ii)); 
                 fitted_correct(rep) = sum(fitted_choices(ii) == actual_choices(ii))/length(actual_choices(ii));
                 fitted_blockstimmeans_rep(rep,uniblockstim) = mean_by_condition(fitted_choices(ii)==D_act(d).HGF(1).u(ii,1),blockstimnum(ii)); 
@@ -113,6 +115,8 @@ switch type
                     end
                 end
             end
+            actual_choices_all(d,:) = actual_choices;
+            fitted_choices_mean(d,:) = mean(fitted_choices_rep,1);
             means_fitted(d,1)=mean(fitted_correct);
             stds_fitted(d,1)=std(fitted_correct);
             fitted_macorrect(d,:)=mean(temp_macorrect,1);
@@ -122,7 +126,7 @@ switch type
             fitted_condmeans(d,:) = mean(fitted_condmeans_rep,1);
             fitted_blockstimmeans(d,:) = mean(fitted_blockstimmeans_rep,1);
         end
-        varargout = {means_fitted,stds_fitted,means_randcorr_fitted,stds_randcorr_fitted,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans,actual_macorrect,fitted_macorrect};
+        varargout = {means_fitted,stds_fitted,means_randcorr_fitted,stds_randcorr_fitted,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans,actual_macorrect,fitted_macorrect,actual_choices_all,fitted_choices_mean};
 
     case 'RT' % response times
         for d = 1:length(D_act)
@@ -134,9 +138,12 @@ switch type
                 actual_rt = D_act(d).HGF(1).y(:,2);
             end
 
+            % outliers
+            [~,actualOL] = rmoutliers(actual_rt);
+
             % condition means
             condnum = D_act(d).Processed.condnum{1};
-            ii = find(~isnan(actual_rt));
+            ii = ~isnan(actual_rt);
             unicond = unique(condnum(ii));
             actual_condmeans(d,unicond) = mean_by_condition(actual_rt(ii),condnum(ii)); 
 
@@ -150,6 +157,7 @@ switch type
             fitted_condmeans_rep = [];
             fitted_blockstimmeans_rep = [];
             fitted_rt_all=[];
+            fitted_choices_rep = [];
             cc=[];
             clear brr
             disp(['BRR on RTs, ppt ' num2str(d)])
@@ -157,46 +165,87 @@ switch type
             HGF = D_sim(d).HGF;
             parfor rep = 1:S.numsimrep
                 fitted_rt = HGF(rep).sim.y(:,2);
-               
-                % NaNs
-                ii = find(~isnan(actual_rt) & ~isnan(fitted_rt));
+                fitted_choices = HGF(rep).sim.y(:,1);
 
+                if S.run_BRR && S.BRR_on_each_rep
+
+                    % outliers
+                    [~,fittedOL] = rmoutliers(fitted_rt);
+                   
+                    % NaNs
+                    ii = ~isnan(actual_rt) & ~isnan(fitted_rt) & ~actualOL & ~fittedOL;
+    %                 ii = ~isnan(actual_rt) & ~isnan(fitted_rt);
+    
+                    fitted_rt(~ii)=nan;
+
+                    % remove choice effects (maybe only needed if jointly
+                    % modelling RT and choice in the HGF?)
+                    mdlF=fitlm(fitted_choices(ii),fitted_rt(ii));
+                    fitted_rt(ii) = mdlF.Residuals.Raw;
+
+                    % bayes reg
+                    brr(d,rep) = bayesreg_crossval(fitted_rt(ii),actual_rt(ii),S,{});
+                    %brr(d,rep).N = sum(ii);
+                else
+                    ii = ~isnan(actual_rt) & ~isnan(fitted_rt);
+                    fitted_rt(~ii)=nan;
+                end
+                fitted_rt_all(:,rep) = fitted_rt;
+                fitted_choices_rep(:,rep) = fitted_choices;
+
+                %correlate
+                cc(rep) = corr(fitted_rt(ii),actual_rt(ii),'type','Spearman');
+                
                 % condition means
                 fitted_condmeans_rep(rep,:) = mean_by_condition(fitted_rt ,condnum); 
                 
                 % blockstim means
                 fitted_blockstimmeans_rep(rep,:) = mean_by_condition(fitted_rt ,blockstimnum); 
-
-                %correlate
-                cc(rep) = corr(fitted_rt(ii),actual_rt(ii),'type','Spearman');
-                
-                if S.BRR_on_each_rep
-                    % bayes reg
-                    brr(d,rep) = bayesreg_crossval(fitted_rt(ii),actual_rt(ii),S,{});
-                else
-                    fitted_rt_all(:,rep) = fitted_rt;
-                end
+               
                 
             end
             toc
             cc_mean(d,1)=mean(cc);
 
-            if S.BRR_on_each_rep
-                fdnames = fieldnames(brr);
-                for fd = 1:length(fdnames)
-                    brr_mean.(fdnames{fd})(d,1)=mean([brr(:).(fdnames{fd})]);
+            % RTs
+            fitted_rt_mean = nanmean(fitted_rt_all,2);
+            [~,fittedOL] = rmoutliers(fitted_rt_mean);
+
+            if S.run_BRR
+                if S.BRR_on_each_rep
+                    fdnames = fieldnames(brr);
+                    for fd = 1:length(fdnames)
+                        brr_mean.(fdnames{fd})(d,1)=mean([brr(:).(fdnames{fd})]);
+                    end
+                else
+    
+    
+                    % remove choice effects (maybe only needed if jointly
+                    % modelling RT and choice in the HGF?)
+    
+                    fitted_choices_mean = nanmean(fitted_choices_rep,2);
+                    ii = ~isnan(fitted_choices_mean) & ~isnan(actual_rt) & ~isnan(fitted_rt_mean) & ~actualOL & ~fittedOL;
+    %                 ii = ~isnan(fitted_choices_mean) & ~isnan(actual_rt) & ~isnan(fitted_rt_mean);
+                    mdlF=fitlm(fitted_choices_mean(ii),fitted_rt_mean(ii));
+                    fitted_rt_mean(~ii)=nan;
+                    fitted_rt_mean(ii) = mdlF.Residuals.Raw;
+    
+                    % bayes reg
+                    brr_mean(d,1) = bayesreg_crossval(fitted_rt_mean(ii),actual_rt(ii),S,{});
+                    %brr_mean(d,1).N = sum(ii);
                 end
-            else
-                % bayes reg
-                fitted_rt_mean = nanmean(fitted_rt_all,2);
-                ii = find(~isnan(actual_rt) & ~isnan(fitted_rt_mean));
-                brr_mean(d,1) = bayesreg_crossval(fitted_rt_mean(ii),actual_rt(ii),S,{});
             end
+
+            %[~,fittedOL] = rmoutliers(fitted_rt_mean);
+            %fitted_rt_mean(fittedOL)=nan;
 
             fitted_condmeans(d,:) = mean(fitted_condmeans_rep,1);
             fitted_blockstimmeans(d,:) = mean(fitted_blockstimmeans_rep,1);
+            actual_rt_allsub(d,:) = actual_rt';
+            fitted_rt_allsub(d,:) = fitted_rt_mean';
         end
-        varargout = {cc_mean,brr_mean,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans};
+        if ~exist("brr_mean","var") brr_mean=struct; end
+        varargout = {cc_mean,brr_mean,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans,actual_rt_allsub,fitted_rt_allsub};
         
     case {'HGFvar','CCA_FApred'} % decoded HGF trajectories
         for d = 1:length(D_act)
@@ -210,7 +259,7 @@ switch type
 
                     %only consider trials in which both fitted and actual
                     %responses both occur
-                    ii = find(~isnan(squeeze(actual_var(d,:,nv))') .* ~isnan(sim_var(:,nv)));
+                    ii = ~isnan(squeeze(actual_var(d,:,nv))') .* ~isnan(sim_var(:,nv));
 
                     %correlate
                     cc(nv,rep) = corr(sim_var(ii,nv),squeeze(actual_var(d,ii,nv))','type','Spearman');
