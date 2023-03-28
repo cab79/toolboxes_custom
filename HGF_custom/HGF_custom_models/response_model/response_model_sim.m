@@ -250,8 +250,8 @@ if any(strcmp(r.c_obs.responses, 'RT'))
 
     
     % Simulate
-    %y(:,2) = logresp +sqrt(ze)*randn(n, 1); % response time plus Gaussian noise
-    y(:,2) = logresp; % response time without Gaussian noise
+    y(:,2) = logresp +sqrt(ze)*randn(n, 1); % response time plus Gaussian noise
+    %y(:,2) = logresp; % response time without Gaussian noise
 end
 
 

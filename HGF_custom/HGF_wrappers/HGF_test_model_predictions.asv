@@ -210,7 +210,6 @@ switch type
 
             % RTs
             fitted_rt_mean = nanmean(fitted_rt_all,2);
-            fitted_rt_std = nanstd(fitted_rt_all,0,2);
             [~,fittedOL] = rmoutliers(fitted_rt_mean);
 
             if S.run_BRR
@@ -245,10 +244,9 @@ switch type
             fitted_blockstimmeans(d,:) = mean(fitted_blockstimmeans_rep,1);
             actual_rt_allsub(d,:) = actual_rt';
             fitted_rt_allsub(d,:) = fitted_rt_mean';
-            fitted_rt_std_allsub(d,:) = fitted_rt_std';
         end
         if ~exist("brr_mean","var") brr_mean=struct; end
-        varargout = {cc_mean,brr_mean,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans,actual_rt_allsub,fitted_rt_allsub,fitted_rt_std_allsub};
+        varargout = {cc_mean,brr_mean,actual_condmeans,fitted_condmeans,actual_blockstimmeans,fitted_blockstimmeans,actual_rt_allsub,fitted_rt_allsub};
         
     case {'HGFvar','CCA_FApred'} % decoded HGF trajectories
         for d = 1:length(D_act)

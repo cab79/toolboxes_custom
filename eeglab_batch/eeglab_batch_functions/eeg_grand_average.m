@@ -344,10 +344,10 @@ for ga = 1:length(uni_ind)
                 end
                 % separate GA for included and rejected subjects
                 if S.ga.grand_avg.outliers 
-                    if ~isempty(noemp_noout)
+                    if ~isempty(noemp_noout{n})
                         S.(S.func).gadata{ga}.events_rej{n} = ft_timelockgrandaverage_cab(cfg, data_all_rej{ga}{n}(noemp_noout{n}));
                     end
-                    if ~isempty(noemp_out)
+                    if ~isempty(noemp_out{n})
                         S.(S.func).gadata{ga}.events_acc{n} = ft_timelockgrandaverage_cab(cfg, data_all_acc{ga}{n}(noemp_out{n}));
                     end
                 end
