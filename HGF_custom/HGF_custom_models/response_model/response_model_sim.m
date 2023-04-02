@@ -244,7 +244,13 @@ if any(strcmp(r.c_obs.responses, 'RT'))
         elseif l>1
             logresp = be0 +be1.*surp +be2.*bernv +be3.*inferv +be5.*daureg +be6.*ep1reg +be7.*da1reg +be8.*ep2reg +be12.*m1reg +be13.*m2reg +be15.*sa2hreg +be16.*mu2hreg;
         else
-            logresp = be0 +be1.*surp +be2.*bernv +be5.*daureg +be6.*ep1reg +be7.*da1reg +be8.*ep2reg +be12.*m1reg;
+            if isinf(bernv)
+                % simpler model for when level 1 is certain / infinite
+                % precision
+                logresp = be0 +be1.*surp;
+            else
+                logresp = be0 +be1.*surp +be2.*bernv +be5.*daureg +be6.*ep1reg +be7.*da1reg +be8.*ep2reg +be12.*m1reg;
+            end
         end
     end
 

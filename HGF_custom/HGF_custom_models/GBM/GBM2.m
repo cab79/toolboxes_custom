@@ -131,6 +131,7 @@ for m=1:r.c_prc.nModels
         expom(:,1,m) = exp(om(:,1,m));
     end
 end
+xc(1) = 0.5; % for joint models
 
 %% Efficiacy
 % Unpack from struct to double for efficiency
@@ -240,7 +241,7 @@ for k=2:1:n
                 % alpha multipliers are not variances, but have to be positive
                 if_str = num2str(u(k,2));
                 for nif = 1:n_inputfactors 
-                    if strcmp(if_str(inputfactors(nif)),'1') % e.g. higher intensity stimulus
+                    if strcmp(if_str(inputfactors(nif)),'1') % e.g. lower intensity stimulus where options are '1' or '2' - more uncertainty expected for lower intensity
                         al(k,1,m)=al(k,1,m) * al0(inputfactors(nif)+1);
                     end
                 end
@@ -361,12 +362,18 @@ for k=2:1:n
 
 
             elseif state(m) 
-                if nModels==1 % Kalman - CANNOT APPLY TO HYBRID MODELS
+                if 1%nModels==1 % Kalman - CANNOT APPLY TO HYBRID MODELS? Yes, can
                     % Gain update - optimal gain is calculated from ratio of input
                     % variance to representation variance
     
                     % Same gain function modified by two different alphas
-                    g(k,1,m) = (g(k-1,1,m) +al(k,1,m)*expom(1,1,m))/(g(k-1,1,m) +al(k,1,m)*expom(1,1,m) +1);
+                    if expom(1,1,m)==0
+                        % no 1st level uncertainty - similar to RW learning
+                        g(k,1,m) = al(k,1,m);
+                    else
+                        % Kalman gain
+                        g(k,1,m) = (g(k-1,1,m) +al(k,1,m)*expom(1,1,m))/(g(k-1,1,m) +al(k,1,m)*expom(1,1,m) +1);
+                    end
                     % Hidden state mean update
                     mu(k,1,m) = muhat(k,1,m)+g(k,1,m)*dau(k,1,m);
                     mu0(k,1,m) = mu(k,1,m);
@@ -400,6 +407,9 @@ for k=2:1:n
                     % Representation prediction error
                     da(k,1,m) = mu(k,1,m) -muhat(k,1,m);
                 else
+                    % just make these zero for plotting, but they are not
+                    % used for estimating the model (only muhat for joint models)
+                    muhat(k,1,m) =  xc(k-1,1);
                     mu(k,1,m) = 0;
                     mu0(k,1,m) = 0;
                 end

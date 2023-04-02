@@ -362,17 +362,33 @@ for k=2:1:n
 
 
             elseif state(m) 
-                if nModels==1 % Kalman - CANNOT APPLY TO HYBRID MODELS
+                if 1%nModels==1 % Kalman - CANNOT APPLY TO HYBRID MODELS? Yes, can
                     % Gain update - optimal gain is calculated from ratio of input
                     % variance to representation variance
     
                     % Same gain function modified by two different alphas
-                    g(k,1,m) = (g(k-1,1,m) +al(k,1,m)*expom(1,1,m))/(g(k-1,1,m) +al(k,1,m)*expom(1,1,m) +1);
+                    if expom(1,1,m)==0
+                        % no 1st level uncertainty - similar to RW learning
+                        g(k,1,m) = al(k,1,m);
+                    else
+                        % Kalman gain
+                        g(k,1,m) = (g(k-1,1,m) +al(k,1,m)*expom(1,1,m))/(g(k-1,1,m) +al(k,1,m)*expom(1,1,m) +1);
+                    end
                     % Hidden state mean update
                     mu(k,1,m) = muhat(k,1,m)+g(k,1,m)*dau(k,1,m);
-                    mu0(k,1,m) = mu(k,1,m);
                     pi(k,1,m) = (1-g(k,1,m)) *al(k,1,m)*expom(1,1,m); 
-    
+
+                    if AL(m)
+                        % convert cue-outcome association back to outcome
+                        if u(k,3)==2
+                            mu0(k,1,m) = mu(k,1,m);
+                        elseif u(k,3)==1
+                            mu0(k,1,m) = 1-mu(k,1,m);
+                        end
+                    else
+                        mu0(k,1,m) = mu(k,1,m);
+                    end
+
                     % Alternative: separate gain functions for each stimulus type
               %      if r.c_prc.(type).one_alpha
               %          pi_u=al0(u(k,2));

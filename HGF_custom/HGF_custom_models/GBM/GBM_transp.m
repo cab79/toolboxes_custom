@@ -20,6 +20,8 @@ idx=r.c_prc.priormusi;
 for pn=1:length(nme)
     if r.c_prc.varparam(pn) % if it is a variance parameter
         pvec(idx{pn}) = exp(ptrans(idx{pn}));
+    elseif r.c_prc.sgmparam(pn) % if it is bounded by 0 and 1
+        pvec(idx{pn}) = tapas_sgm(ptrans(idx{pn}),1);
     else
         pvec(idx{pn}) = ptrans(idx{pn});
     end
