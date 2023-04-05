@@ -101,7 +101,7 @@ for m=1:r.c_prc.nModels
             lenpvec=length(pvec(idx{pn}));
             thispvec=nan(lenpvec,1);
             thispvec(1:lenpvec)=pvec(idx{pn})';
-            eval([nme_gen{pn} '(:,1,m) = thispvec;']);
+            eval([nme_gen{pn} '(1:lenpvec,1,m) = thispvec;']);
         end
     end
 

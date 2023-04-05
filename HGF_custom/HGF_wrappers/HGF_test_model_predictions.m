@@ -161,10 +161,11 @@ switch type
             fitted_choices_rep = [];
             cc=[];
             clear brr
-            disp(['BRR on RTs, ppt ' num2str(d)])
+            disp(['RTs, ppt ' num2str(d)])
             tic
             HGF = D_sim(d).HGF;
-            parfor rep = 1:S.numsimrep
+            %parfor rep = 1:S.numsimrep
+            for rep = 1:S.numsimrep
                 fitted_rt = HGF(rep).sim.y(:,2);
                 fitted_choices = HGF(rep).sim.y(:,1);
 

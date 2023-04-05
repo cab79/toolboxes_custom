@@ -65,6 +65,14 @@ else
     xt = S.resp_models;
 end
 
+% convert to strings
+if isnumeric(S.resp_models)
+    S.resp_models = strsplit(num2str(S.resp_models));
+end
+if isnumeric(S.perc_models)
+    S.perc_models = strsplit(num2str(S.perc_models));
+end
+
 for pm = 1:length(S.perc_models)
 %     load(fullfile(fitted_path,['CORE_fittedparameters_percmodel' num2str(S.perc_models(m)) '_respmodel' num2str(S.resp_model) '_fractrain' num2str(S.frac_train) '_' S.sname '.mat']));
 
@@ -85,10 +93,10 @@ for pm = 1:length(S.perc_models)
 
             if ~LME_input
                 try
-                    fname=[S.fname_pref '_percmodel' num2str(S.perc_models(pm)) '_respmodel' num2str(S.resp_models(rm)) S.fname_ext{om}];
+                    fname=[S.fname_pref '_percmodel' S.perc_models{pm} '_respmodel' S.resp_models{rm} S.fname_ext{om}];
                     ls = load(fullfile(fitted_path,fname));
                 catch
-                    fname=[S.fname_pref '_pm' num2str(S.perc_models(pm)) '_rm' num2str(S.resp_models(rm)) S.fname_ext{om}];
+                    fname=[S.fname_pref '_pm' S.perc_models{pm} '_rm' S.resp_models{rm} S.fname_ext{om}];
                     ls = load(fullfile(fitted_path,fname));
                 end
                 D_fit=ls.D_fit;
@@ -145,6 +153,8 @@ for mi = 1:size(LME,1)
             rc_out=tapas_bayesian_parameter_average_CAB(1,rc(mi,:));
 %             tapas_fit_plotCorr(rc_out);
 %             title(['model ' num2str(mi) ', bayesian average'])
+        catch
+            rc_out = [];
         end
     else
         rc_out = [];
@@ -316,7 +326,8 @@ else
     options = {};
     % compare models
     if length(LMEgrp)==1
-        [~,~,out] = VBA_groupBMC_cab(LME,options,S.pep_flag);
+        [~,out] = VBA_groupBMC_cab(LME,options,S.pep_flag);
+        out={out};
     elseif length(LMEgrp)>1
         options.grpNames = grpuni;
         [~,~,out] = VBA_groupBMC_btwGroups_CAB(LMEgrp,options,S.pep_flag);

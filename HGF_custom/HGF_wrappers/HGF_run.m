@@ -40,7 +40,7 @@ end
 if S.parallel
     checkp = gcp('nocreate');
     if isempty(checkp)
-        myPool = parpool;
+        myPool = parpool(16);
     end
     parforArg = Inf;
 else
