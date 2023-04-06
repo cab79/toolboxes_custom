@@ -166,6 +166,12 @@ elseif isfield(S,'c_prc') % e.g. when using MFX model with empirical priors
     r.c_prc = S.c_prc;
 end
 
+if isfield(S,'use_eGBM') && S.use_eGBM==1
+    r.eGBM=1;
+else
+    r.eGBM=0;
+end
+
 if nargin > 3 && ~isempty(varargin{2})
     if isempty(strfind(varargin{2},'tapas'))
         if ~isfield(S,'c_obs') 

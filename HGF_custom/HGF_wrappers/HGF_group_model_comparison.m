@@ -114,6 +114,9 @@ for pm = 1:length(S.perc_models)
                             disp(['Missing LME from file: ' fname])
                         end
                     end
+                    if isfield(D_fit(d).HGF.fit,'eGBM')
+                        D_fit(d).HGF.fit = rmfield(D_fit(d).HGF.fit,'eGBM');
+                    end
                     rs(mi,d)=D_fit(d).HGF.fit;
                     rc{mi,d}=D_fit(d).HGF.fit;
 

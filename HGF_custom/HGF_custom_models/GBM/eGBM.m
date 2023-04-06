@@ -369,17 +369,17 @@ for k=2:1:n
                     
                     if r.eGBM
                         % Mean update
-                        mu(k,l(m),m) = muhat(k,l(m),m) +1/2 *1/pihat(k,l(m),m) *ka(l(m)-1,1,m) *w(k,l(m)-1,m) *da(k,l(m)-1,m);
+                        mu(k,l,m) = muhat(k,l,m) +1/2 *1/pihat(k,l,m) *ka(l-1,1,m) *w(k,l-1,m) *da(k,l-1,m);
                         
                         % Ingredients of the precision update which depend on the mean
                         % update
-                        vv = t(k) *exp(ka(l(m)-1,1,m) *mu(k,l(m),m) +om(l(m)-1,1,m));
-                        pimhat = 1/(1/pi(k-1,l(m)-1,m) +vv); 
+                        vv = t(k) *exp(ka(l-1,1,m) *mu(k,l,m) +om(l-1,1,m));
+                        pimhat = 1/(1/pi(k-1,l-1,m) +vv); 
                         ww = vv *pimhat;
-                        rr = (vv -1/pi(k-1,l(m)-1,m)) *pimhat;
-                        dd = (1/pi(k,l(m)-1,m) +(mu(k,l(m)-1,m) -muhat(k,l(m)-1,m))^2) *pimhat -1;
+                        rr = (vv -1/pi(k-1,l-1,m)) *pimhat;
+                        dd = (1/pi(k,l-1,m) +(mu(k,l-1,m) -muhat(k,l-1,m))^2) *pimhat -1;
                                 
-                        pi(k,l(m),m) = pihat(k,l(m),m) +max(0, 1/2 *ka(l(m)-1,1,m)^2 *ww*(ww +rr*dd));
+                        pi(k,l,m) = pihat(k,l,m) +max(0, 1/2 *ka(l-1,1,m)^2 *ww*(ww +rr*dd));
                     else
                         % Updates
                         pi(k,l(m),m) = pihat(k,l(m),m) +1/2 *ka(l(m)-1,1,m)^2 *w(k,l(m)-1,m) *(w(k,l(m)-1,m) +(2 *w(k,l(m)-1,m) -1) *da(k,l(m)-1,m));
@@ -560,17 +560,17 @@ end
 
 for m=1:nModels
     if l(m)>1
-%         if r.eGBM
-%             sgmmu2 = tapas_sgm(mu(:,2,m), 1);
-%             dasgmmu2 = u(:,1) -sgmmu2;
-%             lr1    = diff(sgmmu2)./dasgmmu2(2:n,1);
-%             lr1(da(2:n,1,m)==0) = 0;
-%         else
+        if r.eGBM
+            sgmmu2 = tapas_sgm(ka(1,1,m) *mu(:,2,m), 1);
+            dasgmmu2 = u -sgmmu2;
+            lr1    = diff(sgmmu2)./dasgmmu2(2:n,1,m);
+            lr1(da(2:n,1,m)==0) = 0;
+        else
             % Implied learning rate at the first level
             sgmmu2 = 1./(1+exp(-mu(:,2,m)));
             lr1    = diff(sgmmu2)./da(2:n,1,m);
             lr1(da(2:n,1,m)==0) = 0;
-%         end
+        end
     end
 end
 
