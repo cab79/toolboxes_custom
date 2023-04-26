@@ -17,6 +17,14 @@ function tapas_hgf_binary_plotTraj_CAB(r,priormodel,plotsd)
 ploty = true;
 fontsize=16;
 
+% plot colours
+% input_colour = {'green', [0 0.6 0]};
+input_colour = {'red', [1 0 0]};
+% mu1_colour = {'red', [0.6 0 0]};
+mu1_colour = {'purple', [0.6 0 0.6]};
+mu2_colour = {'blue', [0 0 1]};
+mu3_colour = {'green', [0 0.8 0]};
+
 % Set up display
 scrsz = get(0,'screenSize');
 outerpos = [0.2*scrsz(3),0.2*scrsz(4),0.8*scrsz(3),0.8*scrsz(4)];
@@ -43,6 +51,7 @@ ts = [0, ts];
 
 mu_0=r.p_prc.([priormodel '_mu_0']);
 mu = r.traj.(priormodel).mu;
+muhat = r.traj.(priormodel).muhat;
 wt = r.traj.(priormodel).wt;
 if isfield(r.p_prc,[priormodel '_om'])
     om = r.p_prc.([priormodel '_om']);
@@ -81,21 +90,27 @@ for j = 1:(l+ll)-(1+ll)
     % Subplots
     subplot(l+ll,1,j);
 
+    if j==(l+ll)-(1+ll)
+        mcolour = mu2_colour;
+    else
+        mcolour =  mu3_colour;
+    end
+
     if plotsd == true
         upperprior = mu_0(l-j+1) +sqrt(sa_0(l-j+1));
         lowerprior = mu_0(l-j+1) -sqrt(sa_0(l-j+1));
         upper = [upperprior; mu(:,l-j+1)+sqrt(sa(:,l-j+1))];
         lower = [lowerprior; mu(:,l-j+1)-sqrt(sa(:,l-j+1))];
     
-        plot(0, upperprior, 'ob', 'LineWidth', 1);
+        plot(0, upperprior, 'o','Color',mcolour{2}, 'LineWidth', 1);
         hold all;
-        plot(0, lowerprior, 'ob', 'LineWidth', 1);
+        plot(0, lowerprior, 'o','Color',mcolour{2}, 'LineWidth', 1);
         fill([ts, fliplr(ts)], [(upper)', fliplr((lower)')], ...
-             'b', 'EdgeAlpha', 0, 'FaceAlpha', 0.15);
+             mcolour{2}, 'EdgeAlpha', 0, 'FaceAlpha', 0.15);
     end
-    plot(ts, [mu_0(l-j+1); mu(:,l-j+1)], 'b', 'LineWidth', 2);
+    plot(ts, [mu_0(l-j+1); mu(:,l-j+1)], 'Color', mcolour{2}, 'LineWidth', 2);
     hold all;
-    plot(0, mu_0(l-j+1), 'ob', 'LineWidth', 2); % prior
+    plot(0, mu_0(l-j+1), 'o','Color',mcolour{2}, 'LineWidth', 2); % prior
     xlim([0 ts(end)]);
     title(['Posterior expectation of x_' num2str(l-j+1)], 'FontWeight', 'bold');
     ylabel(['\mu_', num2str(l-j+1)]);
@@ -106,18 +121,23 @@ end
 subplot(l+ll,1,l);
 
 try
-    plot(ts, [tapas_sgm(mu_0(2), 1); tapas_sgm(mu(:,2), 1)], 'b', 'LineWidth', 2);
+    plot(ts, [tapas_sgm(mu_0(2), 1); tapas_sgm(mu(:,2), 1)], 'Color', mu2_colour{2}, 'LineWidth', 2);
     hold all;
-    plot(0, tapas_sgm(mu_0(2), 1), 'ob', 'LineWidth', 2); % prior
-    plot(ts, [mu_0(1); mu(:,1)], 'r', 'LineWidth', 1);
-    plot(0, mu_0(1), 'or', 'LineWidth', 1); % prior
+    plot(0, tapas_sgm(mu_0(2), 1), 'o','Color',mu2_colour{2}, 'LineWidth', 2); % prior
+    plot(ts, [mu_0(1); mu(:,1)], 'Color', mu1_colour{2}, 'LineWidth', 1);
+    plot(0, mu_0(1), 'o','Color',mu1_colour{2},  'LineWidth', 1); % prior
 catch
-    plot(ts, [mu_0(1); mu(:,1)], 'r', 'LineWidth', 1);
+    plot(ts, [muhat(:,1); nan], 'Color', mu2_colour{2}, 'LineWidth', 2);
     hold all;
-    plot(0, mu_0(1), 'or', 'LineWidth', 1); % prior
+    plot(0, muhat(1,1), 'o','Color',mu2_colour{2}, 'LineWidth', 2); % prior
+    plot(ts, [mu_0(1); mu(:,1)], 'Color', mu1_colour{2}, 'LineWidth', 1);
+    plot(0, mu_0(1), 'o','Color',mu1_colour{2},  'LineWidth', 1); % prior
+%     plot(ts, [mu_0(1); mu(:,1)], 'Color', mu2_colour{2},  'LineWidth', 1);
+%     hold all;
+%     plot(0, mu_0(1), 'o','Color',mu2_colour{2},  'LineWidth', 1); % prior
 end
-plot(ts(2:end), r.u(:,1), '.', 'Color', [0 0.6 0]); % inputs
-plot(ts(2:end), wt(:,1), 'k') % implied learning rate 
+plot(ts(2:end), r.u(:,1), '.', 'Color', input_colour{2}); % inputs
+%plot(ts(2:end), wt(:,1), 'k') % implied learning rate 
 if (ploty == true) && ~isempty(find(strcmp(fieldnames(r),'y'))) && ~isempty(r.y)
     if ~isempty(find(strcmp(fieldnames(r),'c_sim'))) && strcmp(r.c_sim.obs_model,'tapas_beta_obs')
         y = r.y(:,1);
@@ -133,8 +153,8 @@ if (ploty == true) && ~isempty(find(strcmp(fieldnames(r),'y'))) && ~isempty(r.y)
     end
     plot(ts(2:end), y, '.', 'Color', [1 0.7 0]); % responses
 %     title(['Response y (orange), input u (green), learning rate (fine black), posterior expectation of input s(\mu_2) (blue), ', ...
-    title(['Response y (orange), input u (green), posterior expectation of input s(\mu_2) (blue), ', ...
-           '\mu_1 (red)'], ...
+    title(['Response y (orange), input u (' input_colour{1} '), posterior expectation of input s(\mu_2) (' mu2_colour{1} '), ', ...
+           '\mu_1 (' mu1_colour{1} ')'], ...
       'FontWeight', 'bold');
            %', for ',...
            %'\rho=', num2str(rho(2:end)), ', '...
@@ -144,8 +164,8 @@ if (ploty == true) && ~isempty(find(strcmp(fieldnames(r),'y'))) && ~isempty(r.y)
     axis([0 ts(end) -0.15 1.15]);
 else
 %     title(['Response y (orange), input u (green), learning rate (fine black), posterior expectation of input s(\mu_2) (blue), ', ...
-    title(['Response y (orange), input u (green), posterior expectation of input s(\mu_2) (blue), ', ...
-           '\mu_1` (red)'], ...
+    title(['Response y (orange), input u (' input_colour{1} '), posterior expectation of input s(\mu_2) (' mu2_colour{1} '), ', ...
+           '\mu_1 (' mu1_colour{1} ')'], ...
       'FontWeight', 'bold');
            %', for ',...
            %'\rho=', num2str(rho(2:end)), ', '...
