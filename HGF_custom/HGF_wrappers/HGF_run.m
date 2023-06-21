@@ -70,8 +70,6 @@ fit=cell(length(D),1);sim=cell(length(D),1);
 parfor (d = 1:length(D),parforArg)
 % for d = 1:length(D)
     
-    disp(['testing perc model ' num2str(S.perc_model) ', resp model ' num2str(S.resp_model) ', subject ' num2str(d) '/' num2str(length(D))])
-
     if ~isfield(S,'nstim')
         nst=length(D(d).HGF(1).u);
     else
@@ -86,6 +84,8 @@ parfor (d = 1:length(D),parforArg)
     fin=0;
     failed=0;
     while fin==0
+        disp(['testing perc model ' num2str(S.perc_model) ', resp model ' num2str(S.resp_model) ', subject ' num2str(d) '/' num2str(length(D))])
+
         
 %         if isfield(S,'D_perc')
 %             c_prc = r(d).c_prc;
@@ -120,7 +120,7 @@ parfor (d = 1:length(D),parforArg)
             if isfield(out,'traj')
                 fit{d} = out;
             else
-                failed = failed+1;
+                failed = failed+0.5;
                 continue
             end
         end
@@ -137,16 +137,16 @@ parfor (d = 1:length(D),parforArg)
                     
                     jumpTol = 16;
                     if any(abs(dmu(:)) > jumpTol*rmdmu(:)) || any(abs(dpi(:)) > jumpTol*rmdpi(:))
-                        failed = failed+1;
-                        disp('HGF_run: Variational approximation invalid. Parameters are in a region where model assumptions are violated.');
+                        failed = failed+0.5;
+                        disp(['subject ' D(d).subname ', HGF_run: Variational approximation invalid. Parameters are in a region where model assumptions are violated.']);
                         disp('Use plot for diagnosis: see within function'); % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
                     else
                         fin=1;
                     end
                 else
-                    failed = failed+1;
+                    failed = failed+0.5
                     fin=0;
-                    disp('HGF_run: Variational approximation invalid. Parameters are in a region where model assumptions are violated.');
+                    disp(['subject ' D(d).subname ', HGF_run: Variational approximation invalid. Parameters are in a region where model assumptions are violated.']);
                     disp('Use plot for diagnosis: see within function'); % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
                 end
             end

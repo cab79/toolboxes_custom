@@ -120,7 +120,7 @@ for d = 1:length(D)
             if isfield(out,'traj')
                 fit{d} = out;
             else
-                failed = failed+1;
+                failed = failed+0.5;
                 continue
             end
         end
@@ -137,14 +137,14 @@ for d = 1:length(D)
                     
                     jumpTol = 16;
                     if any(abs(dmu(:)) > jumpTol*rmdmu(:)) || any(abs(dpi(:)) > jumpTol*rmdpi(:))
-                        failed = failed+1;
+                        failed = failed+0.5;
                         disp('HGF_run: Variational approximation invalid. Parameters are in a region where model assumptions are violated.');
                         disp('Use plot for diagnosis: see within function'); % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
                     else
                         fin=1;
                     end
                 else
-                    failed = failed+1;
+                    failed = failed+0.5
                     fin=0;
                     disp('HGF_run: Variational approximation invalid. Parameters are in a region where model assumptions are violated.');
                     disp('Use plot for diagnosis: see within function'); % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
