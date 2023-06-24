@@ -164,6 +164,63 @@ elseif nargin > 2 && ~isempty(varargin{1}) && ~isfield(S,'c_prc')
     r.c_prc = eval([varargin{1} '(S,failed)']); % runs the config function
 elseif isfield(S,'c_prc') % e.g. when using MFX model with empirical priors
     r.c_prc = S.c_prc;
+    % The below duplicates code in the config file for EP
+    if failed>0
+        disp(['fitmodel: failed = ' num2str(failed)])
+        for m = 1:r.c_prc.nModels
+            type = r.c_prc.type{m};
+            if length(r.c_prc.(type).mu_0mu)==3
+                failed2=0;
+                failed3=failed;
+            elseif length(r.c_prc.(type).mu_0mu)==2
+                failed2=failed;
+                failed3=0;
+            end
+            switch type
+                case 'PL'
+                    % must be non-integer - a way of alternating
+                    % between AL and PL failure correction
+                    if failed2>0 && isinteger(failed2)
+                        failed2=0;
+                    elseif failed2>0
+                        disp([type ' failed2=' num2str(failed2)])
+                    end
+                    if failed3>0 && isinteger(failed3)
+                        failed3=0;
+                    elseif failed3>0
+                        disp([type ' failed3=' num2str(failed3)])
+                    end
+                    if failed2>0
+                        idx = find(S.c_prc_orig.priormus==S.c_prc_orig.(type).ommu(2));
+                        r.c_prc.priormus(idx) = r.c_prc.priormus(idx)-failed2;
+                    elseif failed3>0
+                        idx = find(S.c_prc_orig.priormus==S.c_prc_orig.(type).ommu(3));
+                        r.c_prc.priormus(idx) = r.c_prc.priormus(idx)-failed3;
+                    end
+
+                case 'AL'
+                    % must be integer
+                    if failed2>0 && ~isinteger(failed2)
+                        failed2=0;
+                    elseif failed2>0
+                        disp([type ' failed2=' num2str(failed2)])
+                    end
+                    if failed3>0 && ~isinteger(failed3)
+                        failed3=0;
+                    elseif failed3>0
+                        disp([type ' failed3=' num2str(failed3)])
+                    end
+                    if failed2>0
+                        idx = find(S.c_prc_orig.priormus==S.c_prc_orig.(type).ommu(2));
+                        r.c_prc.priormus(idx) = r.c_prc.priormus(idx)-failed2;
+                    elseif failed3>0
+                        idx = find(S.c_prc_orig.priormus==S.c_prc_orig.(type).ommu(3));
+                        r.c_prc.priormus(idx) = r.c_prc.priormus(idx)-failed3;
+                    end
+
+            end
+        end
+    end
 end
 
 if isfield(S,'use_eGBM') && S.use_eGBM==1
