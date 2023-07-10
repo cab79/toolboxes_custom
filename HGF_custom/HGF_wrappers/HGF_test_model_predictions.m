@@ -146,14 +146,16 @@ switch type
             condnum = D_act(d).Processed.condnum{1};
             ii = ~isnan(actual_rt);
             unicond = unique(condnum(ii));
-            actual_condmeans(d,unicond) = mean_by_condition(actual_rt(ii),condnum(ii)); 
+            actual_condmeans(d,ismember(allcond,unicond)) = mean_by_condition(actual_rt(ii),condnum(ii)); 
 
-            % split into stim intensity per block
-            blocknum = D_act(d).Sequence.blocks;
-            stimnum = D_act(d).Sequence.signal(S.signal.target,:);
-            [~,~,blockstimnum] = unique([blocknum;stimnum]','rows');
-            uniblockstim = unique(blockstimnum);
-            actual_blockstimmeans(d,uniblockstim) = mean_by_condition(actual_rt(ii),blockstimnum(ii)); 
+            if isfield(D_act(d),'Sequence')
+                % split into stim intensity per block
+                blocknum = D_act(d).Sequence.blocks;
+                stimnum = D_act(d).Sequence.signal(S.signal.target,:);
+                [~,~,blockstimnum] = unique([blocknum;stimnum]','rows');
+                uniblockstim = unique(blockstimnum);
+                actual_blockstimmeans(d,uniblockstim) = mean_by_condition(actual_rt(ii),blockstimnum(ii)); 
+            end
 
             fitted_condmeans_rep = [];
             fitted_blockstimmeans_rep = [];
@@ -201,8 +203,12 @@ switch type
                 % condition means
                 fitted_condmeans_rep(rep,:) = mean_by_condition(fitted_rt ,condnum); 
                 
-                % blockstim means
-                fitted_blockstimmeans_rep(rep,:) = mean_by_condition(fitted_rt ,blockstimnum); 
+                if isfield(D_act(d),'Sequence') % MNP study
+                    % blockstim means
+                    fitted_blockstimmeans_rep(rep,:) = mean_by_condition(fitted_rt ,blockstimnum); 
+                else
+                    actual_blockstimmeans = [];
+                end
                
                 
             end

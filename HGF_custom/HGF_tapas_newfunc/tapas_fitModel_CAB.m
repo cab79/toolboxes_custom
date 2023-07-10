@@ -178,6 +178,9 @@ elseif isfield(S,'c_prc') % e.g. when using MFX model with empirical priors
             end
             switch type
                 case 'PL'
+                    if ~isfield(S.c_prc_orig.(type),'ommu')
+                        continue
+                    end
                     % must be non-integer - a way of alternating
                     % between AL and PL failure correction
                     if failed2>0 && isinteger(failed2)
@@ -199,6 +202,9 @@ elseif isfield(S,'c_prc') % e.g. when using MFX model with empirical priors
                     end
 
                 case 'AL'
+                    if ~isfield(S.c_prc_orig.(type),'ommu')
+                        continue
+                    end
                     % must be integer
                     if failed2>0 && ~isinteger(failed2)
                         failed2=0;

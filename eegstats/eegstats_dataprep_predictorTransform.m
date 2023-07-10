@@ -34,6 +34,20 @@ for d = 1:length(D)
 %             D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
 %         end
 %     end
+    if isfield(S.prep.calc.pred,'inv') && ~isempty(S.prep.calc.pred.inv) 
+        col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.inv));
+        for pr = 1:length(col_idx)
+            tempdat=table2array(D(d).prep.dtab(:,col_idx(pr)));
+            if any(tempdat<0); tempdat = tempdat-min(tempdat); end
+            if min(tempdat(tempdat~=0)) ~= max(tempdat(tempdat~=0))
+                tempdat(tempdat==0) = min(tempdat(tempdat~=0));
+            else
+                tempdat(tempdat==0) = realmin;
+            end
+            temp = 1./tempdat;
+            D(d).prep.dtab(:,col_idx(pr)) = array2table(temp);
+        end
+    end
     if isfield(S.prep.calc.pred,'log') && ~isempty(S.prep.calc.pred.log) 
         col_idx=find(contains(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.log));
         for pr = 1:length(col_idx)
@@ -84,7 +98,15 @@ for d = 1:length(D)
                 if strcmp(S.prep.calc.pred.newvarmult{pr,4},'*')
                     temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1}).*D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
                 elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'/')
-                    temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})./D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+                    if isnumeric(S.prep.calc.pred.newvarmult{pr,1})
+                        % this is the inverse transform
+                        vals = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+                        negvalidx = vals<0;
+                        temp = S.prep.calc.pred.newvarmult{pr,1}./abs(vals);
+                        temp(negvalidx) = -temp(negvalidx);
+                    else
+                        temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})./D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+                    end
                 elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'-')
                     temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})-D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
                 end
@@ -170,6 +192,11 @@ for d = 1:length(D)
     
     if S.prep.calc.pred.PCA_on
             
+        if S.prep.calc.pred.PCA_LMM
+            [corrmat,pmat,var_names] = LMM_correlation_matrix(D(d),S,0);
+            S.LMM_corrmat = corrmat;
+            S.LMM_varnames = var_names;
+        end
         D(d).prep.pred_PCA = predictor_PCA(D(d).prep.dtab,S);
         
         if strcmp(S.prep.calc.pred.PCA_type,'FA') || (strcmp(S.prep.calc.pred.PCA_type,'PLS') && S.prep.calc.pred.pls.rotate_factors)
@@ -227,11 +254,14 @@ for d = 1:length(D)
         end
         
         if strcmp(S.prep.calc.pred.PCA_type,'FA') || (strcmp(S.prep.calc.pred.PCA_type,'PLS') && S.prep.calc.pred.pls.rotate_factors)
+           
             % add FA components to data table
             if S.prep.calc.pred.PCA_model_add2dtab
                 for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
-                    pcname=[S.prep.calc.pred.PCA_type num2str(k)];
-                    D(d).prep.dtab.(pcname) = zscore((transpose(pattern_thresh(:,k))*transpose(vardata))');
+                    if any(pattern_thresh(:,k)>0)
+                        pcname=[S.prep.calc.pred.PCA_type num2str(k)];
+                        D(d).prep.dtab.(pcname) = zscore((transpose(pattern_thresh(:,k))*transpose(vardata))');
+                    end
                 end
 
                 % trialback data
@@ -462,36 +492,7 @@ for d = 1:length(D)
     
     if S.prep.calc.pred.test_collinearity
         
-        % variables
-        if S.prep.calc.pred.test_collinearity_PCAcov_only
-            varnames=D(d).prep.dtab.Properties.VariableNames(endsWith(D(d).prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1}));
-        else
-            var_names = D(d).prep.dtab.Properties.VariableNames;
-            var_names = setdiff(var_names,{'ID','group','test','train','eventTypes'},'stable');
-        end
-        vt = vartype('numeric');
-        numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
-        numericvar_ind = find(ismember(var_names,numericvar_names));
-        nonnumericvar_ind = find(~ismember(var_names,numericvar_names));
-        all_ind = [numericvar_ind,nonnumericvar_ind]; % must be in this order
-        
-        % combinations
-        comb = nchoosek(all_ind,2);   
-        comb = comb(ismember(comb(:,1),numericvar_ind),:); 
-        corrmat = diag(zeros(1,length(var_names)));
-        pmat = diag(zeros(1,length(var_names)));
-        for ci = 1:length(comb)
-            formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
-            lme = fitlme(D(d).prep.dtab,formula);
-            if strcmp(S.prep.calc.pred.output_metric,'r')
-                corrmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,2);
-            elseif strcmp(S.prep.calc.pred.output_metric,'r2')
-                corrmat(comb(ci,1),comb(ci,2)) = sign(double(lme.Coefficients(2,2)))*lme.Rsquared.Ordinary;
-            end
-            pmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,6);
-        end
-        corrmat = tril(corrmat + corrmat',-1);
-        pmat = tril(pmat + pmat',-1);
+        [corrmat,pmat,var_names] = LMM_correlation_matrix(D,S,S.prep.calc.pred.test_collinearity_PCAcov_only);
         corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
         if strcmp(S.prep.calc.pred.output_metric,'r')
             corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
@@ -540,12 +541,15 @@ for d = 1:length(D)
         
         
         % correlations on concatenated data
+        vt = vartype('numeric');
+        numericvar_names=D.prep.dtab(:,vt).Properties.VariableNames;
+        numericvar_ind = find(ismember(var_names,numericvar_names));
         [corrmat,pmat] = corr(table2array(D(d).prep.dtab(:,var_names(numericvar_ind))));
 %         VIF = diag(inv(corrmat))'; % VIF
         if strcmp(S.prep.calc.pred.output_metric,'r2')
             corrmat=corrmat.^2;
         end
-        corrmat = tril(corrmat + corrmat',-1);
+        corrmat = tril(corrmat,-1);
         pmat = tril(pmat + pmat',-1);
         corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
         if strcmp(S.prep.calc.pred.output_metric,'r')
@@ -661,6 +665,12 @@ for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
 end
 out.Y = Y;
 
+% Do the same for the correlation matrix if needed
+if ym==1 && S.prep.calc.pred.PCA_LMM
+    varidx = endsWith(S.LMM_varnames,S.prep.calc.pred.PCA_cov{ym});
+    S.LMM_corrmat = S.LMM_corrmat(varidx,varidx);
+    S.LMM_corrmat = S.LMM_corrmat+S.LMM_corrmat'+eye(length(S.LMM_corrmat));
+end
 
 % select PCA method
 switch S.prep.calc.pred.PCA_type
@@ -676,7 +686,7 @@ switch S.prep.calc.pred.PCA_type
             
             % select num components
             if S.prep.calc.pred.PCA_minvar
-                nfac_temp = find(cumsum(explained) > S.prep.calc.pred.PCA_minvar*100);
+                nfac_temp = find(cumsum(explained)/sum(explained) > S.prep.calc.pred.PCA_minvar);
                 if isempty(nfac_temp)
                     nfac_temp = ncomp;
                 end
@@ -708,11 +718,11 @@ switch S.prep.calc.pred.PCA_type
             
             % select num components
             if S.prep.calc.pred.PCA_minvar
-                nfac_temp = find(cumsum(explained) > S.prep.calc.pred.PCA_minvar*100);
+                nfac_temp = find(cumsum(explained)/sum(explained) > S.prep.calc.pred.PCA_minvar);
                 if isempty(nfac_temp)
                     nfac_temp = ncomp;
                 end
-                nfac = nfac_exp(1);
+                nfac = nfac_temp(1);
             else
                 [~, values] = spca(randn(size(Y{ym})), [], ncomp, delta, -ncomp, maxiter, convergenceCriterion, verbose);
                 explainedrand = diag(values)/sum(diag(values));
@@ -738,18 +748,28 @@ switch S.prep.calc.pred.PCA_type
             ncomp=size(Y{ym},2); 
             
             % PCA
-            FactorResults = erp_pca(Y{ym}, ncomp, type);
-            explained = FactorResults.scree;
+            if S.prep.calc.pred.PCA_LMM
+                % feed in correlation matrix from LMM
+                FactorResults = erp_pca(Y{ym}, ncomp, type, S.LMM_corrmat);
+            else
+                FactorResults = erp_pca(Y{ym}, ncomp, type);
+            end
+            explained = FactorResults.facVar;
             
             % select num components
             if S.prep.calc.pred.PCA_minvar
-                nfac_temp = find(explained > S.prep.calc.pred.PCA_minvar*100);
+                nfac_temp = find(cumsum(explained)/sum(explained) > S.prep.calc.pred.PCA_minvar);
                 if isempty(nfac_temp)
                     nfac_temp = ncomp;
                 end
-                nfac = nfac_exp(1);
+                nfac = nfac_temp(1);
             else
-                randResults = erp_pca(randn(size(Y{ym})), ncomp, type);
+                if S.prep.calc.pred.PCA_LMM
+                    % feed in correlation matrix from LMM
+                    randResults = erp_pca(randn(size(Y{ym})), ncomp, type, S.LMM_corrmat);
+                else
+                    randResults = erp_pca(randn(size(Y{ym})), ncomp, type);
+                end
                 explainedrand = randResults.scree;
                 explainedrand = explainedrand*(sum(explained)/sum(explainedrand)); %scale to same size as real data
                 nfac_temp = find(explained<explainedrand);
@@ -759,7 +779,12 @@ switch S.prep.calc.pred.PCA_type
                     nfac = nfac_temp(1)-1;
                 end
             end
-            FactorResults = erp_pca(Y{ym},nfac,type);
+            if S.prep.calc.pred.PCA_LMM
+                % feed in correlation matrix from LMM
+                FactorResults = erp_pca(Y{ym}, nfac, type, S.LMM_corrmat);
+            else
+                FactorResults = erp_pca(Y{ym}, nfac, type);
+            end
             out.Ycoeff{ym} = FactorResults.FacCof;
             out.Ycorr{ym} = FactorResults.FacCor;
             out.Ypattern{ym} = FactorResults.FacPat;
@@ -1568,6 +1593,38 @@ if(isnan(r))
 end
 % Formular for alpha (Cronbach 1951)
 a=(N*r)/(1+(N-1)*r);
+
+function [corrmat,pmat,var_names] = LMM_correlation_matrix(D,S,test_collinearity_PCAcov_only)
+% variables
+if test_collinearity_PCAcov_only
+    var_names=D.prep.dtab.Properties.VariableNames(endsWith(D.prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1}));
+else
+    var_names = D.prep.dtab.Properties.VariableNames;
+    var_names = setdiff(var_names,{'ID','group','test','train','eventTypes'},'stable');
+end
+vt = vartype('numeric');
+numericvar_names=D.prep.dtab(:,vt).Properties.VariableNames;
+numericvar_ind = find(ismember(var_names,numericvar_names));
+nonnumericvar_ind = find(~ismember(var_names,numericvar_names));
+all_ind = [numericvar_ind,nonnumericvar_ind]; % must be in this order
+
+% combinations
+comb = nchoosek(all_ind,2);   
+comb = comb(ismember(comb(:,1),numericvar_ind),:); 
+corrmat = diag(zeros(1,length(var_names)));
+pmat = diag(zeros(1,length(var_names)));
+for ci = 1:length(comb)
+    formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
+    lme = fitlme(D.prep.dtab,formula);
+    if strcmp(S.prep.calc.pred.output_metric,'r')
+        corrmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,2);
+    elseif strcmp(S.prep.calc.pred.output_metric,'r2')
+        corrmat(comb(ci,1),comb(ci,2)) = sign(double(lme.Coefficients(2,2)))*lme.Rsquared.Ordinary;
+    end
+    pmat(comb(ci,1),comb(ci,2)) = lme.Coefficients(2,6);
+end
+corrmat = tril(corrmat + corrmat',-1);
+pmat = tril(pmat + pmat',-1);
 
 
 function [W, mdata, mWeights] = mccas(data,K,reg,r,weights,Sx,cca_reduce_by_scree)

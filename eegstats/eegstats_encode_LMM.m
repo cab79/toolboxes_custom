@@ -30,7 +30,7 @@ for s = 1:length(Y)
 
         % fit model
         try
-            if isfield(Y(s).dtab,'train')
+            if ismember('train',Y(s).dtab.Properties.VariableNames)
                 train_data = Y(s).dtab(find(double(Y(s).dtab.train)),:);
             else
                 train_data = Y(s).dtab;
