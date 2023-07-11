@@ -95,12 +95,11 @@ for d = 1:length(subjects)
                 % Update the filtered epoch in the EEG_filtered structure
                 EEG_filtered.data(:, :, epoch) = filtered_epoch;
             end
-            temp = EEG_filtered;
            
             
-%             % Display the filtered data
-%             pop_eegplot(EEG);
-%             pop_eegplot(EEG_filtered);
+            % Display the filtered data
+            pop_eegplot(EEG);
+            pop_eegplot(EEG_filtered);
 
 
         end

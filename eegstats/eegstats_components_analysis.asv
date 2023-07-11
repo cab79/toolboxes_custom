@@ -156,11 +156,13 @@ for pt = 1:length(S.type)
         end
         
         % PCA
-        [O(o).COEFF,O(o).W,O(o).scores,O(o).mu,O(o).sigma,NUM_FAC,varargout{1}] = perform_PCA(S.PCAmethod{1},subdata{o},NUM_FAC,S,rep,nreps*obsdim,Ydat);
+        [O(o).COEFF,O(o).W,O(o).scores,O(o).mu,O(o).sigma,NUM_FAC,MIN_FAC,varargout{1}] = perform_PCA(S.PCAmethod{1},subdata{o},NUM_FAC,S,rep,nreps*obsdim,Ydat);
         sz=size(O(o).scores);
         O(o).scores_avg = squeeze(mean(reshape(O(o).scores,sz(1),nreps,obsdim,sz(3)),2));
         if ~isempty(varargout)
-            if any(strcmp(S.PCAmethod{1},'PLS'))
+            if any(strcmp(S.PCAmethod{1},'PCA'))
+                O(o).explained = varargout{1}.explained;
+            elseif any(strcmp(S.PCAmethod{1},'PLS'))
                 O(o).PLS = varargout{1};
             elseif any(strcmp(S.PCAmethod{1},'CCA'))
                 O(o).CCA = varargout{1};
@@ -190,10 +192,12 @@ for pt = 1:length(S.type)
             nr=length(r);
             if S.cca_test_nPCAcomp
                 %ncomp =  1 : ceil(size(O(o).scores,1)/min(size(O(o).scores,1),S.cca_test_nPCAcomp)) : size(O(o).scores,1);
-                A = 1:1:12; 
-                C = unique(floor(2.^A));
-                ncomp = C(C<=size(O(o).scores,1));
-                %ncomp =  1 : ceil(size(O(o).scores,1)/min(size(O(o).scores,1),S.cca_test_nPCAcomp)) : size(O(o).scores,1);
+                A = 1:1:100; 
+                C = unique(round((1+S.cca_test_nPCAcomp/100).^A));
+                ncomp = unique([C(C<=size(O(o).scores,1)), size(O(o).scores,1)]);
+
+                % set minimum number
+                ncomp = ncomp(ncomp>=MIN_FAC);
             else
                 ncomp = size(O(o).scores,1);
             end
@@ -268,8 +272,8 @@ for pt = 1:length(S.type)
             end
             
             % which regularisation parameter?
-            RMSECVm = squeeze(mean(RMSECV,[2 4]));
-            [~,minRi] = min(RMSECVm,[],1);
+            RMSECVm = squeeze(mean(RMSECV,[2 4])); % mean over CVs and subjects
+            [~,minRi] = min(RMSECVm,[],1); % min reg parameter for every combination of N PCAs and N CCAs
             minR=r(minRi);
             RMSECVr =[];
             for nc = 1:length(minRi)
@@ -306,6 +310,8 @@ for pt = 1:length(S.type)
             nCCA = ncii(minYi,2);
             nPCA = ncomp(ncii(minYi,1));
             disp(['n CCA comp: ' num2str(nCCA) ', n PCA comp: ' num2str(nPCA)])
+            disp(['regularisation: ' num2str(minR(minYi))])
+            disp(['PCA max var explained after scree: ' num2str(mean(O(o).explained))])
             O(o).CCA_regularisation = minR(minYi);
             O(o).RMSECV = rmdat;
                         
@@ -811,7 +817,7 @@ if ~isempty(Y) && any(strcmp(S.PCAmethod,'PLS'))
     caxis([-max(abs(corrmat(:))),max(abs(corrmat(:)))])
 end
 
-function [COEFF,W,PCdata,mu,sigma,NUM_FAC,out_Y] = perform_PCA(PCAmethod,dataAll,NUM_FAC,S,rep,nobs,Y)
+function [COEFF,W,PCdata,mu,sigma,NUM_FAC,MIN_FAC,out_Y] = perform_PCA(PCAmethod,dataAll,NUM_FAC,S,rep,nobs,Y)
 % feed in index of 2nd dimension (trials or time)
                
 TEMP_FAC=repmat(size(dataAll{1},2),1,2);
@@ -820,6 +826,8 @@ if isempty(NUM_FAC)
 else
     NUM_FAC([1,2]) = min([NUM_FAC;TEMP_FAC]);
 end
+
+MIN_FAC = 1; % minimum number of factors, default. PCA will estimate this if set.
 
 maxmat = floor((S.maxGig*1e9)^(1/2));
 if size(dataAll,2)>maxmat
@@ -868,19 +876,22 @@ switch PCAmethod
        parfor i = 1:length(cdata)
             disp(['PCA on EEG: finding number of factors for subject ' num2str(i)])
             [COEFF{i}, score{i},~,~,explained] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
-            if S.select_ncomp.frac_explained
+            if S.select_ncomp.frac_explained>0
                 nfac_exp = find(cumsum(explained) > S.select_ncomp.frac_explained*100);
                 if isempty(nfac_exp)
                     nfac_exp = NUM_FAC(1);
                 end
-                nfac(i) = nfac_exp(1);
-            else
+                mfac(i) = nfac_exp(1);
+            end
+            if S.select_ncomp.scree
                 [COEFFrand{i}, scorerand{i},~,~,explainedrand] = pca(randn(size(cdata{i})),'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
                 nfac_temp = find(explained<explainedrand);
                 nfac(i) = min(NUM_FAC(1),nfac_temp(1)-1);
+                out_Y.explained(i) = sum(explained(1:nfac(i)));
             end
        end
         % take median nfac
+        MIN_FAC(1) = floor(median(mfac));
         NUM_FAC(1) = floor(median(nfac));
         parfor i = 1:length(cdata)
             disp(['PCA on EEG: final solution for subject ' num2str(i)])

@@ -17,7 +17,6 @@ end
 
 disp('loading data table')
 Ddtab = load(S.diag.path.dtab_inputs);
-dtab = Ddtab.D(1).prep.dtab;
 
 if length(D)>1
     save_pref = 'subject_';
@@ -25,7 +24,18 @@ else
     save_pref = 'group_';
 end
 
-for d=1:length(D)
+if isfield(S.diag,'subjects')
+    di = S.diag.subjects;
+else
+    di = 1:length(D);
+end
+
+for d=di
+    if length(D)>1
+        dtab = Ddtab.D(d).prep.dtab;
+    else
+        dtab = Ddtab.D(1).prep.dtab;
+    end
     
 %     types = S.diag.summary_types;
     
