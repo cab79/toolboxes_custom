@@ -154,7 +154,7 @@ for pt = 1:length(S.type)
         else
             obsdim=newdim(obs_dim);
         end
-        
+
         % PCA
         [O(o).COEFF,O(o).W,O(o).scores,O(o).mu,O(o).sigma,NUM_FAC,MIN_FAC,varargout{1}] = perform_PCA(S.PCAmethod{1},subdata{o},NUM_FAC,S,rep,nreps*obsdim,Ydat);
         sz=size(O(o).scores);
@@ -163,10 +163,42 @@ for pt = 1:length(S.type)
             if any(strcmp(S.PCAmethod{1},'PCA'))
                 O(o).explained = varargout{1}.explained;
                 disp(['PCA max var explained after scree: ' num2str(mean(O(o).explained))])
+
+                O(o).Wrand = varargout{1}.Wrand;
+                O(o).scoresrand = varargout{1}.PCdata_rand;
+
+                if 0
+                    % check recontructed PCA outputs are correlated with
+                    % original data
+                    for u=1:length(U)
+                        % unscaling improves correlation results
+                        scores_unscaled = O(o).scores(:,rep{u},u).*repmat(O(o).sigma{u},length(rep{u}),1)';
+                        data_pred = scores_unscaled'*pinv(O(o).W(1:NUM_FAC(1),:,u))';
+                        % uncentering has no effect on correlation results,
+                        % but we do it anyway
+                        data_pred_uncentred = data_pred + repmat(O(o).mu{u},length(rep{u}),1);
+                        data_test = subdata{o}{u};
+                        corr(data_pred_uncentred(:),data_test(:),'type','Spearman')
+                        figure; scatter(data_pred_uncentred(:),data_test(:))
+                        % highly correlated, rho>0.91
+                    end
+
+                end
             elseif any(strcmp(S.PCAmethod{1},'PLS'))
                 O(o).PLS = varargout{1};
             elseif any(strcmp(S.PCAmethod{1},'CCA'))
                 O(o).CCA = varargout{1};
+            end
+        end
+
+        % create some randomised data for later
+        nrepCCA=50;
+        scoresrand = nan(size(O(o).scores,1),size(O(o).scores,2),size(O(o).scores,3),nrepCCA);
+        for rep = 1:nrepCCA
+            for u=1:length(U)
+                for col = 1:size(O(o).scores,1)
+                    scoresrand(col,:,u,rep) = O(o).scores(col,randperm(size(O(o).scores,2)),u);
+                end
             end
         end
         
@@ -201,6 +233,7 @@ for pt = 1:length(S.type)
                 ncomp = ncomp(ncomp>=MIN_FAC);
             else
                 ncomp = size(O(o).scores,1);
+                %ncomp = MIN_FAC;
             end
             CV_fold=10;
             CVsample = cvpartition(size(O(o).scores,2),'KFold',CV_fold);
@@ -208,30 +241,132 @@ for pt = 1:length(S.type)
             nci=0;
             ncii=[];
             RMSECV=[];
-            cca_reduce_by_scree = S.cca_reduce_by_scree;
+            test_corr = [];
             for nc = 1:length(ncomp) 
                 
                 % run CV CCAs in parallel for speed
                 CV_W = cell(CV_fold,nr);
+                CV_W_rand = cell(CV_fold,nr);
+                CV_Wn = cell(CV_fold,nr);
+                CV_mdata_train = cell(CV_fold,nr);
+                CV_mdatan_train = cell(CV_fold,nr);
                 CV_mdata_test = cell(CV_fold,nr);
+                CV_score_test = cell(CV_fold,nr);
+                CV_mdata_train_rand = cell(CV_fold,nr);
+                CV_mdatan_train_rand = cell(CV_fold,nr);
+                CV_mdata_test_rand = cell(CV_fold,nr);
+                CV_score_test_rand = cell(CV_fold,nr);
                 nCCA = min([ncomp(nc),NUM_FAC(2)]);
                 nCCA_train = nan(CV_fold,nr);
+                train_correlations = nan(CV_fold,nr);
+                train_correlations_rand = nan(CV_fold,nr);
+%                 test_correlations = nan(CV_fold,nr);
                 disp(['Estimating CCAs: comp ' num2str(nc) '/' num2str(length(ncomp))])
-                parfor ri = 1:nr
-                    for cv = 1:CV_fold
+                for cv = 1:CV_fold
+                    for ri = 1:nr
                         %disp(['ri ' num2str(ri) ', cv ' num2str(cv)])
-                        CVdata_train = O(o).scores(1:ncomp(nc),training(CVsample,cv),:);
-                        CVdata_test = O(o).scores(1:ncomp(nc),test(CVsample,cv),:);
-                        
+
                         % train sample
-                        [CV_W{cv,ri},~] = mccas(CVdata_train,nCCA,reg,r(ri),O(o).W(1:ncomp(nc),:,:),S,cca_reduce_by_scree);
+                        CVdata_train = O(o).scores(1:ncomp(nc),training(CVsample,cv),:);
+                        [CV_W{cv,ri},CV_mdata_train{cv,ri}, ~, CV_Wn{cv,ri}, CV_mdatan_train{cv,ri}] = mccas(CVdata_train,nCCA,reg,r(ri),O(o).W(1:ncomp(nc),:,:),S);
                         nCCA_train(cv,ri) = size(CV_W{cv,ri},2);
+
+%                         % check outputs: TRAINING
+%                         % reconstructed PCs
+%                         for u=1:length(U)
+%                             PCpred = (squeeze(CV_mdata_train{cv,ri}(1:nCCA_train(cv,ri),ismember(find(training(CVsample,cv)),rep{u}),u))'*pinv(squeeze(CV_W{cv,ri}(:,1:nCCA_train(cv,ri),u))))';
+%                             PCtrain = CVdata_train(:,ismember(find(training(CVsample,cv)),rep{u}),u);
+%                             cu(u) = corr(PCpred(:),PCtrain(:),'type','Spearman')
+%                             % figure; scatter(PCpred(:),PCtest(:))
+% 
+%                             CV_mdata_train_unscaled = CV_mdata_train{cv,ri}(1:nCCA_train(cv,ri),ismember(find(training(CVsample,cv)),rep{u}),u).*...
+%                                 repmat(CV_mdatan_train{cv,ri}(:,u),1,sum(ismember(find(training(CVsample,cv)),rep{u})));
+%                             CV_W_unscaled = CV_W{cv,ri}(:,1:nCCA_train(cv,ri),u)*CV_Wn{cv,ri}(:,u);
+%                             PCpred_unscaled = (CV_mdata_train_unscaled'*pinv(CV_W_unscaled))';
+%                             PCtrain = CVdata_train(:,ismember(find(training(CVsample,cv)),rep{u}),u);
+%                             cu_unscaled(u) = corr(PCpred_unscaled(:),PCtrain(:),'type','Spearman')
+% 
+%                         end
+%                         mean(cu)
+%                         mean(cu_unscaled)
+
                         
-                        % test sample: fix the number of eigenvectors
-                        [~,CV_mdata_test{cv,ri}] = mccas(CVdata_test,nCCA_train(cv,ri),reg,r(ri),O(o).W(1:ncomp(nc),:,:),S,0);
-                        nCCA_train(cv,ri) = size(CV_mdata_test{cv,ri},1);
+
+                        %correlations{cv,ri,nc} = zeros(nCCA_train(cv,ri),2);
+                        train_corri = nan(1,nCCA_train(cv,ri));
+%                         test_corri = nan(1,nCCA_train(cv,ri));
+                        for i = 1:nCCA_train(cv,ri)
+                           train_corri(1,i) = mean(mean(corr(squeeze(CV_mdata_train{cv,ri}(i,:,:)),'type','Spearman', 'Rows','pairwise'))); % inter-subject correlations over training data
+%                            test_corri(1,i) = mean(mean(corr(squeeze(CV_mdata_test{cv,ri}(i,:,:)),'type','Spearman', 'Rows','pairwise'))); % inter-subject correlations over testing data
+                        end
+                        train_correlations(cv,ri) = mean(train_corri);
+%                         test_correlations(cv,ri) = mean(test_corri);
+
+
+                        % Test data 
+                        CVdata_test = O(o).scores(1:ncomp(nc),test(CVsample,cv),:);
+                        if S.cca_select_method == 1
+
+                            % test sample: fix the number of eigenvectors
+                            [~,CV_mdata_test{cv,ri},~,~,CV_mdatan_test{cv,ri}] = mccas(CVdata_test,nCCA_train(cv,ri),reg,r(ri),O(o).W(1:ncomp(nc),:,:),S);
+                            nCCA_train(cv,ri) = size(CV_mdata_test{cv,ri},1);
+
+                        elseif S.cca_select_method == 2
+
+                            % create CCA scores
+                            CV_score_test{cv,ri} = nan(nCCA_train(cv,ri),sum(test(CVsample,cv)),length(U));
+                            for u=1:length(U)
+                                CV_score_test{cv,ri}(:,ismember(find(test(CVsample,cv)),rep{u}),u) = CV_W{cv,ri}(:,1:nCCA_train(cv,ri),u)' * CVdata_test(:,ismember(find(test(CVsample,cv)),rep{u}),u);
+                            end
+
+                            if S.cca_reduce_by_scree
+% 
+%                                 for rep = 1:nrepCCA
+%                                     for u=1:length(U)
+%                                         for col = 1:size(O(o).scores,1)
+%                                             scoresrand(col,:,u,rep);
+%                                         end
+%                                     end
+%                                 end
+
+                                CVdata_train_rand = scoresrand(1:ncomp(nc),training(CVsample,cv),:,1);
+                                CVdata_test_rand = scoresrand(1:ncomp(nc),test(CVsample,cv),:,1);
+%                                 CVdata_train_rand = O(o).scoresrand(1:ncomp(nc),training(CVsample,cv),:);
+%                                 CVdata_test_rand = O(o).scoresrand(1:ncomp(nc),test(CVsample,cv),:);
+
+                                CV_score_test_rand{cv,ri} = nan(nCCA_train(cv,ri),sum(test(CVsample,cv)),length(U));
+                                
+                                if 0
+                                    % generate random scores from multiple CCA models
+    
+                                    % train sample
+                                    [CV_W_rand{cv,ri},CV_mdata_train_rand{cv,ri}] = mccas(CVdata_train_rand,nCCA,reg,r(ri),O(o).Wrand(1:ncomp(nc),:,:),S);
+            
+                                    train_corri_rand = nan(1,nCCA_train(cv,ri));
+                                    for i = 1:nCCA_train(cv,ri)
+                                       train_corri_rand(1,i) = mean(mean(corr(squeeze(CV_mdata_train_rand{cv,ri}(i,:,:)),'type','Spearman', 'Rows','pairwise'))); % inter-subject correlations over training data
+                                    end
+                                    train_correlations_rand(cv,ri) = mean(train_corri_rand);
+        
+                                    for u=1:length(U)
+                                        CV_score_test_rand{cv,ri}(:,ismember(find(test(CVsample,cv)),rep{u}),u) = CV_W_rand{cv,ri}(:,1:nCCA_train(cv,ri),u)' * CVdata_test_rand(:,ismember(find(test(CVsample,cv)),rep{u}),u);
+                                    end
+                                else
+                                    % generate random scores from training
+                                    % model (more efficient)
+                                    for u=1:length(U)
+                                        CV_score_test_rand{cv,ri}(:,ismember(find(test(CVsample,cv)),rep{u}),u) = CV_W{cv,ri}(:,1:nCCA_train(cv,ri),u)' * CVdata_test_rand(:,ismember(find(test(CVsample,cv)),rep{u}),u);
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
+                traincorr_max = max(nanmean(train_correlations,1))
+                if S.cca_reduce_by_scree
+                    traincorr_max_rand = max(nanmean(train_correlations_rand,1))
+                end
+%                 testcorr_max = max(nanmean(test_correlations,1))
                 
                 % how many CCA to test?
                 nCCA_train = nCCA_train(:);
@@ -251,70 +386,227 @@ for pt = 1:length(S.type)
                     nci=nci+1;
                     ncii(nci,1)=nc;
                     ncii(nci,2)=ncCCA;
-                    for u=1:length(U)
-                        for cv = 1:CV_fold
-                            for ri = 1:nr
-                                
-                                % reconstructed PCs
-                                PCpred = squeeze(CV_mdata_test{cv,ri}(1:ncCCA,:,u))'*pinv(squeeze(CV_W{cv,ri}(:,1:ncCCA,u)));
-                                % reconstructed EEG data
-                                testind = test(CVsample,cv);
-                                data_test = subdata{o}{u}(testind(rep{u}),:);
-                                data_pred = PCpred(ismember(find(testind),rep{u}),:)*pinv(O(o).W(1:ncomp(nc),:,u))';
-                                sq_diff=bsxfun(@minus,data_test,data_pred).^2;
-                                RMSECV(ri,cv,nci,u) = squeeze(sqrt(nanmean(sq_diff(:))));
-                                %PCpred{u} = CV_mdata_test(:,:,u)'*pinv(CV_W(:,:,u));
-                                %sq_diff=bsxfun(@minus,CVdata_test(:,:,u),PCpred{u}').^2;
-                                %RMSECV(ri,cv,u) = squeeze(sqrt(nanmean(sq_diff(:))));
-                            end
+
+                    % initialise
+                    for ri = 1:nr
+                        score_test{ri} = nan(ncCCA,size(O(o).scores,2),length(U));
+                        if S.cca_reduce_by_scree
+                            score_test_rand{ri} = nan(ncCCA,size(O(o).scoresrand,2),length(U));
                         end
                     end
+
+                    for u=1:length(U)
+                        if S.cca_select_method == 1
+                            for cv = 1:CV_fold
+                                for ri = 1:nr
+                                    
+                                    % reconstructed PCs
+                                    PCpred = squeeze(CV_mdata_test{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u))'*pinv(squeeze(CV_W{cv,ri}(:,1:ncCCA,u)));
+    
+                                    % test data
+                                    testind = test(CVsample,cv);
+                                    data_test = subdata{o}{u}(testind(rep{u}),:);
+    
+                                    % reconstructed EEG data from scaled
+                                    % CCA weights and scores.
+                                    % No further unscaling from PCA sigma.
+    %                                 data_pred = PCpred*pinv(O(o).W(1:ncomp(nc),:,u))';
+    
+    %                                 % test it
+    %                                 corr(data_test(:),data_pred(:),'type','Spearman')
+    %                                 sq_diff=bsxfun(@minus,data_test,data_pred).^2;
+    %                                 RMSE = squeeze(sqrt(nanmean(sq_diff(:))))
+    
+                                    % unscale the PCA scores to see if this
+                                    % improves it
+                                    PCpred_PCunscaled = PCpred.*repmat(O(o).sigma{u}(1,1:ncomp(nc)),sum(ismember(find(test(CVsample,cv)),rep{u})),1);
+                                    data_pred_PCunscaled = PCpred_PCunscaled*pinv(O(o).W(1:ncomp(nc),:,u))';
+    
+    %                                 % test it - improved
+    %                                 corr(data_test(:),data_pred_PCunscaled(:),'type','Spearman')
+    %                                 sq_diff=bsxfun(@minus,data_test,data_pred_PCunscaled).^2;
+    %                                 RMSE = squeeze(sqrt(nanmean(sq_diff(:))))
+    
+    %                                 % unscale the CCA weights and scores to
+    %                                 % generate unscaled PC predictors
+    %                                 CV_mdata_test_unscaled = CV_mdata_test{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u).*...
+    %                                     repmat(CV_mdatan_test{cv,ri}(1:ncCCA,u),1,sum(ismember(find(test(CVsample,cv)),rep{u})));
+    %                                 CV_W_unscaled = CV_W{cv,ri}(:,1:ncCCA,u)*CV_Wn{cv,ri}(:,u);
+    %                                 PCpred_CCAunscaled = (CV_mdata_test_unscaled'*pinv(CV_W_unscaled))';
+    % 
+    %                                 % test against PCA test data - doesn't
+    %                                 % predict it well.
+    %                                 CVdata_test = O(o).scores(1:ncomp(nc),test(CVsample,cv),:);
+    %                                 PCtest = CVdata_test(:,ismember(find(test(CVsample,cv)),rep{u}),u);
+    %                                 corr(PCtest(:),PCpred_CCAunscaled(:),'type','Spearman')
+    %                                 %figure; scatter(PCtest(:),PCpred_CCAunscaled(:))
+    
+    %                                 % test against PCA train data - much better
+    %                                 % than for test data. So nothing wrong with
+    %                                 % the code.
+    %                                 CV_mdata_train_unscaled = CV_mdata_train{cv,ri}(1:ncCCA,ismember(find(training(CVsample,cv)),rep{u}),u).*...
+    %                                     repmat(CV_mdatan_train{cv,ri}(1:ncCCA,u),1,sum(ismember(find(training(CVsample,cv)),rep{u})));
+    %                                 PCpred_CCAunscaled_train = (CV_mdata_train_unscaled'*pinv(CV_W_unscaled))';
+    %                                 CVdata_train = O(o).scores(1:ncomp(nc),training(CVsample,cv),:);
+    %                                 PCtrain = CVdata_train(:,ismember(find(training(CVsample,cv)),rep{u}),u);
+    %                                 corr(PCtrain(:),PCpred_CCAunscaled_train(:),'type','Spearman')
+    %                                 %figure; scatter(PCtrain(:),PCpred_CCAunscaled_train(:))
+    
+    %                                 % reconstructed EEG data from unscaled
+    %                                 % CCA weights and scores AND PC unscaled
+    %                                 PCpred_PCunscaled_CCAunscaled = PCpred_CCAunscaled'.*repmat(O(o).sigma{u}(1,1:ncomp(nc)),sum(ismember(find(test(CVsample,cv)),rep{u})),1);
+    %                                 data_pred_PCunscaled_CCAunscaled = PCpred_PCunscaled_CCAunscaled*pinv(O(o).W(1:ncomp(nc),:,u))';
+    
+    %                                 % test it - no improvement in corr - RMSE
+    %                                 % is worse
+    %                                 corr(data_test(:),data_pred_PCunscaled_CCAunscaled(:),'type','Spearman')
+    %                                 sq_diff=bsxfun(@minus,data_test,data_pred_PCunscaled_CCAunscaled).^2;
+    %                                 RMSE = squeeze(sqrt(nanmean(sq_diff(:))))
+    
+                                    % use PC unscaled only
+    %                                 RMSECV(ri,cv,nci,u) = 1-corr(data_test(:),data_pred(:),'type','Spearman')^2; % representational similarity
+                                    RMSECV(ri,cv,nci,u) = corr(data_test(:),data_pred_PCunscaled(:),'type','Spearman'); % representational similarity
+    %                                 RMSECV3(ri,cv,nci,u) = 1-corr(data_test(:),data_pred_PCunscaled_CCAunscaled(:),'type','Spearman')^2; % representational similarity
+                                    %PCpred{u} = CV_mdata_test(:,:,u)'*pinv(CV_W(:,:,u));
+                                    %sq_diff=bsxfun(@minus,CVdata_test(:,:,u),PCpred{u}').^2;
+                                    %RMSECV(ri,cv,u) = squeeze(sqrt(nanmean(sq_diff(:))));
+    
+                                   
+    %                                 % Calculate the total sum of squares (SS_tot)
+    %                                 ss_tot = sum((data_test(:)).^2);
+    %                                 % Calculate the residual sum of squares (SS_res)
+    %                                 ss_res = sum(sq_diff(:));
+    %                                 % Calculate the R-squared value
+    %                                 r_squared = 1 - (ss_res / ss_tot);
+                                end
+                            end
+
+                        elseif S.cca_select_method == 2
+                            % correlations in test data scores
+                            for cv = 1:CV_fold
+                                for ri = 1:nr
+                                    score_test{ri}(1:ncCCA,intersect(find(test(CVsample,cv)),rep{u}),u) =...
+                                        CV_score_test{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u);
+                                    if S.cca_reduce_by_scree
+                                        score_test_rand{ri}(1:ncCCA,intersect(find(test(CVsample,cv)),rep{u}),u) =...
+                                            CV_score_test_rand{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u);
+                                    end
+                                end
+                            end
+                        end
+
+                    end
+
+                    if S.cca_select_method == 1
+                        meanR = mean(RMSECV(:,:,nci,:),[2 4]);
+                        disp(['Max corr: ' num2str(max(meanR))])
+                    elseif S.cca_select_method == 2
+                        % correlations in test data scores
+                        test_corri = nan(nr,ncCCA);
+                        for ri = 1:nr
+                            for i = 1:ncCCA
+                               test_corri(ri,i) = mean(mean(corr(squeeze(score_test{ri}(i,:,:)),'type','Spearman', 'Rows','pairwise'))); % inter-subject correlations over testing data
+                            end
+                        end
+                        %test_corr(:,nci) = nanmean(test_corri,2); % get mean over all CCAs
+                        test_corr(:,nci) = test_corri(:,ncCCA); % get last CCA only
+                        testcorr_max = max(test_corr(:,nci));
+                        disp(['testcorr max: ' num2str(testcorr_max)])
+
+                        if S.cca_reduce_by_scree
+                            test_corri_rand = nan(nr,ncCCA);
+                            for ri = 1:nr
+                                for i = 1:ncCCA
+                                   test_corri_rand(ri,i) = mean(mean(corr(squeeze(score_test_rand{ri}(i,:,:)),'type','Spearman', 'Rows','pairwise'))); % inter-subject correlations over testing data
+                                end
+                            end
+                            %test_corr_rand(:,nci) = nanmean(test_corri_rand,2); % get mean over all CCAs
+                            test_corr_rand(:,nci) = test_corri_rand(:,ncCCA); % get last CCA only
+                            testcorr_max_rand = max(test_corr_rand(:,nci));
+                            disp(['testcorr rand: ' num2str(testcorr_max_rand)])
+
+                        end
+                    end
+
+%                     meanR2 = mean(RMSECV2(:,:,nci,:),[2 4]);
+%                     disp(['Min error 2: ' num2str(min(meanR2))])
+%                     meanR3 = mean(RMSECV3(:,:,nci,:),[2 4]);
+%                     disp(['Min error 3: ' num2str(min(meanR3))])
                 end
             end
             
-            % which regularisation parameter?
-            RMSECVm = squeeze(mean(RMSECV,[2 4])); % mean over CVs and subjects
-            [~,minRi] = min(RMSECVm,[],1); % min reg parameter for every combination of N PCAs and N CCAs
-            minR=r(minRi);
-            RMSECVr =[];
-            for nc = 1:length(minRi)
-                RMSECVr(:,nc,:) = RMSECV(minRi(nc),:,nc,:);
-            end
-            
-            % which number of components?
-            if isfield(S,'cca_select_nPCA_per_group')
-                select_per_group = S.cca_select_nPCA_per_group;
-            else
-                select_per_group = 1;
-            end
-            figure; hold on
-            if select_per_group
-                for g=1:length(G)
-                    rmdat = squeeze(mean(RMSECVr(:,:,iG(iu)==g),[1 3]));
-                    [mintemp,minYi(g)] = min(rmdat);
+            if S.cca_select_method == 1
+                % which regularisation parameter?
+                RMSECVm = squeeze(mean(RMSECV,[2 4])); % mean over CVs and subjects
+                [~,minRi] = max(RMSECVm,[],1); % max reg parameter for every combination of N PCAs and N CCAs
+                minR=r(minRi);
+                RMSECVr =[];
+                for nc = 1:length(minRi)
+                    RMSECVr(:,nc,:) = RMSECV(minRi(nc),:,nc,:);
+                end
+    
+%                 % set minimum reg parameter
+%                 RMSECVr = RMSECVr(:,minR<1,:);
+%                 ncii = ncii(minR<1,:);
+%                 minR = minR(minR<1);
+                
+                % which number of components?
+                if isfield(S,'cca_select_nPCA_per_group')
+                    select_per_group = S.cca_select_nPCA_per_group;
+                else
+                    select_per_group = 1;
+                end
+                figure; hold on
+                if select_per_group
+                    for g=1:length(G)
+                        rmdat = squeeze(mean(RMSECVr(:,:,iG(iu)==g),[1 3]));
+                        [mintemp,minYi(g)] = max(rmdat);
+                        for nc = 1:length(ncomp)
+                           plot(rmdat(ncii(:,1)==nc));
+                        end
+                        scatter(ncii(minYi(g),2),mintemp);
+                    end
+                    minYi = max(minYi);
+                else
+                    rmdat = squeeze(mean(RMSECVr,[1 3]));
+                    [mintemp,minYi] = max(rmdat);
                     for nc = 1:length(ncomp)
                        plot(rmdat(ncii(:,1)==nc));
                     end
-                    scatter(ncii(minYi(g),2),mintemp);
+                    scatter(ncii(minYi,2),mintemp);
                 end
-                minYi = max(minYi);
-            else
-                rmdat = squeeze(mean(RMSECVr,[1 3]));
-                [mintemp,minYi] = min(rmdat);
+                hold off
+                O(o).RMSECV = rmdat;
+            elseif S.cca_select_method == 2
+                testmat = test_corr;
+                % which regularisation parameter?
+                [~,minRi] = max(testmat,[],1); % max reg parameter
+                minR=r(minRi);
+                testmatr =[];
+                for nc = 1:length(minRi)
+                    testmatr(nc,1) = testmat(minRi(nc),nc);
+                end
+    
+                figure; hold on
+
                 for nc = 1:length(ncomp)
-                   plot(rmdat(ncii(:,1)==nc));
+                   plot(testmatr(ncii(:,1)==nc));
                 end
+
+                % find CCAs that are greater than random instead?
+                [mintemp,minYi] = max(testmatr);
                 scatter(ncii(minYi,2),mintemp);
+%                 
+                hold off
+                O(o).testcorr = testmatr;
             end
-            hold off
-            
+
             nCCA = ncii(minYi,2);
             nPCA = ncomp(ncii(minYi,1));
             disp(['n CCA comp: ' num2str(nCCA) ', n PCA comp: ' num2str(nPCA)])
             disp(['regularisation: ' num2str(minR(minYi))])
             disp(['PCA max var explained after scree: ' num2str(mean(O(o).explained))])
             O(o).CCA_regularisation = minR(minYi);
-            O(o).RMSECV = rmdat;
                         
             % reduce PCs
             O(o).scores = O(o).scores(1:nPCA,:,:);
@@ -326,9 +618,9 @@ for pt = 1:length(S.type)
             
             % final CCA solution
             [O(o).W,O(o).mdata] = mccas(O(o).scores,nPCA,reg,minR(minYi),O(o).W,S,0);
-            O(o).W = O(o).W(:,1:nCCA,:);
-            O(o).mdata = O(o).mdata(1:nCCA,:,:);
-            NUM_FAC(2) = nCCA;
+            O(o).W = O(o).W(:,1:nCCA+S.nCCAadd,:);
+            O(o).mdata = O(o).mdata(1:nCCA+S.nCCAadd,:,:);
+            NUM_FAC(2) = nCCA+S.nCCAadd;
             
             sz=size(O(o).mdata);
             O(o).mdata_avg = squeeze(mean(reshape(O(o).mdata,sz(1),nreps,obsdim,sz(3)),2));
@@ -378,10 +670,15 @@ for pt = 1:length(S.type)
                 O(o).PCAs{u} = temp(:,:,o)*O(o).COEFF{u}; 
             end
 
-            if S.standardise_output
+            if S.standardise_output && S.centre_output % should onyl standardise if centred
                 tsigma = repmat(O(o).sigma{u},size(temp(:,:,o),1),1);
                 O(o).PCAs{u} = O(o).PCAs{u}./tsigma;   
             end
+
+%             if S.normalise_output
+%                 tsigma = repmat(O(o).sigma{u},size(temp(:,:,o),1),1);
+%                 O(o).PCAs{u} = O(o).PCAs{u}./tsigma;   
+%             end
 
             oind{u} = [oind{u}, o*ones(1,size(O(o).PCAs{u},2))];
             PCAs{u} = [PCAs{u}, O(o).PCAs{u}];
@@ -836,11 +1133,14 @@ if size(dataAll,2)>maxmat
 end
 
 % centre data
+%centering the data before PCA ensures that the PCA scores are centered as well, with a mean of zero. This centering step is essential for capturing the covariance structure and interpreting the relative contributions of the principal components.
 cdata={};
+rand_cdata={};
 for i = 1:length(dataAll)
     tmpscore = squeeze(dataAll{i});
     mu{i} = mean(tmpscore);
     cdata{i} = tmpscore - repmat(mu{i},size(tmpscore,1),1);
+    rand_cdata{i} = cdata{i};
 end
 
 % parallel processing
@@ -885,7 +1185,14 @@ switch PCAmethod
                 mfac(i) = nfac_exp(1);
             end
             if S.select_ncomp.scree
-                [COEFFrand{i}, scorerand{i},~,~,explainedrand] = pca(randn(size(cdata{i})),'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
+                %[COEFFrand{i}, scorerand{i},~,~,explainedrand] = pca(randn(size(cdata{i})),'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
+                
+                % The more correct way is to randomly permute the data over
+                % trials:
+                for col = 1:size(cdata{i},2)
+                    rand_cdata{i}(:,col) = cdata{i}(randperm(size(cdata{i},1)),col);
+                end
+                [COEFFrand{i}, scorerand{i},~,~,explainedrand] = pca(rand_cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
                 nfac_temp = find(explained<explainedrand);
                 nfac(i) = min(NUM_FAC(1),nfac_temp(1)-1);
                 explained_by_scree(i) = sum(explained(1:nfac(i)));
@@ -896,12 +1203,17 @@ switch PCAmethod
         % take median nfac
         MIN_FAC(1) = floor(median(mfac));
         NUM_FAC(1) = floor(median(nfac));
-        parfor i = 1:length(cdata)
-            disp(['PCA on EEG: final solution for subject ' num2str(i)])
-            [COEFF{i}, score{i}] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
+        for i = 1:length(cdata)
+            %disp(['PCA on EEG: final solution for subject ' num2str(i)])
+            %[COEFF{i}, score{i}] = pca(cdata{i},'NumComponents',NUM_FAC(1),'Centered',false,'Algorithm','eig');
             COEFF{i} = COEFF{i}(:,1:NUM_FAC(1));
             W(:,:,i) = COEFF{i}(:,1:NUM_FAC(1))';
             score{i} = score{i}(:,1:NUM_FAC(1));
+            if S.select_ncomp.scree
+                COEFFrand{i} = COEFFrand{i}(:,1:NUM_FAC(1));
+                Wrand(:,:,i) = COEFFrand{i}(:,1:NUM_FAC(1))';
+                scorerand{i} = scorerand{i}(:,1:NUM_FAC(1));
+            end
         end
     case 'eigs'
        parfor i = 1:length(cdata)
@@ -1395,13 +1707,33 @@ sigma = {};
 for i = 1:length(cdata)
     sigma{i} = sqrt(var(score{i})); 
     if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA')) % standardise scores if they will be used for CCA
+       % when the data is centered before performing Principal Component
+       % Analysis (PCA), the resulting PCA scores will also be centered, so
+       % it is ok to standardise
        score{i} = score{i}./repmat(sqrt(var(score{i})),size(score{i},1),1); % standardise so that each PC from each subject contributes equally to CCA solution
     end
     PCdata(:,rep{i},i) = score{i}';
 end
 
+if S.select_ncomp.scree
+    PCdata_rand = nan(NUM_FAC(1),nobs);
+    sigma_rand = {};
+    for i = 1:length(scorerand)
+        sigma_rand{i} = sqrt(var(scorerand{i})); 
+        if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA')) % standardise scores if they will be used for CCA
+           % when the data is centered before performing Principal Component
+           % Analysis (PCA), the resulting PCA scores will also be centered, so
+           % it is ok to standardise
+           scorerand{i} = scorerand{i}./repmat(sqrt(var(scorerand{i})),size(scorerand{i},1),1); % standardise so that each PC from each subject contributes equally to CCA solution
+        end
+        PCdata_rand(:,rep{i},i) = scorerand{i}';
+    end
+    out_Y.Wrand = Wrand;
+    out_Y.PCdata_rand = PCdata_rand;
+end
+ 
 
-function [W, mdata, mWeights] = mccas(data,K,reg,r,weights,Sx,cca_reduce_by_scree)
+function [W, mdata, mWeights, Wn, mdatan] = mccas(data,K,reg,r,weights,Sx)
 %% regularized-multiset CCA
 %   Date           Programmers               Description of change
 %   ====        =================            =====================
@@ -1470,55 +1802,60 @@ end
 switch Sx.cca_method
     case 'eigs'
         [tempW,values]=eigs((R-S),S,K);
-        if cca_reduce_by_scree
-            
-            allsubrand = randn(size(allsub'));
-            Rrand = cov(allsubrand);
-            Srand = zeros(size(Rrand));
-            for i = 1:dim*sub
-                tmp = ceil(i/dim);
-                Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
-            end
-            
-            explained = diag(values)/sum(diag(values));
-            [~,valuesrand]=eigs((Rrand-Srand),Srand,K);
-            explainedrand = diag(valuesrand)/sum(diag(valuesrand));
-            nfac_temp = find(explained<explainedrand);
-            if ~isempty(nfac_temp)
-                nfac = min(nfac_temp(1)-1, K);
-                tempW = tempW(:,1:nfac);
-            end
-        end
+%         if cca_reduce_by_scree
+%             
+%             allsubrand = randn(size(allsub'));
+%             Rrand = cov(allsubrand);
+%             Srand = zeros(size(Rrand));
+%             for i = 1:dim*sub
+%                 tmp = ceil(i/dim);
+%                 Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
+%             end
+%             
+%             explained = diag(values)/sum(diag(values));
+%             [~,valuesrand]=eigs((Rrand-Srand),Srand,K);
+%             explainedrand = diag(valuesrand)/sum(diag(valuesrand));
+%             nfac_temp = find(explained<explainedrand);
+%             if ~isempty(nfac_temp)
+%                 nfac = min(nfac_temp(1)-1, K);
+%                 tempW = tempW(:,1:nfac);
+%             end
+%         end
     case 'FA'
         type = Sx.cca_FA_type;
         FactorResults = erp_pca(allsub',K,type,(R-S),S);
         tempW = FactorResults.FacCof;
-        if cca_reduce_by_scree
-            
-            allsubrand = randn(size(allsub'));
-            Rrand = cov(allsubrand);
-            Srand = zeros(size(Rrand));
-            for i = 1:dim*sub
-                tmp = ceil(i/dim);
-                Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
-            end
-            
-            FactorResultsRand = erp_pca(allsubrand,K,type,(Rrand-Srand),Srand);
-            FactorResultsRand.scree = FactorResultsRand.scree*(sum(FactorResults.scree)/sum(FactorResultsRand.scree)); %scale to same size as real data
-            nfac_temp = find(FactorResults.scree<FactorResultsRand.scree);
-            if ~isempty(nfac_temp)
-                nfac = min(nfac_temp(1)-1, K);
-                tempW = tempW(:,1:nfac);
-                
-            end
-        end
+%         if cca_reduce_by_scree
+%             
+%             allsubrand = randn(size(allsub'));
+%             Rrand = cov(allsubrand);
+%             Srand = zeros(size(Rrand));
+%             for i = 1:dim*sub
+%                 tmp = ceil(i/dim);
+%                 Srand((tmp-1)*dim+1:tmp*dim,i) = Rrand((tmp-1)*dim+1:tmp*dim,i); 
+%             end
+%             
+%             FactorResultsRand = erp_pca(allsubrand,K,type,(Rrand-Srand),Srand);
+%             FactorResultsRand.scree = FactorResultsRand.scree*(sum(FactorResults.scree)/sum(FactorResultsRand.scree)); %scale to same size as real data
+%             nfac_temp = find(FactorResults.scree<FactorResultsRand.scree);
+%             if ~isempty(nfac_temp)
+%                 nfac = min(nfac_temp(1)-1, K);
+%                 tempW = tempW(:,1:nfac);
+%                 
+%             end
+%         end
 end
 
 K = size(tempW,2);
 W = zeros(dim,K,sub);
+Wn = zeros(1,sub);
 for i=1:sub
     if Sx.normalise_cca_weights 
-        W(:,:,i)=tempW((i-1)*dim+1:i*dim,:)./norm(tempW((i-1)*dim+1:i*dim,:));
+        Wn(1,i) = norm(tempW((i-1)*dim+1:i*dim,:));
+        W(:,:,i)=tempW((i-1)*dim+1:i*dim,:)./Wn(1,i);
+%         for j = 1:K
+%             W(:,j,i)=tempW((i-1)*dim+1:i*dim,j)./norm(tempW((i-1)*dim+1:i*dim,j));
+%         end
     else
         W(:,:,i)=tempW((i-1)*dim+1:i*dim,:);
     end
@@ -1526,6 +1863,7 @@ end
 
 % projected data
 mdata = nan(K,num,sub);
+mdatan = nan(K,sub);
 for i = 1:sub
     nandat=isnan(data(:,:,i));
     data_nonan = data(:,:,i);
@@ -1536,7 +1874,8 @@ for i = 1:sub
     mdatatemp = W(:,:,i)'*data_nonan;
     for j = 1:K
         if Sx.normalise_cca_weights
-            mdatatemp(j,:) = mdatatemp(j,:)/norm(mdatatemp(j,:));
+            mdatan(j,i) = norm(mdatatemp(j,:));
+            mdatatemp(j,:) = mdatatemp(j,:)./mdatan(j,i);
         else
             mdatatemp(j,:) = mdatatemp(j,:);
         end

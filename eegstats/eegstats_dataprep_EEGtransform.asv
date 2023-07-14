@@ -37,6 +37,7 @@ for d = 1:length(D)
             Sf.data_in = S.prep.calc.eeg.pca.data_in; % type of data to analyse: trials or averaged conditions
             Sf.centre_output = S.prep.calc.eeg.pca.centre;
             Sf.standardise_output = S.prep.calc.eeg.pca.standardise;
+            Sf.normalise_output = S.prep.calc.eeg.pca.normalise;
             Sf.pca_FA_type = S.prep.calc.eeg.pca.FA_type;
             Sf.maxGig = S.prep.calc.eeg.pca.maxGig;
             Sf.normalise_cca_weights = S.prep.calc.eeg.cca.normalise_weights;
@@ -52,8 +53,6 @@ for d = 1:length(D)
             Sf.cca_test_nCCAcomp = S.prep.calc.eeg.cca.test_nCCAcomp;
             Sf.para = S.prep.parallel;
             Sf.cca_select_method = S.prep.calc.eeg.cca.select_method;
-            Sf.nCCAadd = S.prep.calc.eeg.cca.test_nCCAadd;
-            Sf.randomperm = S.prep.calc.eeg.cca.randomperm;
 
             % PLS
             Y={};
