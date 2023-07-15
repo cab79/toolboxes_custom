@@ -192,12 +192,13 @@ for pt = 1:length(S.type)
         end
 
         % create some randomised data for later
-        nrepCCA=50;
+        nrepCCA=S.randomperm;
         scoresrand = nan(size(O(o).scores,1),size(O(o).scores,2),size(O(o).scores,3),nrepCCA);
-        for rep = 1:nrepCCA
+        for nrp = 1:nrepCCA
             for u=1:length(U)
                 for col = 1:size(O(o).scores,1)
-                    scoresrand(col,:,u,rep) = O(o).scores(col,randperm(size(O(o).scores,2)),u);
+                    permidx = rep{u}(randperm(length(rep{u})));
+                    scoresrand(col,rep{u},u,nrp) = O(o).scores(col,permidx,u);
                 end
             end
         end
@@ -262,7 +263,7 @@ for pt = 1:length(S.type)
                 train_correlations_rand = nan(CV_fold,nr);
 %                 test_correlations = nan(CV_fold,nr);
                 disp(['Estimating CCAs: comp ' num2str(nc) '/' num2str(length(ncomp))])
-                for cv = 1:CV_fold
+                parfor cv = 1:CV_fold
                     for ri = 1:nr
                         %disp(['ri ' num2str(ri) ', cv ' num2str(cv)])
 
@@ -321,24 +322,37 @@ for pt = 1:length(S.type)
 
                             if S.cca_reduce_by_scree
 % 
-%                                 for rep = 1:nrepCCA
+%                                 for nrp = 1:nrepCCA
 %                                     for u=1:length(U)
 %                                         for col = 1:size(O(o).scores,1)
-%                                             scoresrand(col,:,u,rep);
+%                                             scoresrand(col,:,u,nrp);
 %                                         end
 %                                     end
 %                                 end
 
-                                CVdata_train_rand = O(o).scoresrand(1:ncomp(nc),training(CVsample,cv),:);
-                                CVdata_test_rand = O(o).scoresrand(1:ncomp(nc),test(CVsample,cv),:);
-                                CV_score_test_rand{cv,ri} = nan(nCCA_train(cv,ri),sum(test(CVsample,cv)),length(U));
+                                % get training data from randomised PCA
+                                % scores
+                                CVdata_train_rand = scoresrand(1:ncomp(nc),training(CVsample,cv),:,1);
+
+                                % get test data from randomised PCA
+                                % scores
+                                CVdata_test_rand = scoresrand(1:ncomp(nc),test(CVsample,cv),:,:);
+
+%                                 CVdata_train_rand = O(o).scoresrand(1:ncomp(nc),training(CVsample,cv),:);
+%                                 CVdata_test_rand = O(o).scoresrand(1:ncomp(nc),test(CVsample,cv),:);
+
+                                CV_score_test_rand{cv,ri} = nan(nCCA_train(cv,ri),sum(test(CVsample,cv)),length(U),nrepCCA);
                                 
                                 if 0
                                     % generate random scores from multiple CCA models
     
                                     % train sample
+                                    % THIS NEEDS MODIFICATION: USES WRAND
+                                    % FROM PCA FUNCTION CURRENTLY. Need to
+                                    % randperm the weights. 
                                     [CV_W_rand{cv,ri},CV_mdata_train_rand{cv,ri}] = mccas(CVdata_train_rand,nCCA,reg,r(ri),O(o).Wrand(1:ncomp(nc),:,:),S);
             
+                                    % TRAINING correlations
                                     train_corri_rand = nan(1,nCCA_train(cv,ri));
                                     for i = 1:nCCA_train(cv,ri)
                                        train_corri_rand(1,i) = mean(mean(corr(squeeze(CV_mdata_train_rand{cv,ri}(i,:,:)),'type','Spearman', 'Rows','pairwise'))); % inter-subject correlations over training data
@@ -346,13 +360,17 @@ for pt = 1:length(S.type)
                                     train_correlations_rand(cv,ri) = mean(train_corri_rand);
         
                                     for u=1:length(U)
-                                        CV_score_test_rand{cv,ri}(:,ismember(find(test(CVsample,cv)),rep{u}),u) = CV_W_rand{cv,ri}(:,1:nCCA_train(cv,ri),u)' * CVdata_test_rand(:,ismember(find(test(CVsample,cv)),rep{u}),u);
+                                        for nrp = 1:nrepCCA
+                                            CV_score_test_rand{cv,ri}(:,ismember(find(test(CVsample,cv)),rep{u}),u,nrp) = CV_W_rand{cv,ri}(:,1:nCCA_train(cv,ri),u)' * CVdata_test_rand(:,ismember(find(test(CVsample,cv)),rep{u}),u,nrp);
+                                        end
                                     end
                                 else
                                     % generate random scores from training
                                     % model (more efficient)
                                     for u=1:length(U)
-                                        CV_score_test_rand{cv,ri}(:,ismember(find(test(CVsample,cv)),rep{u}),u) = CV_W{cv,ri}(:,1:nCCA_train(cv,ri),u)' * CVdata_test_rand(:,ismember(find(test(CVsample,cv)),rep{u}),u);
+                                        for nrp = 1:nrepCCA
+                                            CV_score_test_rand{cv,ri}(:,ismember(find(test(CVsample,cv)),rep{u}),u,nrp) = CV_W{cv,ri}(:,1:nCCA_train(cv,ri),u)' * CVdata_test_rand(:,ismember(find(test(CVsample,cv)),rep{u}),u,nrp);
+                                        end
                                     end
                                 end
                             end
@@ -388,13 +406,13 @@ for pt = 1:length(S.type)
                     for ri = 1:nr
                         score_test{ri} = nan(ncCCA,size(O(o).scores,2),length(U));
                         if S.cca_reduce_by_scree
-                            score_test_rand{ri} = nan(ncCCA,size(O(o).scoresrand,2),length(U));
+                            score_test_rand{ri} = nan(ncCCA,size(O(o).scores,2),length(U),nrepCCA);
                         end
                     end
 
                     for u=1:length(U)
                         if S.cca_select_method == 1
-                            for cv = 1:CV_fold
+                            parfor cv = 1:CV_fold
                                 for ri = 1:nr
                                     
                                     % reconstructed PCs
@@ -485,8 +503,8 @@ for pt = 1:length(S.type)
                                     score_test{ri}(1:ncCCA,intersect(find(test(CVsample,cv)),rep{u}),u) =...
                                         CV_score_test{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u);
                                     if S.cca_reduce_by_scree
-                                        score_test_rand{ri}(1:ncCCA,intersect(find(test(CVsample,cv)),rep{u}),u) =...
-                                            CV_score_test_rand{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u);
+                                        score_test_rand{ri}(1:ncCCA,intersect(find(test(CVsample,cv)),rep{u}),u,:) =...
+                                            CV_score_test_rand{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u,:);
                                     end
                                 end
                             end
@@ -512,15 +530,21 @@ for pt = 1:length(S.type)
 
                         if S.cca_reduce_by_scree
                             test_corri_rand = nan(nr,ncCCA);
-                            for ri = 1:nr
+                            parfor ri = 1:nr
                                 for i = 1:ncCCA
-                                   test_corri_rand(ri,i) = mean(mean(corr(squeeze(score_test_rand{ri}(i,:,:)),'type','Spearman', 'Rows','pairwise'))); % inter-subject correlations over testing data
+                                    for nrp = 1:nrepCCA
+                                        test_corri_rand(ri,i,nrp) = mean(mean(corr(squeeze(score_test_rand{ri}(i,:,:,nrp)),'type','Spearman', 'Rows','pairwise'))); % inter-subject correlations over testing data
+                                    end
                                 end
                             end
                             %test_corr_rand(:,nci) = nanmean(test_corri_rand,2); % get mean over all CCAs
-                            test_corr_rand(:,nci) = test_corri_rand(:,ncCCA); % get last CCA only
-                            testcorr_max_rand = max(test_corr_rand(:,nci));
-                            disp(['testcorr rand: ' num2str(testcorr_max_rand)])
+                            for nrp = 1:nrepCCA
+                                test_corr_rand(:,nci,nrp) = test_corri_rand(:,ncCCA,nrp); % get last CCA only
+                            end
+                            [testcorr_max_rand, maxi] = max(mean(test_corr_rand(:,nci,:),3));
+                            testcorr_max_rand_std_upper = testcorr_max_rand + 2*std(test_corr_rand(maxi,nci,:));
+                            disp(['testcorr rand mean: ' num2str(testcorr_max_rand)])
+                            disp(['testcorr rand 2*std upper: ' num2str(testcorr_max_rand_std_upper)])
 
                         end
                     end
@@ -574,32 +598,44 @@ for pt = 1:length(S.type)
                 end
                 hold off
                 O(o).RMSECV = rmdat;
+                nCCA = ncii(minYi,2);
+                nPCA = ncomp(ncii(minYi,1));
+
             elseif S.cca_select_method == 2
-                testmat = test_corr;
                 % which regularisation parameter?
-                [~,minRi] = max(testmat,[],1); % max reg parameter
+                [~,minRi] = max(test_corr,[],1); % max reg parameter
                 minR=r(minRi);
                 testmatr =[];
+                testmatrandr =[];
                 for nc = 1:length(minRi)
-                    testmatr(nc,1) = testmat(minRi(nc),nc);
+                    testmatr(nc,1) = test_corr(minRi(nc),nc);
+                    testmatrandr(nc,:) = test_corr_rand(minRi(nc),nc,:);
                 end
     
-                figure; hold on
+                figure
 
                 for nc = 1:length(ncomp)
-                   plot(testmatr(ncii(:,1)==nc));
+                    hold on
+                    plot(testmatr(ncii(:,1)==nc));
+                    plot(mean(testmatrandr(ncii(:,1)==nc,:),2),'LineStyle','--');
+                    plot(mean(testmatrandr(ncii(:,1)==nc,:),2) + 2*std(testmatrandr(ncii(:,1)==nc,:),[],2),'LineStyle','--');
+                    hold off
                 end
 
-                % find CCAs that are greater than random instead?
-                [mintemp,minYi] = max(testmatr);
-                scatter(ncii(minYi,2),mintemp);
-%                 
-                hold off
+                % find CCAs that are greater than random instead
+                [~,minYi] = max(testmatr); % N PCA with highest value
+                testmatrP = testmatr(ncii(:,1)==ncii(minYi,1)); 
+                testmatrandrP = testmatrandr(ncii(:,1)==ncii(minYi,1),:); 
+                less = find(testmatrP < mean(testmatrandrP,2) + 2*std(testmatrandrP,[],2));
+
+                nCCA = less(1)-1;
+                nPCA = ncomp(ncii(minYi,1));
+
                 O(o).testcorr = testmatr;
+
+
             end
 
-            nCCA = ncii(minYi,2);
-            nPCA = ncomp(ncii(minYi,1));
             disp(['n CCA comp: ' num2str(nCCA) ', n PCA comp: ' num2str(nPCA)])
             disp(['regularisation: ' num2str(minR(minYi))])
             disp(['PCA max var explained after scree: ' num2str(mean(O(o).explained))])
@@ -614,7 +650,7 @@ for pt = 1:length(S.type)
             end
             
             % final CCA solution
-            [O(o).W,O(o).mdata] = mccas(O(o).scores,nPCA,reg,minR(minYi),O(o).W,S,0);
+            [O(o).W,O(o).mdata] = mccas(O(o).scores,nPCA,reg,minR(minYi),O(o).W,S);
             O(o).W = O(o).W(:,1:nCCA+S.nCCAadd,:);
             O(o).mdata = O(o).mdata(1:nCCA+S.nCCAadd,:,:);
             NUM_FAC(2) = nCCA+S.nCCAadd;
@@ -1699,7 +1735,7 @@ switch PCAmethod
         out_Y.grp_nfac = ncomp;
 end
 % obtain subject-specific PCs
-PCdata = nan(NUM_FAC(1),nobs);
+PCdata = nan(NUM_FAC(1),nobs,length(cdata));
 sigma = {};
 for i = 1:length(cdata)
     sigma{i} = sqrt(var(score{i})); 
