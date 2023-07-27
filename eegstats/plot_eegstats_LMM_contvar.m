@@ -32,18 +32,18 @@ for s = 1:length(S.model.datasample)
 end
 
 % calculate means over subjects, per trial
-tnums = unique(Dp.prep.dtab.trial);
+tnums = unique(Dp.prep.dtab.tnums);
 [U,~,iU] = unique(Dp.prep.dtab.ID);
 for m = 1:length(S.model.index)
     predmean{m} = nan(max(tnums),length(S.model.contrast_term),length(U));
     for u = 1:length(U)
-        predmean{m}(Dp.prep.dtab.trial(iU==u),:,u) = pred{m}(iU==u,:);
+        predmean{m}(Dp.prep.dtab.tnums(iU==u),:,u) = pred{m}(iU==u,:);
     end
     predmean{m} = nanmean(predmean{m},3);
 end
 outmean = nan(max(tnums),length(S.model.datasample),length(U));
 for u = 1:length(U)
-    outmean(Dp.prep.dtab.trial(iU==u),:,u) = outcome(iU==u,:);
+    outmean(Dp.prep.dtab.tnums(iU==u),:,u) = outcome(iU==u,:);
 end
 outmean = nanmean(outmean,3);
 

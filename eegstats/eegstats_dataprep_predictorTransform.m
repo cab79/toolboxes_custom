@@ -109,6 +109,11 @@ for d = 1:length(D)
                     end
                 elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'-')
                     temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})-D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+%                 elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'k-') % previous trial
+%                     tidx = 1:length(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})) S.prep.calc.pred.newvarmult{pr,1};
+%                     temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})(tidx);
+                elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'+')
+                    temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})+D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
                 end
                 D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,3}) = temp;
             end
@@ -198,13 +203,16 @@ for d = 1:length(D)
             S.LMM_varnames = var_names;
         end
         D(d).prep.pred_PCA = predictor_PCA(D(d).prep.dtab,S);
+        if isempty(D(d).prep.pred_PCA.Y)
+            return;
+        end
         
         if strcmp(S.prep.calc.pred.PCA_type,'FA') || (strcmp(S.prep.calc.pred.PCA_type,'PLS') && S.prep.calc.pred.pls.rotate_factors)
             pattern = D(d).prep.pred_PCA.Ypattern{1};
             pattern_thresh = D(d).prep.pred_PCA.Ypattern{1}.*double(D(d).prep.pred_PCA.Ypattern{1}>=S.prep.calc.pred.PCA_model_minloading | D(d).prep.pred_PCA.Ypattern{1}<=-S.prep.calc.pred.PCA_model_minloading);
             structure = D(d).prep.pred_PCA.Ystruct{1};
             plot_names = D.prep.pred_PCA.col_names{1};
-            figure;
+            fig=figure;
             ax=subplot(1,3,1);
             imagesc(pattern);colorbar;colormap(cmp); caxis([-1 1])
             xticks(1:size(pattern,2)); 
@@ -251,6 +259,8 @@ for d = 1:length(D)
                 ['cronbach = ' num2str(crona)]
                 };
             annotation('textbox',dim,'String',str,'FitBoxToText','on');
+
+            savefig(fig,fullfile(S.prep.path.outputs,[S.prep.sname 'FApattern.fig']));
         end
         
         if strcmp(S.prep.calc.pred.PCA_type,'FA') || (strcmp(S.prep.calc.pred.PCA_type,'PLS') && S.prep.calc.pred.pls.rotate_factors)
@@ -260,7 +270,8 @@ for d = 1:length(D)
                 for k = 1:size(D(d).prep.pred_PCA.Yscore{ym},2)
                     if any(pattern_thresh(:,k)>0)
                         pcname=[S.prep.calc.pred.PCA_type num2str(k)];
-                        D(d).prep.dtab.(pcname) = zscore((transpose(pattern_thresh(:,k))*transpose(vardata))');
+                        %D(d).prep.dtab.(pcname) = zscore((transpose(pattern_thresh(:,k))*transpose(vardata))'); % this is incorrect
+                        D(d).prep.dtab.(pcname) = zscore(D(d).prep.pred_PCA.Yscore{ym}(:,k));
                     end
                 end
 
@@ -493,6 +504,11 @@ for d = 1:length(D)
     if S.prep.calc.pred.test_collinearity
         
         [corrmat,pmat,var_names] = LMM_correlation_matrix(D,S,S.prep.calc.pred.test_collinearity_PCAcov_only);
+
+        if length(var_names)<2
+            return
+        end
+
         corrmat = corrmat.*double(pmat<S.prep.calc.pred.sig);
         if strcmp(S.prep.calc.pred.output_metric,'r')
             corrmat = corrmat.*double(corrmat>=S.prep.calc.pred.R_min | corrmat<-S.prep.calc.pred.R_min);
@@ -501,7 +517,7 @@ for d = 1:length(D)
         end
         
         % PLOT
-        figure;
+        fig2=figure;
         ax=subplot(1,2,1);
         imagesc(corrmat);colorbar;colormap(cmp); caxis([-1 1])
         plot_names = var_names;
@@ -520,6 +536,7 @@ for d = 1:length(D)
         title('collinearity of predictors (LMM)')
         set(ax, 'XAxisLocation', 'top');
         save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
+        savefig(fig2,fullfile(S.prep.path.outputs,[S.prep.sname 'collinearity.fig']));
         
         % multicollinaerity
         coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
@@ -602,7 +619,7 @@ for d = 1:length(D)
 %         set(ax3, 'XAxisLocation', 'top');
         
         % scatterplot matrix - observe linearity
-        figure
+        fig3=figure;
         plot_names = var_names(numericvar_ind);
         [~,axpm] = plotmatrix(table2array(D(d).prep.dtab(:,plot_names)));
         for pn = 1:length(plot_names)
@@ -610,6 +627,7 @@ for d = 1:length(D)
             xlabel(axpm(end,pn),plot_names{pn},'Rotation',90,'HorizontalAlignment','right')
         end
         title('linearity of predictors')
+        savefig(fig3,fullfile(S.prep.path.outputs,[S.prep.sname 'linearity.fig']));
 
         if 0 % old version: continuous predictors only
             vt = vartype('numeric');
@@ -663,7 +681,13 @@ for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
         Y{ym}(:,nc)=dtab.(out.col_names{ym}{nc});
     end
 end
-out.Y = Y;
+
+if exist('Y','var')
+    out.Y = Y;
+else
+    out.Y=[];
+    return
+end
 
 % Do the same for the correlation matrix if needed
 if ym==1 && S.prep.calc.pred.PCA_LMM
@@ -692,7 +716,10 @@ switch S.prep.calc.pred.PCA_type
                 end
                 nfac = nfac_temp(1);
             else
-                [~,~,~,~,explainedrand] = pca(randn(size(Y{ym})),'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
+                for col = 1:size(Y{ym},2)
+                    rand_data(:,col) = Y{ym}(randperm(size(Y{ym},1)),col);
+                end
+                [~,~,~,~,explainedrand] = pca(rand_data,'NumComponents',ncomp,'Centered',false,'Algorithm','eig');
                 nfac_temp = find(explained<explainedrand);
                 nfac = nfac_temp(1)-1;
             end
@@ -724,7 +751,10 @@ switch S.prep.calc.pred.PCA_type
                 end
                 nfac = nfac_temp(1);
             else
-                [~, values] = spca(randn(size(Y{ym})), [], ncomp, delta, -ncomp, maxiter, convergenceCriterion, verbose);
+                for col = 1:size(Y{ym},2)
+                    rand_data(:,col) = Y{ym}(randperm(size(Y{ym},1)),col);
+                end
+                [~, values] = spca(rand_data, [], ncomp, delta, -ncomp, maxiter, convergenceCriterion, verbose);
                 explainedrand = diag(values)/sum(diag(values));
                 nfac_temp = find(explained<explainedrand);
                 nfac = nfac_temp(1)-1;
@@ -762,23 +792,31 @@ switch S.prep.calc.pred.PCA_type
                 if isempty(nfac_temp)
                     nfac_temp = ncomp;
                 end
-                nfac = nfac_temp(1);
-            else
-                if S.prep.calc.pred.PCA_LMM
-                    % feed in correlation matrix from LMM
-                    randResults = erp_pca(randn(size(Y{ym})), ncomp, type, S.LMM_corrmat);
-                else
-                    randResults = erp_pca(randn(size(Y{ym})), ncomp, type);
-                end
-                explainedrand = randResults.scree;
-                explainedrand = explainedrand*(sum(explained)/sum(explainedrand)); %scale to same size as real data
-                nfac_temp = find(explained<explainedrand);
-                if isempty(nfac_temp)
-                    nfac=1;
-                else
-                    nfac = nfac_temp(1)-1;
-                end
+                nfac1 = nfac_temp(1);
+            else 
+                nfac1 = 0;
             end
+            
+            for col = 1:size(Y{ym},2)
+                rand_data(:,col) = Y{ym}(randperm(size(Y{ym},1)),col);
+            end
+            if S.prep.calc.pred.PCA_LMM
+                % feed in correlation matrix from LMM
+                randResults = erp_pca(rand_data, ncomp, type, S.LMM_corrmat);
+            else
+                randResults = erp_pca(rand_data, ncomp, type);
+            end
+            explainedrand = randResults.facVar;
+            %explainedrand = explainedrand*(sum(explained)/sum(explainedrand)); %scale to same size as real data
+            nfac_temp = find(explained<explainedrand);
+            if isempty(nfac_temp)
+                nfac2=1;
+            else
+                nfac2 = max(1,nfac_temp(1)-1);
+            end
+
+            nfac = max([nfac1 nfac2]);
+
             if S.prep.calc.pred.PCA_LMM
                 % feed in correlation matrix from LMM
                 FactorResults = erp_pca(Y{ym}, nfac, type, S.LMM_corrmat);
@@ -1608,12 +1646,18 @@ numericvar_ind = find(ismember(var_names,numericvar_names));
 nonnumericvar_ind = find(~ismember(var_names,numericvar_names));
 all_ind = [numericvar_ind,nonnumericvar_ind]; % must be in this order
 
+if length(var_names)<2
+    corrmat=0;
+    pmat=0;
+    return
+end
+
 % combinations
 comb = nchoosek(all_ind,2);   
 comb = comb(ismember(comb(:,1),numericvar_ind),:); 
 corrmat = diag(zeros(1,length(var_names)));
 pmat = diag(zeros(1,length(var_names)));
-for ci = 1:length(comb)
+for ci = 1:size(comb,1)
     formula = [var_names{comb(ci,1)} '~' var_names{comb(ci,2)} '+(1|ID)'];
     lme = fitlme(D.prep.dtab,formula);
     if strcmp(S.prep.calc.pred.output_metric,'r')

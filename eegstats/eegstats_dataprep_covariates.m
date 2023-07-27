@@ -215,7 +215,7 @@ end
 if S.prep.remove_novar_pred
     % remove data with almost no variance
     dat = std(table2array(pred));
-    rm_dat = dat<0.000001;
+    rm_dat = dat<0.00000001;
     if any(rm_dat)
         pred(:,rm_dat) = [];
     end 

@@ -1193,8 +1193,7 @@ switch PCAmethod
             disp(['factor analysis on EEG: finding number of factors for subject ' num2str(i)])
             FactorResults = erp_pca(cdata{i},NUM_FAC(1),type);
             randResults = erp_pca(randn(size(cdata{i})),NUM_FAC(1),type);
-            randResults.scree = randResults.scree*(sum(FactorResults.scree)/sum(randResults.scree)); %scale to same size as real data
-            nfac_temp = find(FactorResults.scree<randResults.scree);
+            nfac_temp = find(FactorResults.FacVar<randResults.FacVar);
             nfac(i) = min(NUM_FAC(1),nfac_temp(1)-1);
         end
         % take median nfac
