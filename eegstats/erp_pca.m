@@ -217,22 +217,21 @@ switch type.method
 
             LargestLoading=max(max(abs(FacStr))); %factor pattern loadings can go over 1 for oblique rotations
             LargestCom=max(max(abs(sum(FacPat.*FacStr,2))));
-            if NUM_FAC > 1
-                %Deal with loadings that are too large
-                if round(LargestLoading*100) > 100 %allow very small violation of factor loading limit due to rounding errors
-                    %disp('Loadings are over the permitted maximum of 1.  It appears this rotation has crashed.');
-                    NUM_FAC = NUM_FAC-1;
-                else failed = 0;
-                end
-
-                if round(LargestCom*100) > 100 %allow very small violation of communality limit due to rounding errors
-                    %disp('Communalities are over the permitted maximum of 1.  It appears this rotation has crashed.');
-                    NUM_FAC = NUM_FAC-1;
-                else failed = 0;
-                end
-            else
+%             if NUM_FAC > 1
+% 
+%                 %Deal with loadings that are too large
+%                 if round(LargestLoading*100) > 120 %allow very small violation of factor loading limit due to rounding errors
+%                     %disp('Loadings are over the permitted maximum of 1.  It appears this rotation has crashed.');
+%                     NUM_FAC = NUM_FAC-1;
+% 
+%                 elseif round(LargestCom*100) > 120 %allow very small violation of communality limit due to rounding errors
+%                     %disp('Communalities are over the permitted maximum of 1.  It appears this rotation has crashed.');
+%                     NUM_FAC = NUM_FAC-1;
+%                 else failed = 0;
+%                 end
+%             else
                 failed = 0;
-            end
+%             end
 
         end
     case 'matlab'

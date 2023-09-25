@@ -68,6 +68,7 @@ for d = 1:length(D)
     numericvar_names=D(d).prep.dtab(:,vt).Properties.VariableNames;
     ip = all(isnan(table2array(D(d).prep.dtab(:,vt))),1);
     D(d).prep.dtab(:,numericvar_names(ip)) = [];
+
      
     %% continuous covariate predictor transforms
     % Pred data transformation

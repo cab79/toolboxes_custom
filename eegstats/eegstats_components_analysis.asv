@@ -722,6 +722,7 @@ for pt = 1:length(S.type)
         if length(S.PCAmethod)>1 && any(strcmp(S.PCAmethod{2},'CCA'))
             CCAs{u} = [];
             for o = 1:length(O)
+                CV_W_unscaled = CV_W{cv,ri}(:,1:nCCA_train(cv,ri),u)*CV_Wn{cv,ri}(:,u)
                 CCAs{u} = [CCAs{u}, O(o).PCAs{u}* (O(o).W(:,:,u)*O(o).Wn(1,u)) ]; % unscale the weights first
             end
             data_out=CCAs{u};

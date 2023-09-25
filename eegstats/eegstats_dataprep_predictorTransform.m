@@ -97,6 +97,15 @@ for d = 1:length(D)
             try
                 if strcmp(S.prep.calc.pred.newvarmult{pr,4},'*')
                     temp = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1}).*D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2});
+                elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'*c') % multiply centered variables
+                    % centre per ppt
+                    ID = unique(D(d).prep.dtab.ID);
+                    temp = nan(height(D(d).prep.dtab),1);
+                    for id = 1:length(ID)
+                        idx = ismember(D(d).prep.dtab.ID,ID(id));
+                        temp(idx) = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})(idx)-nanmean(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})(idx))...
+                            .* D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})(idx)-nanmean(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})(idx));
+                    end
                 elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'/')
                     if isnumeric(S.prep.calc.pred.newvarmult{pr,1})
                         % this is the inverse transform
@@ -196,7 +205,7 @@ for d = 1:length(D)
     
     
     if S.prep.calc.pred.PCA_on
-            
+
         if S.prep.calc.pred.PCA_LMM
             [corrmat,pmat,var_names] = LMM_correlation_matrix(D(d),S,0);
             S.LMM_corrmat = corrmat;
@@ -674,13 +683,27 @@ for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
     
     % remove any with "trialback" from col_idx
     col_idx(col_idx==trialback_idx{ym}) = 0;
-    
+%     
+%     % remove any multicollinear variables >0.95
+%     vt = vartype('numeric');
+%     toRemove = {};
+%     correlationMatrix = corrcoef(table2array(dtab(:,vt)));
+%     for i = 2:size(correlationMatrix, 1)
+%         if any(abs(correlationMatrix(i, i+1:end)) > 0.99)
+%             i
+%             toRemove = [toRemove, dtab(:,vt).Properties.VariableNames{i}];
+%         end
+%     end
+%     col_idx(ismember(dtab.Properties.VariableNames,toRemove)) = 0;
+
+
     out.col_names{ym} = dtab.Properties.VariableNames(col_idx);
 
     for nc = 1:length(out.col_names{ym})
         Y{ym}(:,nc)=dtab.(out.col_names{ym}{nc});
     end
 end
+
 
 if exist('Y','var')
     out.Y = Y;
@@ -689,9 +712,29 @@ else
     return
 end
 
+
+for ym = 1:length(S.prep.calc.pred.PCA_cov) % for each Y model
+
+    % remove variables that don't exist
+    varidx = endsWith(S.LMM_varnames,S.prep.calc.pred.PCA_cov{ym});
+    PCA_cov{ym} = S.LMM_varnames(varidx);
+
+    % remove collinear variables fro stability
+    if S.prep.calc.pred.PCA_LMM
+        varidx = endsWith(S.LMM_varnames,PCA_cov{ym});
+        CM = S.LMM_corrmat(varidx,varidx)';
+    else
+        CM = cov(Y{ym},'partialrows'); 
+    end
+    rm = any(triu(CM.*~eye(size(CM)))>0.99,1);
+    Y{ym} = Y{ym}(:,~rm);
+    PCA_cov{ym} = PCA_cov{ym}(:,~rm);
+    out.col_names{ym} = out.col_names{ym}(~rm);
+end
+
 % Do the same for the correlation matrix if needed
 if ym==1 && S.prep.calc.pred.PCA_LMM
-    varidx = endsWith(S.LMM_varnames,S.prep.calc.pred.PCA_cov{ym});
+    varidx = endsWith(S.LMM_varnames,PCA_cov{ym});
     S.LMM_corrmat = S.LMM_corrmat(varidx,varidx);
     S.LMM_corrmat = S.LMM_corrmat+S.LMM_corrmat'+eye(length(S.LMM_corrmat));
 end
@@ -769,7 +812,7 @@ switch S.prep.calc.pred.PCA_type
         type = S.prep.calc.pred.FA_type;
         
         for ym = 1:length(Y) % for each Y model
-           
+
             % KMO test
             disp('model 1, KMO test')
             [A,B] = kmo(Y{ym});
@@ -778,7 +821,7 @@ switch S.prep.calc.pred.PCA_type
             ncomp=size(Y{ym},2); 
             
             % PCA
-            if S.prep.calc.pred.PCA_LMM
+            if S.prep.calc.pred.PCA_LMM && ~isempty(S.LMM_corrmat)
                 % feed in correlation matrix from LMM
                 FactorResults = erp_pca(Y{ym}, ncomp, type, S.LMM_corrmat);
             else
@@ -800,7 +843,7 @@ switch S.prep.calc.pred.PCA_type
             for col = 1:size(Y{ym},2)
                 rand_data(:,col) = Y{ym}(randperm(size(Y{ym},1)),col);
             end
-            if S.prep.calc.pred.PCA_LMM
+            if S.prep.calc.pred.PCA_LMM && ~isempty(S.LMM_corrmat)
                 % feed in correlation matrix from LMM
                 randResults = erp_pca(rand_data, ncomp, type, S.LMM_corrmat);
             else
@@ -817,7 +860,7 @@ switch S.prep.calc.pred.PCA_type
 
             nfac = max([nfac1 nfac2]);
 
-            if S.prep.calc.pred.PCA_LMM
+            if S.prep.calc.pred.PCA_LMM && ~isempty(S.LMM_corrmat)
                 % feed in correlation matrix from LMM
                 FactorResults = erp_pca(Y{ym}, nfac, type, S.LMM_corrmat);
             else
