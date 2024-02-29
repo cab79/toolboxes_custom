@@ -373,6 +373,16 @@ for d=1:length(D)
                                 case 3
                                     MCCmask_img = reshape(p_img<fdr_p,psize(1),psize(2),psize(3));
                             end  
+                        case 'none'
+                            psize=size(p_img);
+                            switch length(psize)
+                                case 1
+                                    MCCmask_img = p_img<S.MCC.thresh;
+                                case 2
+                                    MCCmask_img = reshape(p_img<S.MCC.thresh,psize(1),psize(2));
+                                case 3
+                                    MCCmask_img = reshape(p_img<S.MCC.thresh,psize(1),psize(2),psize(3));
+                            end
                     end
 
                     if ~isempty(S.MCC.mask_img_post)
@@ -523,7 +533,7 @@ for d=1:length(D)
     end
 
 end
-save(fullfile(S.MCC.path.outputs, 'D.mat'),'D');
+save(fullfile(S.MCC.path.outputs, 'D.mat'),'D','-v7.3');
 
 function set_paths(S)
 for p = 1:size(S.path.code,1)

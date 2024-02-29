@@ -266,7 +266,7 @@ for d=1:length(D)
     end
     
 end
-save(fullfile(S.img.path.outputs, 'D.mat'),'D');
+save(fullfile(S.img.path.outputs, 'D.mat'),'D','-v7.3');
 
 function set_paths(S)
 for p = 1:size(S.path.code,1)
