@@ -70,9 +70,18 @@ for d=1:length(D)
     
     if S.MCC.model.index
         for i = S.MCC.model.index
-            if S.MCC.estimate && (S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF'))
+
+            %- Filename of mapped mask image
+            if ~isempty(S.MCC.mask_img)
+                VM    = S.MCC.mask_img;
+            else
+                VM    = D(d).model(i).mask_img_file;
+            end
+                
+            if S.MCC.estimate && (S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF')) && (~isfield(D(d).model(i),'smooth') || isempty(D(d).model(i).smooth))
                 D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
                 D(d).model(i).resid_vol_dir = strrep(D(d).model(i).resid_vol_file,'.mat','_dir');
+
                 if ~exist(D(d).model(i).resid_vol_dir,'dir') || length(dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'))) ~= length(D.model(i).fixeddesign)
                     mkdir(D(d).model(i).resid_vol_dir)
                     
@@ -264,12 +273,6 @@ for d=1:length(D)
                 fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
                 resid_vol = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
                 
-                %- Filename of mapped mask image
-                if ~isempty(S.MCC.mask_img)
-                    VM    = S.MCC.mask_img;
-                else
-                    VM    = D(d).model(i).mask_img_file;
-                end
                 
                 % smoothness estimation
                 disp('MCC: smoothness estimation')
@@ -279,6 +282,13 @@ for d=1:length(D)
 %                 rep_dim = mask_dims(~ismember(mask_dims,S.MCC.dim));
 %                 if isempty(rep_dim)
                     [L,Ve,ssq,Dx,Ix,Iy,Iz] = resid_smoothness(resid_vol,VM);
+                    D(d).model(i).smooth.L = L;
+                    D(d).model(i).smooth.Ve = Ve;
+                    D(d).model(i).smooth.ssq = ssq;
+                    D(d).model(i).smooth.Dx = Dx;
+                    D(d).model(i).smooth.Ix = Ix;
+                    D(d).model(i).smooth.Iy = Iy;
+                    D(d).model(i).smooth.Iz = Iz;
 %                 else
 %                     nrep = size(mask_img,rep_dim);
 %                     for nr = 1:nrep
@@ -311,7 +321,15 @@ for d=1:length(D)
                     p_img = spm_read_vols(spm_vol(D(d).model(i).con(c).p_img_file));
                     szR = length(D(d).model(i).fixeddesign);
                     if S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF')
-                        [FWHM,VRpv,R] = smoothness_df_correct(L,Ve,ssq,Dx,Ix,Iy,Iz,VM,[szR DF(2)]);
+                        [FWHM,VRpv,R] = smoothness_df_correct(...
+                            D(d).model(i).smooth.L,...
+                            D(d).model(i).smooth.Ve,...
+                            D(d).model(i).smooth.ssq,...
+                            D(d).model(i).smooth.Dx,...
+                            D(d).model(i).smooth.Ix,...
+                            D(d).model(i).smooth.Iy,...
+                            D(d).model(i).smooth.Iz,...
+                            VM,[szR DF(2)]);
                         D(d).model(i).con(c).MCC.FWHM = FWHM;
                         D(d).model(i).con(c).MCC.VRpv = VRpv;
                         D(d).model(i).con(c).MCC.R = R;

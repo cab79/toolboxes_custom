@@ -90,6 +90,7 @@ for s = 1:size(Y,2)
     end
 
     out(s).muB = nanmean([stt(:).muB],2);
+    out(s).tStat = nanmean([stt(:).tStat],2);
     out(s).r2 = nanmean(r2);
     out(s).waic = nanmean(waic);
     out(s).logl = nanmean(logl);

@@ -3,9 +3,9 @@ dbstop if error
 % close all
 % set paths and file names 
 S.path.code = {
-   1, 'G:\Q_backup\MATLAB\toolboxes_external\cbrewer'
-   0, 'G:\Q_backup\MATLAB\toolboxes_custom\eegstats'
-   1, 'G:\Q_backup\MATLAB\toolboxes_external\spm12'
+   1, 'E:\Q_backup\MATLAB\toolboxes_external\cbrewer'
+   0, 'E:\Q_backup\MATLAB\toolboxes_custom\eegstats'
+   1, 'E:\Q_backup\MATLAB\toolboxes_external\spm12'
 %    0, 'Q:\MATLAB\toolboxes_external' % for suplabel.m
     };
 
@@ -30,7 +30,11 @@ if S.plot_erp || S.plot_input
             samples(s).input=input;
         end
         if S.plot_erp
-            input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-scale
+            if isfield(Ddtab.D.prep.Y(s),'data_std')
+                input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-scale
+            else
+                input_scaled = input;
+            end
             samples(s).input_scaled=input_scaled;
         end
     end
@@ -436,7 +440,7 @@ if ~isempty(S.model.index)
         end
     end
 end
-save(fullfile(S.path.stats_load,'D.mat'),'D');
+save(fullfile(S.path.stats_load,'D.mat'),'D','-v7.3');
 
 function set_paths(S)
 for p = 1:size(S.path.code,1)

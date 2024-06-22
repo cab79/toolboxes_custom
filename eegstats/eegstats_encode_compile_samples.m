@@ -164,6 +164,18 @@ for d = 1:nD % subject
             D(d).model(i).waic(sinz) = vertcat([M.model(i).samples(:).waic]');
             D(d).model(i).ktest = nan(ddim(1:end-1)');
             D(d).model(i).ktest(sinz) = vertcat([M.model(i).samples(:).ktest_normality]');
+
+            % items per model/coefficient
+            for ii = 1:length(M.model(i).samples(1).CoefficientNames)
+                D(d).model(i).coeff(ii).t = nan(ddim(1:end-1)');
+                D(d).model(i).coeff(ii).t(sinz) = arrayfun(@(X) X.t(ii), M.model(i).samples);
+
+                D(d).model(i).coeff(ii).p = nan(ddim(1:end-1)');
+                D(d).model(i).coeff(ii).p(sinz) = arrayfun(@(X) X.p(ii), M.model(i).samples);
+
+                D(d).model(i).coeff(ii).df = nan(ddim(1:end-1)');
+                D(d).model(i).coeff(ii).df(sinz) = arrayfun(@(X) X.df, M.model(i).samples);
+            end
         end
         
         % filenames for resid, fitted, input

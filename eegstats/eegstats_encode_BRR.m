@@ -14,6 +14,16 @@ MC=length(S.encode.model_compare);
 
 M = struct;
 for s = 1:length(Y)
+
+    % Display the progress
+    progress = (s / length(Y)) * 100;
+    fprintf('Progress: %3.1f%%\r', progress);
+    % Use carriage return to overwrite the same line
+    if s < length(Y)
+        fprintf('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b'); % Number of \b should match the length of the progress text
+    else
+        fprintf('\n'); % Move to the next line on the final iteration
+    end
     
     % for each model
     for i = 1:LM
@@ -42,10 +52,16 @@ for s = 1:length(Y)
 
         % outputs for each sample
         M.model(i).samples(s).b = brr.muB;
+        M.model(i).samples(s).t = brr.tStat;
         M.model(i).samples(s).mse = brr.muSigma2;
         M.model(i).samples(s).logl = brr.logl;
         M.model(i).samples(s).waic = brr.waic;
         M.model(i).samples(s).r2_ord = brr.r2test;
+
+        % df and p values
+        df = size(train_pred, 1) - size(train_pred, 2);
+        M.model(i).samples(s).df = df; 
+        M.model(i).samples(s).p = 2 * (1 - tcdf(abs(brr.tStat), df));
         
         ftd = train_pred*brr.muB; % Predicted responses at each data point.
         resid = train_data-ftd; % Residuals.

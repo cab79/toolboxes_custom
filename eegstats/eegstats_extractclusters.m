@@ -18,7 +18,7 @@ end
 
 % set paths
 S.path.code = {
-   1, 'G:\Q_backup\MATLAB\toolboxes_external\cbrewer'
+   1, 'E:\Q_backup\MATLAB\toolboxes_external\cbrewer'
     };
 set_paths(S)
 
@@ -72,7 +72,11 @@ for d=1:length(D)
         disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
         for s = 1:length(Ddtab.D.prep.Y)
             input=Ddtab.D.prep.Y(s).dtab.data;
-            input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-scale
+            if isfield(Ddtab.D.prep.Y(s),'data_std')
+                input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-
+            else
+                input_scaled = input;
+            end
             samples(s).input_scaled=input_scaled;
         end
         input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
@@ -746,7 +750,7 @@ for d=1:length(D)
         end
     end
 end
-save(fullfile(S.clus.path.outputs, 'D.mat'),'D');
+save(fullfile(S.clus.path.outputs, 'D.mat'),'D','-v7.3');
 
 
 function set_paths(S)

@@ -704,9 +704,9 @@ for pt = 1:length(S.type)
                 O(o).PCAs{u} = temp(:,:,o)*O(o).COEFF{u}; 
             end
 
-            if S.standardise_output && S.centre_output % should onyl standardise if centred
+            if S.unstandardise_output %&& S.centre_output % should onyl standardise if centred
                 tsigma = repmat(O(o).sigma{u},size(temp(:,:,o),1),1);
-                O(o).PCAs{u} = O(o).PCAs{u}./tsigma;   
+                O(o).PCAs{u} = O(o).PCAs{u}.*tsigma;   
             end
 
 %             if S.normalise_output
@@ -950,6 +950,74 @@ for cc = 1:NUM_FAC(2)
     end
 end
 
+% plot weight maps
+for o = 1:length(O)
+    for cc = 1:NUM_FAC(2)
+        for u=1:length(U)
+            CCAw(cc,:,u,o) = O(o).COEFF{u}*O(o).W(:,cc,u)*O(o).Wn(1,u);
+        end
+    end
+end
+CCAw_gavg = nanmean(CCAw,3);
+signcorr2 = sign(regress(gavg',CCAw_gavg'));
+CCAw_gavg = bsxfun(@times,CCAw_gavg,signcorr2);
+CCAw_gavg_rs = reshape(CCAw_gavg,NUM_FAC(2),D.prep.dim(1),D.prep.dim(2),[]); % mean over subjects
+
+% plot - spatiotemporal maxima
+for cc = 1:NUM_FAC(2)
+    dat=squeeze(CCAw_gavg_rs(cc,:,:));
+    topo = topotime_3D(dat,S);
+    thresh = [nanmean(topo(:))-2*nanstd(topo(:)),nanmean(topo(:))+2*nanstd(topo(:))];
+
+    dat=topo;
+    dat(dat>thresh(1) & dat<thresh(2)) = nan;
+    dat(isnan(dat))=0;
+    % connected components
+    ccon = bwconncomp(dat,26);
+    % remove small clusters
+    ClusExtent = cellfun(@length,ccon.PixelIdxList);
+    ccon.PixelIdxList(ClusExtent<max(ClusExtent)/10)=[];
+    nc = length(ccon.PixelIdxList);
+
+    % plot
+    figure('name',['component ' num2str(cc)]); 
+    ax(1) = subplot(nc+1,2,2); hold on
+    plot(squeeze(max(topo,[],[1 2])),'b')
+    plot([1,size(topo,3)],[thresh(2),thresh(2)],'b--')
+    plot(squeeze(min(topo,[],[1 2])),'r')
+    plot([1,size(topo,3)],[thresh(1),thresh(1)],'r--')
+
+    % plot maps
+    pi=2;
+    for cci = 1:nc
+        % subscripts
+        [~,i] = max(abs(topo(ccon.PixelIdxList{cci})));
+        [x,y,z]=ind2sub(size(topo),ccon.PixelIdxList{cci}(i));
+
+        % line
+        plot(ax(1),[z,z],[0,topo(x,y,z)],'k')
+
+        % topo
+        pi=pi+1;
+        subplot(nc+1,2,pi); hold on
+        pcolor(topo(:,:,z)), shading interp; axis off
+        scatter(y,x,'k','filled')
+        hold off
+
+        % waveform
+        pi=pi+1;
+        subplot(nc+1,2,pi); hold on
+        plot(squeeze(topo(x,y,:)),'k');
+        if topo(x,y,z)>0
+            col='b';
+        else
+            col='r';
+        end
+        plot([z,z],[0,topo(x,y,z)],col)
+        hold off
+        ylabel(['z=' num2str(z)])
+    end
+end
 
 % plot - spatial and temporal variance maxima
 % based on the idea that CCAs are multivariate and maximise

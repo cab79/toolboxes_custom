@@ -23,6 +23,16 @@ disp(['number of model comparisons:' num2str(MC)]);
 M = struct;
 failed_s = cell(1,LM);
 for s = 1:length(Y)
+
+    % % Display the progress
+    % progress = (s / length(Y)) * 100;
+    % fprintf('Progress: %3.1f%%\r', progress);
+    % % Use carriage return to overwrite the same line
+    % if s < length(Y)
+    %     fprintf('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b'); % Number of \b should match the length of the progress text
+    % else
+    %     fprintf('\n'); % Move to the next line on the final iteration
+    % end
     
     % for each model
     model=struct;

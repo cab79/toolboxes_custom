@@ -13,6 +13,13 @@ else
     D= varargin{1};
 end
 
+if nargin>1
+    % for swapY function
+    dtabHeadersToAdd = varargin{2};
+    newVarNames = varargin{3};
+    dtabHeadersToRemove = varargin{4};
+end
+
 %% outputs: grouped data
 switch S.prep.output.format
 
@@ -58,8 +65,10 @@ switch S.prep.output.format
             if isfield(D.prep,'Y')
                 for y = 1:length(D.prep.Y)
                     E(d).prep.Y(y).dtab = D.prep.Y(y).dtab(ismember(D.prep.dtab.ID,U{d}),:);
-                    E(d).prep.Y(y).data_mean = D.prep.Y(y).data_mean;
-                    E(d).prep.Y(y).data_std = D.prep.Y(y).data_std;
+                    if isfield(D.prep.Y(y),'data_mean')
+                        E(d).prep.Y(y).data_mean = D.prep.Y(y).data_mean;
+                        E(d).prep.Y(y).data_std = D.prep.Y(y).data_std;
+                    end
                 end
             end
         end
@@ -93,6 +102,46 @@ switch S.prep.output.format
         if isfield(D.prep,'grpdata') % don't need EEG data in both formats
             D.prep = rmfield(D.prep,'grpdata'); % save memory
         end
+    case 'swapY'
+        %% swap over Y variables with specified dtab variables
+
+        % Get the number of subjects
+        numSubjects = numel(D);
+        
+        % Loop through each subject
+        for i = 1:numSubjects
+            
+            % Loop through each Y field instance
+            for j = 1:numel(D(i).prep.Y)
+                
+                % Get the data from Y(y).dtab and add it to dtab
+                if isfield(D(i).prep.Y(j), 'dtab')
+                    D(i).prep.dtab.(dtabHeadersToAdd{j}) = D(i).prep.Y(j).dtab.data;
+
+                    % Remove data from Y(y).dtab
+                    D(i).prep.Y(j) = rmfield(D(i).prep.Y(j),'dtab');
+                end
+            end
+            
+            % Remove specified headers from dtab and place them within Y structure
+            for m = 1:numel(dtabHeadersToRemove)
+                headerToRemove = dtabHeadersToRemove{m};
+
+                if contains(D(i).prep.dtab, headerToRemove)
+
+                    % Add data to Y(y).dtab
+                    D(i).prep.Y(m).dtab = table;
+                    D(i).prep.Y(m).dtab.data = D(i).prep.dtab.(headerToRemove);
+                    
+                    % Remove data from dtab
+                    D(i).prep.dtab = removevars(D(i).prep.dtab, headerToRemove);
+                end
+            end
+        end
+
+
+
+
 end
 
 % save data to disk
