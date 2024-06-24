@@ -36,6 +36,9 @@ end
 % loop through chunks of samples
 
 for d = 1:nD % subject
+
+    D(d).ID = S.ID{d};
+
     M=struct; % temporary structure
     si = [];sinz = [];
     

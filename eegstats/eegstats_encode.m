@@ -22,8 +22,11 @@ if isfield(S.encode,'nprep')
 else
     np=1;
 end
+S.ID={};
 for d = 1:length(D)
     
+    S.ID{d} = unique(D(d).prep.dtab.ID,'stable');
+
     Yin = D(d).prep(np).Y;
     lenY = length(Yin);
     
