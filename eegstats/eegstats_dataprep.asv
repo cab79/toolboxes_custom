@@ -107,7 +107,27 @@ for d = 1:length(subjects)
 
         if ~isempty(S.prep.calc.eeg.TF.band)
 
-           
+            % Example function to calculate the IAF for each subject from event-related trials
+            function iaf = calculateIAF(data, srate, channels)
+                % Subtract the average event-related response from each trial to obtain induced responses
+                mean_response = mean(data, 3);
+                induced_responses = data - mean_response;
+                
+                % Reshape data for PSD calculation using specified channels
+                reshaped_data = reshape(induced_responses(channels, :, :), length(channels), size(data, 2) * size(data, 3));
+                
+                % Calculate power spectral density (PSD)
+                [psd, freqs] = pwelch(reshaped_data', [], [], [], srate);
+                psd = median(psd, 2); % Average PSD across specified channels
+                
+                % Define alpha range
+                alpha_range = [8 12];
+                alpha_indices = find(freqs >= alpha_range(1) & freqs <= alpha_range(2));
+                
+                % Find peak frequency within alpha range
+                [~, max_idx] = max(psd(alpha_indices));
+                iaf = freqs(alpha_indices(max_idx));
+            end
             
             temp = temp; % EEG data in format [channels x time points x trials]
             srate = temp.srate; % Sampling rate
@@ -187,17 +207,6 @@ for d = 1:length(subjects)
                     end
                 end
             end
-
-            temp.data = tf_data;
-            % ALSO HERE SAVE INFO ABOUT N TIME WINDOWS ETC.
-           % .
-           % .
-           % .
-           % .
-           % .
-           % .
-           % .
-
             
             % Plot the time-frequency representation of the first trial for the first frequency band (example)
             figure;
@@ -523,7 +532,6 @@ if S.prep.output.save
     disp('...done')
 end
 
-end
 
 function [conds, tnums, fnums, bnums] = get_markers(EEG,type)
 
@@ -570,30 +578,7 @@ switch type
             end
         end
 end
-end
 
-
- % Example function to calculate the IAF for each subject from event-related trials
-function iaf = calculateIAF(data, srate, channels)
-    % Subtract the average event-related response from each trial to obtain induced responses
-    mean_response = mean(data, 3);
-    induced_responses = data - mean_response;
-    
-    % Reshape data for PSD calculation using specified channels
-    reshaped_data = reshape(induced_responses(channels, :, :), length(channels), size(data, 2) * size(data, 3));
-    
-    % Calculate power spectral density (PSD)
-    [psd, freqs] = pwelch(reshaped_data', [], [], [], srate);
-    psd = median(psd, 2); % Average PSD across specified channels
-    
-    % Define alpha range
-    alpha_range = [8 12];
-    alpha_indices = find(freqs >= alpha_range(1) & freqs <= alpha_range(2));
-    
-    % Find peak frequency within alpha range
-    [~, max_idx] = max(psd(alpha_indices));
-    iaf = freqs(alpha_indices(max_idx));
-end
 
 
 

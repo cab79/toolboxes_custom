@@ -158,7 +158,7 @@ elseif strcmp(S.encode.parallel.option,'local')
         parfor (c = cc)
 %         for (c = cc)
             disp(['running model: chunk ' num2str(c) '/' num2str(LC)])
-            C(c).M=func_model(S,C(c).Y);
+            C(c).M=func_model(S,C(c).Y,c);
             C(c).Y=[]; % save memory
         end
         if strcmp(S.encode.memory_option,'disk')
@@ -171,7 +171,7 @@ else
     % process on single core
     for c = 1:LC
         disp(['running model: chunk ' num2str(c) '/' num2str(LC)])
-        C(c).M=func_model(S,C(c).Y);
+        C(c).M=func_model(S,C(c).Y,c);
         C(c).Y=[]; % save memory
         if strcmp(S.encode.memory_option,'disk')
             C=save_matfiles(S,C,c,save_pref);

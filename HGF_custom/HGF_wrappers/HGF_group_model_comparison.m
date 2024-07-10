@@ -13,6 +13,13 @@ else
     LME_input = 0; % load from HGF structures
 end
 
+if nargin>2 && ~isempty(varargin{2})
+    LME_se = varargin{2};
+    LME_se_input = 1;
+else
+    LME_se_input = 0; % load from HGF structures
+end
+
 if ~isfield(S,'family_on')
     S.family_on=0;
 end
@@ -135,6 +142,9 @@ if ~LME_input
     % remove bad subjects
     mr = unique(mr);
     LME(:,mr) = [];
+    if LME_se_input
+        LME_se(:,mr) = [];
+    end
     rs(:,mr) = [];
     rc(:,mr) = [];
     grplist(mr) = [];
@@ -146,6 +156,9 @@ for mi = 1:size(LME,1)
     % separate into groups
     for g = 1:length(grpuni)
         LMEgrp{1,g}(mi,:) = LME(mi,strcmp(grplist,grpuni{g}));
+        if LME_se_input
+            LMEgrp_se{1,g}(mi,:) = LME_se(mi,strcmp(grplist,grpuni{g}));
+        end
     end
 
     if ~LME_input
@@ -205,6 +218,58 @@ if (rm>1 || pm>1) && om==1
 %         ylabel('resp models')
 %         title(['sum LME, group ' num2str(g)])
 %     end
+
+    if LME_se_input
+        % Assuming pLME is a 2D matrix of PSIS-LOO values and pLME_se is the corresponding standard error matrix
+
+        % LMEgrp and LMEgrp_se are cell arrays where each cell contains a 2D matrix of values for different subjects
+        
+        % Summing LME and combining SE across subjects and reshaping into vectors
+        pLME_vec = sum(cat(2, LMEgrp{:}), 2);
+        pLME_se_vec = sqrt(sum(cat(2, LMEgrp_se{:}).^2, 2));
+        
+        % Number of models (total number of elements)
+        num_models = length(pLME_vec);
+        
+        % Function to compute the significance of the difference
+        is_significant = @(diff, se_diff) abs(diff) > 2 * se_diff;
+        
+        % Initialize matrices to store pairwise comparison results
+        pairwise_diffs = zeros(num_models, num_models);
+        pairwise_se_diffs = zeros(num_models, num_models);
+        significant_wins = zeros(num_models, 1);
+        
+        % Pairwise comparison of models across all combinations
+        for i = 1:num_models
+            for j = 1:num_models
+                if i ~= j
+                    % Compute the difference in PSIS-LOO and its standard error
+                    diff_loo = pLME_vec(i) - pLME_vec(j);
+                    se_diff_loo = sqrt(pLME_se_vec(i)^2 + pLME_se_vec(j)^2);
+        
+                    % Store the differences and standard errors
+                    pairwise_diffs(i, j) = diff_loo;
+                    pairwise_se_diffs(i, j) = se_diff_loo;
+        
+                    % Check if the difference is significant
+                    if is_significant(diff_loo, se_diff_loo)
+                        % If model i has a significantly greater (negative) PSIS-LOO than model j, record a win
+                        if diff_loo > 0
+                            significant_wins(i) = significant_wins(i) + 1;
+                        end
+                    end
+                end
+            end
+        end
+        
+        % Reshape significant_wins back to the original matrix shape
+        significant_wins_matrix = reshape(significant_wins, rm, pm)';
+        
+        clims = [min(significant_wins_matrix(:)), max([1;significant_wins_matrix(:)])];
+        image_plot(significant_wins_matrix,S,clims,'N sig. wins','mean',{},xl,yl,xt,yt,outerpos)
+        
+    end
+
 end
 
 % compare models
