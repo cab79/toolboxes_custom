@@ -107,37 +107,11 @@ for d = 1:length(subjects)
 
         if ~isempty(S.prep.calc.eeg.TF.band)
 
-            % Example function to calculate the IAF for each subject from event-related trials
-            function iaf = calculateIAF(data, srate, channels)
-                % Subtract the average event-related response from each trial to obtain induced responses
-                mean_response = mean(data, 3);
-                induced_responses = data - mean_response;
-                
-                % Reshape data for PSD calculation using specified channels
-                reshaped_data = reshape(induced_responses(channels, :, :), length(channels), size(data, 2) * size(data, 3));
-                
-                % Calculate power spectral density (PSD)
-                [psd, freqs] = pwelch(reshaped_data', [], [], [], srate);
-                psd = median(psd, 2); % Average PSD across specified channels
-                
-                % Define alpha range
-                alpha_range = [8 12];
-                alpha_indices = find(freqs >= alpha_range(1) & freqs <= alpha_range(2));
-                
-                % Find peak frequency within alpha range
-                [~, max_idx] = max(psd(alpha_indices));
-                iaf = freqs(alpha_indices(max_idx));
-            end
-            
-            temp = temp; % EEG data in format [channels x time points x trials]
-            srate = temp.srate; % Sampling rate
-            
             % Specify channels to include in IAF calculation
-            channels = ismember({temp.chanlocs.labels}, S.prep.calc.eeg.TF.iaf.channels);
-            %[1, 2, 3, 4, 5]; % Example channel indices
+            channels = find(ismember({temp.chanlocs.labels}, S.prep.calc.eeg.TF.iaf.channels));
             
             % Calculate IAF using specified channels
-            iaf = calculateIAF(temp, temp.srate, channels);
+            iaf = calculateIAF(temp.data, temp.srate, channels, S.prep.calc.eeg.TF.iaf.plot);
             
             % Define frequency bands relative to IAF
             freq_bands = {
@@ -155,67 +129,319 @@ for d = 1:length(subjects)
                 'Gamma3', [iaf + 50, iaf + 70];
             };
             
-            % Example code to use these frequency bands for time-frequency analysis
-            chronux_params = struct('Fs', temp.srate, 'tapers', [3 5]);
-            
             % Time window settings (adjust as needed)
             time_windows = {
-                [4 0.5]; % Delta1
+                [2 0.5]; % Delta1
                 [2 0.5]; % Delta2
-                [1 0.1]; % Theta1
-                [1 0.1]; % Theta2
-                [0.5 0.1]; % Alpha1
-                [0.5 0.1]; % Alpha2
-                [0.2 0.05]; % Beta1
-                [0.2 0.05]; % Beta2
-                [0.2 0.05]; % Beta3
-                [0.1 0.02]; % Gamma1
-                [0.1 0.02]; % Gamma2
-                [0.1 0.02]; % Gamma3
+                [0.5 0.05]; % Theta1
+                [0.5 0.05]; % Theta2
+                [0.5 0.05]; % Alpha1
+                [0.5 0.05]; % Alpha2
+                [0.5 0.05]; % Beta1
+                [0.5 0.05]; % Beta2
+                [0.5 0.05]; % Beta3
+                [0.1 0.01]; % Gamma1
+                [0.1 0.01]; % Gamma2
+                [0.1 0.01]; % Gamma3
+            };
+
+            % Define taper settings for low and high frequency bands
+            taper_settings = {
+                [1 1]; % Delta1
+                [1 1]; % Delta2
+                [2 3]; % Theta1
+                [2 3]; % Theta2
+                [2 3]; % Alpha1
+                [2 3]; % Alpha2
+                [2 3]; % Beta1
+                [2 3]; % Beta2
+                [2 3]; % Beta3
+                [4 7]; % Gamma1
+                [4 7]; % Gamma2
+                [4 7]; % Gamma3
             };
             
-            % Initialize matrix to hold time-frequency data for each trial
-            num_channels = size(temp, 1); % Number of channels
-            num_timepoints = size(temp, 2); % Number of time points
-            tf_data = zeros(num_channels, num_timepoints, size(data, 3), length(freq_bands{1}));
+            % Select relevant frequency bands and time windows
+            freq_bands_select = freq_bands(ismember(freq_bands(:,1), S.prep.calc.eeg.TF.band), :);
+            time_windows_select = time_windows(ismember(freq_bands(:,1), S.prep.calc.eeg.TF.band), :);
             
-            % Loop through each trial and compute time-frequency representation
-            for trial = 1:num_trials
-                trial_data = squeeze(temp(:, :, trial)); % Data for single trial
-                for ch = 1:num_channels
-                    for band_idx = 1:length(freq_bands{trial})
-                        band_name = freq_bands{trial}{band_idx, 1};
-                        freq_range = freq_bands{trial}{band_idx, 2};
-                        window_length = time_windows{band_idx}(1);
-                        step_size = time_windows{band_idx}(2);
+            % Example code to use these frequency bands for time-frequency analysis
+            chronux_params = struct('Fs', temp.srate, 'tapers', [],'pad',S.prep.calc.eeg.TF.fft_pad);
+            
+            % Initialize matrix to hold time-frequency data for each trial
+            num_channels = size(temp.data, 1); % Number of channels
+            num_timepoints = size(temp.data, 2); % Number of time points
+            num_trials = size(temp.data, 3); % Number of trials
+            
+            % Define padding length (e.g., 1 second of padding)
+            padding_length = S.prep.calc.eeg.TF.padding * temp.srate; 
+            
+            % Initialize maximum number of time points from all spectrograms
+            max_timepoints = 0;
+            
+            % Temporary storage for time-frequency data
+            tf_data_temp = cell(num_channels, num_trials, length(freq_bands_select));
+            time_vectors = cell(num_channels, num_trials, length(freq_bands_select));
+            
+            % Parallel pool setup
+            if isempty(gcp('nocreate'))
+                parpool; % Start parallel pool if not already started
+            end
+            
+            % Loop through each channel and compute time-frequency representation
+            parfor ch = 1:num_channels
+                disp(['Channel ' num2str(ch)])
+                local_tf_data_temp = cell(num_trials, length(freq_bands_select));
+                local_time_vectors = cell(num_trials, length(freq_bands_select));
+                local_max_timepoints = 0;
+            
+                for trial = 1:num_trials
+                    trial_data = squeeze(temp.data(ch, :, trial)); % Data for single trial
+                    
+                    % Add zero padding
+                    padded_data = zeros(1, num_timepoints + 2 * padding_length);
+                    padded_data(padding_length + 1:padding_length + num_timepoints) = trial_data;
+            
+                    % Create a map to store results of mtspecgramc for each unique movingwin
+                    mtspecgramc_results = containers.Map('KeyType', 'char', 'ValueType', 'any');
+                    
+                    % Identify unique movingwin parameters
+                    unique_movingwin = unique(cellfun(@(x) mat2str([x(1), x(2)]), time_windows_select, 'UniformOutput', false));
+                    
+                    for uwin_idx = 1:length(unique_movingwin)
+                        movingwin_str = unique_movingwin{uwin_idx};
+                        movingwin = str2num(movingwin_str); %#ok<ST2NM> % Convert string back to numeric
+          
+
+                        % Find the corresponding taper settings
+                        taper_setting_idx = find(cellfun(@(x) isequal([x(1), x(2)], movingwin), time_windows_select));
+                        chronux_params.tapers = taper_settings{taper_setting_idx(1)};
                         
-                        % Moving window size and step size
-                        movingwin = [window_length step_size];
+                        % Compute spectrogram for this unique movingwin
+                        [Sp, t, fr] = mtspecgramc(padded_data', movingwin, chronux_params);
                         
-                        % Compute spectrogram
-                        [S, t, f] = mtspecgramc(trial_data(ch, :)', movingwin, chronux_params);
+                        % Remove time points that were added due to padding
+                        valid_indices = t >= (padding_length / temp.srate) & t <= ((padding_length + num_timepoints) / temp.srate);
+                        t = t(valid_indices);
+                        Sp = Sp(valid_indices, :);
                         
-                        % Average over the frequency band of interest
-                        freq_indices = find(f >= freq_range(1) & f <= freq_range(2));
-                        S_band = mean(S(:, freq_indices), 2); % Average over selected frequencies
-                        
-                        % Resample S_band to match the number of original time points
-                        S_band_resampled = interp1(t, S_band, linspace(t(1), t(end), num_timepoints));
-                        
-                        % Store the result in tf_data
-                        tf_data(ch, :, trial, band_idx) = S_band_resampled; % Ensure correct dimensions
+                        % Store the results in the map
+                        mtspecgramc_results(movingwin_str) = {Sp, t, fr};
                     end
+                    
+                    for band_idx = 1:size(freq_bands_select, 1)
+                        freq_range = freq_bands_select{band_idx, 2};
+                        window_length = time_windows_select{band_idx}(1);
+                        step_size = time_windows_select{band_idx}(2);
+                        movingwin_str = mat2str([window_length, step_size]);
+            
+                        % Retrieve the precomputed spectrogram for this movingwin
+                        result = mtspecgramc_results(movingwin_str);
+                        Sp = result{1};
+                        t = result{2};
+                        fr = result{3};
+                        
+                        % Store temporary time-frequency data and time vectors
+                        local_tf_data_temp{trial, band_idx} = Sp;
+                        local_time_vectors{trial, band_idx} = t;
+                        
+                        % Update maximum number of time points
+                        if length(t) > local_max_timepoints
+                            local_max_timepoints = length(t);
+                        end
+                    end
+                end
+                
+                % Update the shared maximum number of time points
+                max_timepoints = max(max_timepoints, local_max_timepoints);
+                
+                % Store the local results in the global cell arrays
+                tf_data_temp(ch, :, :) = local_tf_data_temp;
+                time_vectors(ch, :, :) = local_time_vectors;
+            end
+
+            
+            % Option to resample the number of time points to the maximum across bands
+            resample_to_max = S.prep.calc.eeg.TF.resample_to_max;
+            
+            % Initialize final tf_data as a cell array
+            tf_data = cell(size(freq_bands_select, 1), 1);
+            
+            for band_idx = 1:size(freq_bands_select, 1)
+                if resample_to_max
+                    % Initialize temporary storage for resampled data
+                    tf_data_resampled = zeros(num_channels, max_timepoints, num_trials);
+                    for trial = 1:num_trials
+                        for ch = 1:num_channels
+                            Sp = tf_data_temp{ch, trial, band_idx};
+                            t = time_vectors{ch, trial, band_idx};
+            
+                            % Average over the frequency band of interest
+                            freq_range = freq_bands_select{band_idx, 2};
+                            fr = linspace(0, chronux_params.Fs / 2, size(Sp, 2));
+                            [~, min_idx] = min(abs(fr - freq_range(1)));
+                            [~, max_idx] = min(abs(fr - freq_range(2)));
+                            freq_indices = min_idx:max_idx;
+                            S_band = mean(Sp(:, freq_indices), 2); % Average over selected frequencies
+            
+                            % Resample S_band to match the maximum number of time points
+                            S_band_resampled = interp1(t, S_band, linspace(t(1), t(end), max_timepoints));
+                            time_vectors{ch, trial, band_idx} = interp1(t, t, linspace(t(1), t(end), max_timepoints));
+            
+                            % Store the result in tf_data_resampled
+                            tf_data_resampled(ch, :, trial) = S_band_resampled; % Ensure correct dimensions
+                        end
+                    end
+                    tf_data{band_idx} = tf_data_resampled;
+                else
+                    % Store the original data without resampling
+                    tf_data_original = [];
+                    for trial = 1:num_trials
+                        for ch = 1:num_channels
+                            Sp = tf_data_temp{ch, trial, band_idx};
+                            % t = time_vectors{ch, trial, band_idx};
+            
+                            % Average over the frequency band of interest
+                            freq_range = freq_bands_select{band_idx, 2};
+                            fr = linspace(0, chronux_params.Fs / 2, size(Sp, 2));
+                            [~, min_idx] = min(abs(fr - freq_range(1)));
+                            [~, max_idx] = min(abs(fr - freq_range(2)));
+                            freq_indices = min_idx:max_idx;
+                            S_band = mean(Sp(:, freq_indices), 2); % Average over selected frequencies
+            
+                            % Store the result in tf_data_original
+                            tf_data_original(ch, :, trial) = S_band; % Ensure correct dimensions
+                        end
+                    end
+                    tf_data{band_idx} = tf_data_original;
                 end
             end
             
-            % Plot the time-frequency representation of the first trial for the first frequency band (example)
-            figure;
-            imagesc(1:num_timepoints, 1:num_channels, 10*log10(tf_data(:, :, 1, 5))); % Example for Alpha1 band
-            axis xy;
-            xlabel('Time points');
-            ylabel('Channel');
-            title(['Multitaper Time-Frequency Averaged - Trial 1 - Band: ', freq_bands{1}{5, 1}]);
-            colorbar;
+
+            original_times = temp.times; % Time points in ms
+            temp.times = {};
+            temp.pnts = {};
+            for band_idx = 1:size(freq_bands_select, 1)
+                temp.times{band_idx} = (time_vectors{1, 1, band_idx}-(padding_length / temp.srate))*1000+original_times(1);
+                temp.pnts{band_idx} = length(temp.times{band_idx});
+            end
+            
+            if S.prep.calc.eeg.TF.plot_eachband
+                for band_idx = 1:size(freq_bands_select, 1)
+                    % Average the data over trials
+                    avg_tf_data = mean(tf_data{band_idx}, 3);
+                    
+                    % Plot the time-frequency representation averaged over trials for the current frequency band
+                    figure;
+                    subplot(2, 1, 1);
+                    imagesc(temp.times{band_idx}, 1:num_channels, 10*log10(avg_tf_data)); % Example
+                    axis xy;
+                    xlabel('Time (ms)');
+                    ylabel('Channel');
+                    title(['Multitaper Time-Frequency Averaged Over Trials - Band: ', freq_bands_select{band_idx, 1}]);
+                    colorbar;
+        
+                    % Calculate the average power across selected IAF channels
+                    avg_power = mean(10*log10(tf_data{band_idx}(channels, :, :)), 1); % Example
+        
+                    % Plot the average power across IAF channels
+                    subplot(2, 1, 2);
+                    imagesc(temp.times{band_idx}, 1:num_trials, squeeze(avg_power)');
+                    axis xy;
+                    xlabel('Time (ms)');
+                    ylabel('Trials');
+                    title(['Average Power Across IAF Channels - Band: ', freq_bands_select{band_idx, 1}]);
+                    colorbar;
+                    
+                end
+            end
+
+            temp.data = tf_data;
+
+            if S.prep.calc.eeg.TF.plot_allbands
+
+                % Option to display values relative to baseline
+                baseline_correct = true;
+                
+                % New figure to plot data from all frequency bands on one plot using imagesc
+                figure;
+                
+                % Initialize a matrix to hold the averaged data for all frequency bands
+                all_band_data = [];
+                
+                % Collect all time points from different bands into a single array
+                all_times = [];
+                for i = 1:length(temp.times)
+                    all_times = [all_times; temp.times{i}(:)];
+                end
+                
+                % Find the unique and sorted time points
+                unique_times = unique(all_times);
+                
+                % Find the maximum number of time points across all bands for uniformity
+                max_time_points = length(unique_times);
+                
+                % Initialize time vector for the x-axis (uniform across all bands)
+                uniform_times = linspace(min(unique_times), max(unique_times), max_time_points);
+                
+                for band_idx = 1:size(freq_bands_select, 1)
+                    % Average the data over trials and selected IAF channels
+                    avg_tf_data_band = mean(mean(tf_data{band_idx}(channels, :, :), 1), 3);
+                    
+                    % Check if there are at least two time points for interpolation
+                    if length(temp.times{band_idx}) >= 2
+                        % Interpolate to ensure uniform time points across all bands
+                        interpolated_data = interp1(temp.times{band_idx}, 10*log10(squeeze(avg_tf_data_band)), uniform_times, 'linear', 'extrap');
+                    else
+                        % If there are fewer than two points, replicate the available data
+                        interpolated_data = repmat(10*log10(squeeze(avg_tf_data_band)), 1, max_time_points);
+                    end
+                    
+                    % Ensure interpolated_data is not empty
+                    if isempty(interpolated_data)
+                        interpolated_data = NaN(1, max_time_points);
+                    end
+                    
+                    % Baseline correction if the option is enabled
+                    if baseline_correct
+                        baseline_indices = find(uniform_times >= -200 & uniform_times <= 0);
+                        if ~isempty(baseline_indices)
+                            baseline_mean = mean(interpolated_data(baseline_indices));
+                            interpolated_data = interpolated_data - baseline_mean;
+                        else
+                            warning('No baseline period found for band %s', freq_bands_select{band_idx, 1});
+                        end
+                    end
+                
+                    % Append the interpolated data to the all_band_data matrix
+                    all_band_data = [all_band_data; interpolated_data];
+                end
+                
+                % Ensure the all_band_data matrix is the correct size for imagesc
+                if size(all_band_data, 1) == size(freq_bands_select, 1)
+                    % Plot the data using imagesc
+                    imagesc(uniform_times, 1:size(freq_bands_select, 1), flipud(all_band_data));
+                    set(gca, 'YTick', 1:size(freq_bands_select, 1), 'YTickLabel', flipud({freq_bands_select{:, 1}}'));
+                    xlabel('Time (ms)');
+                    ylabel('Frequency Band');
+                    title('Average Power Across IAF Channels for All Frequency Bands');
+                    c = colorbar;
+                    ylabel(c, 'Power (dB)'); % Label the colorbar
+                else
+                    error('The size of all_band_data does not match the number of frequency bands selected.');
+                end
+
+
+
+
+
+
+
+
+            end
+
+
+
         end
         
         for fn = 1:length(fename)
@@ -295,18 +521,27 @@ for d = 1:length(subjects)
 
             % 
             n_chans = D(d).prep.nbchan.dat;
-            n_samples = D(d).prep.pnts.dat;
             n_trials = D(d).prep.trials.dat;
-            D(d).prep.dim = [n_chans,n_samples,n_trials];
-            timecourse = reshape(D(d).prep.data.dat,n_chans,[]); % make 2D: chans x (time*trials)
+
+            if iscell(D(d).prep.data.dat)
+                for band_idx = 1:size(freq_bands_select, 1)
+                    n_samples = D(d).prep.pnts.dat{band_idx};
+                    D(d).prep.dim{band_idx} = [n_chans,n_samples,n_trials];
+                    timecourse{band_idx} = reshape(D(d).prep.data.dat{band_idx},n_chans,[]); % make 2D: chans x (time*trials)
+                end
+            else
+                n_samples = D(d).prep.pnts.dat;
+                D(d).prep.dim = [n_chans,n_samples,n_trials];
+                timecourse = reshape(D(d).prep.data.dat,n_chans,[]); % make 2D: chans x (time*trials)
+            end
     end
     D(d).prep.tnums = tnums;
     
     if exist('topography','var')
         comps = 1:size(timecourse,1);
-        data= topography(:,comps) * timecourse(comps,:);  
+        data_tc= topography(:,comps) * timecourse(comps,:);  
     else
-        data= timecourse;  
+        data_tc= timecourse;  
     end
     if isfield(D(d).prep,'times')
         total_samples = D(d).prep.times.dat;
@@ -387,69 +622,102 @@ for d = 1:length(subjects)
     % this is done after defining predictors in case subtractions are
     % required
 
-    % smooth
-    if S.prep.calc.eeg.smooth_samples
-        disp('smoothing...')
-        for i = 1:size(data,1)
-            data(i,:) = smooth(data(i,:),S.prep.calc.eeg.smooth_samples,'moving');
+    if iscell(data_tc)
+        idx = 1:size(freq_bands_select, 1);
+        D(d).prep.dim = {};
+        D(d).prep.data = {};
+    else
+        idx=1;
+    end
+
+    for i=idx
+
+        if iscell(data_tc)
+            data = data_tc{i};
+            tsamples = total_samples{i};
+            ssamples = select_samples{i};
+        else
+            data = data_tc;
+            tsamples = total_samples;
+            ssamples = select_samples;
         end
-    end
-
-    % downsample
-    if S.prep.calc.eeg.dsample
-        orig_samples = total_samples;
-        total_samples = downsample(total_samples',S.prep.calc.eeg.dsample)';
-        select_samples = downsample(select_samples',S.prep.calc.eeg.dsample)';
-        idx = repmat(ismember(orig_samples,total_samples),1,n_trials);
-        data = data(:,idx);
-    end
     
-    % make 3D
-    data=reshape(data,size(data,1),[],n_trials);
-    
-    % select data
-    data = data(:,:,ismember(orig_tnums,tnums));
-    n_trials = size(data,3);
-
-    % flip channels right to left
-    if ~isempty(S.prep.calc.eeg.flipchan)
-        load(S.prep.path.inputs.chanlocs);
-        flipidx = ismember(eventType,S.prep.calc.eeg.flipchan);
-        data(:,:,flipidx) = flipchan(data(:,:,flipidx),chanlocs,S.prep.path.inputs.GSNlocs);
-    end
-    
-    % subtractions
-%     if ~isempty(S.prep.pred.factor.subtract)
-%         ...
-%     end
-    
-    % Data transformation
-    if ~isempty(S.prep.calc.eeg.transform)
-        x=data;
-        if strcmp(S.prep.calc.eeg.transform,'arcsinh')
-            data=log(x+sqrt(x.^2+1));
+        % smooth
+        if S.prep.calc.eeg.smooth_samples
+            disp('smoothing...')
+            for i = 1:size(data,1)
+                data(i,:) = smooth(data(i,:),S.prep.calc.eeg.smooth_samples,'moving');
+            end
         end
-    end
     
-    % baseline correct
-    if ~isempty(S.prep.calc.eeg.baseline_correct)
-        bp = dsearchn(total_samples',S.prep.calc.eeg.baseline_correct');
-        data = bsxfun(@minus, data, mean(data(:,bp(1):bp(2),:),2));
-    end
-
-    % select samples
-    if exist('select_samples','var') && ~isempty(select_samples)
-        select = dsearchn(total_samples',[select_samples(1),select_samples(end)]');
-        data = data(:,select(1):select(2),:);
-    end
-    
-    % trim
-%     S.prep.calc.eeg.ndec=8; % trim data to a number of decimal places
+        % downsample
+        if S.prep.calc.eeg.dsample
+            orig_samples = tsamples;
+            tsamples = downsample(tsamples',S.prep.calc.eeg.dsample)';
+            ssamples = downsample(ssamples',S.prep.calc.eeg.dsample)';
+            idx = repmat(ismember(orig_samples,tsamples),1,n_trials);
+            data = data(:,idx);
+        end
         
-    %% reshape data into samples and combine over subjects
-    D(d).prep.dim = size(data);
-    D(d).prep.data=reshape(data,[],n_trials)';
-    clear data % to free memory
+        % make 3D
+        data=reshape(data,size(data,1),[],n_trials);
+        
+        % select data
+        data = data(:,:,ismember(orig_tnums,tnums));
+        n_trials = size(data,3);
+    
+        % flip channels right to left
+        if ~isempty(S.prep.calc.eeg.flipchan)
+            load(S.prep.path.inputs.chanlocs);
+            flipidx = ismember(eventType,S.prep.calc.eeg.flipchan);
+            data(:,:,flipidx) = flipchan(data(:,:,flipidx),chanlocs,S.prep.path.inputs.GSNlocs);
+        end
+        
+        % subtractions
+    %     if ~isempty(S.prep.pred.factor.subtract)
+    %         ...
+    %     end
+        
+        % Data transformation
+        if ~isempty(S.prep.calc.eeg.transform)
+            x=data;
+            if strcmp(S.prep.calc.eeg.transform,'arcsinh')
+                data=log(x+sqrt(x.^2+1));
+            elseif strcmp(S.prep.calc.eeg.transform,'log')
+                data=log(x);
+            elseif strcmp(S.prep.calc.eeg.transform,'pow')
+                data=10*log10(x);
+            end
+        end
+        
+        % baseline correct
+        if ~isempty(S.prep.calc.eeg.baseline_correct)
+            bp = dsearchn(tsamples',S.prep.calc.eeg.baseline_correct');
+            data = bsxfun(@minus, data, mean(data(:,bp(1):bp(2),:),2));
+        end
+    
+        % select samples
+        if exist('select_samples','var') && ~isempty(ssamples)
+            select = dsearchn(tsamples',[ssamples(1),ssamples(end)]');
+            data = data(:,select(1):select(2),:);
+        end
+        
+        % trim
+    %     S.prep.calc.eeg.ndec=8; % trim data to a number of decimal places
+            
+        %% reshape data into samples and combine over subjects
+
+        if iscell(data_tc)
+            D(d).prep.dim{i} = size(data);
+            D(d).prep.data{i}=reshape(data,[],n_trials)';
+        else
+            D(d).prep.dim = size(data);
+            D(d).prep.data=reshape(data,[],n_trials)';
+        end
+        clear data % to free memory
+
+    end
+
 
     %% separate EEG/predictor data into training and testing fractions, only for testing decoders
     trainfrac=S.prep.traintest.frac;
@@ -507,6 +775,7 @@ for d = 1:length(subjects)
     if exist('tnums','var'); D(d).prep.dtab.tnums=tnums'; end
     D(d).prep.dtab.train=categorical(train_matrix);
     D(d).prep.dtab.test=categorical(test_matrix);
+    
     %D(d).prep.tnums = tnums;
     
 end
@@ -521,6 +790,12 @@ for d = 1:length(D)
     if isfield(D(1).prep,'other')
         E(d).prep.other = D(d).prep.other;
     end
+    if exist('iaf','var')
+        E(d).prep.IAF=iaf;
+    end
+    if exist('freq_bands_select','var')
+        E(d).prep.freq=freq_bands_select;
+    end
     %E(d).prep.tnums = D(d).prep.tnums;
 end
 D=E;
@@ -532,6 +807,7 @@ if S.prep.output.save
     disp('...done')
 end
 
+end
 
 function [conds, tnums, fnums, bnums] = get_markers(EEG,type)
 
@@ -578,6 +854,78 @@ switch type
             end
         end
 end
+end
+
+
+function iaf = calculateIAF(data, srate, channels, plot_psd)
+    % Default to no plotting if not provided
+    if nargin < 4
+        plot_psd = false;
+    end
+
+    % Subtract the average event-related response from each trial to obtain induced responses
+    mean_response = mean(data, 3);
+    induced_responses = data - mean_response;
+
+    % Calculate power spectral density (PSD) for each specified channel
+    num_channels = length(channels);
+    psd_all = [];
+
+    % Multitaper parameters
+    params.Fs = srate;
+    params.tapers = [3 5]; % Time-bandwidth product and number of tapers
+
+    % Loop through each specified channel and calculate PSD using multitaper method
+    for ch = 1:num_channels
+        channel_data = reshape(induced_responses(channels(ch), :, :), 1, []);
+        [S, f] = mtspectrumc(channel_data, params);
+        psd_all = [psd_all; S']; % Collect PSD for each channel
+    end
+    
+    % Compute median PSD across specified channels
+    median_psd = median(psd_all, 1);
+    
+    % Apply Gaussian smoothing to the PSD
+    smooth_psd = smoothdata(median_psd, 'gaussian', max(5,round(length(median_psd)*0.01))); % Adjust the window size if needed
+
+    % Limit frequency range to 0-20 Hz
+    freq_limit = 20;
+    freq_indices = f <= freq_limit;
+    f = f(freq_indices);
+    median_psd = median_psd(freq_indices);
+    smooth_psd = smooth_psd(freq_indices);
+    
+    % Define alpha range
+    alpha_range = [6 14];
+    alpha_indices = find(f >= alpha_range(1) & f <= alpha_range(2));
+    
+    % Find peak frequency within alpha range for both unsmoothed and smoothed PSD
+    [~, max_idx_unsmoothed] = max(median_psd(alpha_indices));
+    iaf_unsmoothed = f(alpha_indices(max_idx_unsmoothed));
+    
+    [~, max_idx_smoothed] = max(smooth_psd(alpha_indices));
+    iaf_smoothed = f(alpha_indices(max_idx_smoothed));
+    
+    % Output the smoothed IAF
+    iaf = iaf_smoothed;
+    
+    % Optional plotting of the PSD
+    if plot_psd
+        figure;
+        plot(f, 10*log10(median_psd), 'b');
+        hold on;
+        plot(f, 10*log10(smooth_psd), 'r');
+        plot(iaf_unsmoothed, 10*log10(median_psd(alpha_indices(max_idx_unsmoothed))), 'bo');
+        plot(iaf_smoothed, 10*log10(smooth_psd(alpha_indices(max_idx_smoothed))), 'ro');
+        xlabel('Frequency (Hz)');
+        ylabel('Power Spectral Density (dB)');
+        title(['Power Spectral Density with Identified IAF: ' num2str(iaf_smoothed)]);
+        legend('Unsmoothed PSD', 'Smoothed PSD', 'Unsmoothed IAF', 'Smoothed IAF');
+        xlim([0 freq_limit]);
+        hold off;
+    end
+end
+
 
 
 
