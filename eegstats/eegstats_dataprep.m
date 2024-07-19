@@ -110,8 +110,17 @@ for d = 1:length(subjects)
             % Specify channels to include in IAF calculation
             channels = find(ismember({temp.chanlocs.labels}, S.prep.calc.eeg.TF.iaf.channels));
             
-            % Calculate IAF using specified channels
-            iaf = calculateIAF(temp.data, temp.srate, channels, S.prep.calc.eeg.TF.iaf.plot);
+            % Read IAF from file, or calculate IAF using specified channels
+            if ~isempty(S.prep.calc.eeg.TF.iaf.file)
+                loaded_dtab = readtable(S.prep.calc.eeg.TF.iaf.file);
+                if S.prep.calc.eeg.TF.iaf.use_regularised
+                    iaf = loaded_dtab.iaf_reg(find(ismember(loaded_dtab.ID,subjects{d})));
+                else
+                    iaf = loaded_dtab.iaf(find(ismember(loaded_dtab.ID,subjects{d})));
+                end
+            else
+                iaf = calculateIAF(temp.data, temp.srate, channels, S.prep.calc.eeg.TF.iaf.plot);
+            end
             
             % Define frequency bands relative to IAF
             freq_bands = {
@@ -140,9 +149,9 @@ for d = 1:length(subjects)
                 [0.5 0.05]; % Beta1
                 [0.5 0.05]; % Beta2
                 [0.5 0.05]; % Beta3
-                [0.1 0.01]; % Gamma1
-                [0.1 0.01]; % Gamma2
-                [0.1 0.01]; % Gamma3
+                [0.2 0.02]; % Gamma1
+                [0.2 0.02]; % Gamma2
+                [0.2 0.02]; % Gamma3
             };
 
             % Define taper settings for low and high frequency bands
@@ -636,11 +645,17 @@ for d = 1:length(subjects)
 
         if iscell(data_tc)
             data = data_tc{i};
-            tsamples = total_samples{i};
-            ssamples = select_samples{i};
         else
             data = data_tc;
+        end
+        if iscell(total_samples)
+            tsamples = total_samples{i};
+        else
             tsamples = total_samples;
+        end
+        if iscell(select_samples)
+            ssamples = select_samples{i};
+        else
             ssamples = select_samples;
         end
     
@@ -707,19 +722,63 @@ for d = 1:length(subjects)
         % trim
     %     S.prep.calc.eeg.ndec=8; % trim data to a number of decimal places
             
+ 
+        if S.prep.calc.eeg.TF.zscore
+
+            % Get the size of the input matrix
+            [dim1, dim2, dim3] = size(data);
+            
+            % Reshape the 3D matrix into a 2D matrix
+            data = reshape(data, [], 1);
+            
+            % Compute the mean and standard deviation of the original data
+            mean_data = mean(data);
+            std_data = std(data);
+            
+            % Z-score the data
+            data = (data - mean_data) / std_data;
+            
+            % Reshape the z-scored 2D matrix back to 3D matrix
+            data = reshape(data, dim1, dim2, dim3);
+
+        elseif S.prep.calc.eeg.TF.norm
+
+            data = data/norm(data(:));
+        end
+
         %% reshape data into samples and combine over subjects
 
         if iscell(data_tc)
             D(d).prep.dim{i} = size(data);
             D(d).prep.data{i}=reshape(data,[],n_trials)';
+            if S.prep.calc.eeg.TF.zscore
+                D(d).prep.other.data_mean{i}=mean_data;
+                D(d).prep.other.data_std{i}=std_data;
+            end
         else
             D(d).prep.dim = size(data);
             D(d).prep.data=reshape(data,[],n_trials)';
         end
+
+
         clear data % to free memory
 
     end
+    
+     
 
+    if ~S.prep.calc.eeg.TF.save_as_cell
+        data = [];
+        for band_idx = 1:size(freq_bands_select, 1)
+            data = cat(2,data,D(d).prep.data{band_idx});
+        end
+        D(d).prep.data=data;
+        dim(1)= D(d).prep.dim{1}(1);
+        dim(2)= sum(cellfun(@(x) x(2), D(d).prep.dim));
+        dim(3)= D(d).prep.dim{1}(3);
+        freq_pnts = cellfun(@(x) x(2), D(d).prep.dim);
+        D(d).prep.dim = dim;
+    end
 
     %% separate EEG/predictor data into training and testing fractions, only for testing decoders
     trainfrac=S.prep.traintest.frac;
@@ -777,6 +836,15 @@ for d = 1:length(subjects)
     if exist('tnums','var'); D(d).prep.dtab.tnums=tnums'; end
     D(d).prep.dtab.train=categorical(train_matrix);
     D(d).prep.dtab.test=categorical(test_matrix);
+    if exist('iaf','var')
+        D(d).prep.other.IAF=iaf;
+    end
+    if exist('freq_bands_select','var')
+        D(d).prep.other.freq=freq_bands_select;
+    end
+    if exist('freq_pnts','var')
+        D(d).prep.other.freq_pnts=freq_pnts;
+    end
     
     %D(d).prep.tnums = tnums;
     
@@ -792,12 +860,15 @@ for d = 1:length(D)
     if isfield(D(1).prep,'other')
         E(d).prep.other = D(d).prep.other;
     end
-    if exist('iaf','var')
-        E(d).prep.IAF=iaf;
-    end
-    if exist('freq_bands_select','var')
-        E(d).prep.freq=freq_bands_select;
-    end
+    % if exist('iaf','var')
+    %     E(d).prep.IAF=iaf;
+    % end
+    % if exist('freq_bands_select','var')
+    %     E(d).prep.freq=freq_bands_select;
+    % end
+    % if exist('freq_pnts','var')
+    %     E(d).prep.freq_pnts=freq_pnts;
+    % end
     %E(d).prep.tnums = D(d).prep.tnums;
 end
 D=E;

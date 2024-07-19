@@ -918,14 +918,15 @@ for o = 1:length(O)
 end
 CCAw_gavg = nanmean(CCAw,3);
 signcorr2 = sign(regress(gavg',CCAw_gavg'));
-CCAw_gavg_signed = reshape(bsxfun(@times,CCAw_gavg,signcorr2),NUM_FAC(2),currdim(1),currdim(2),[]); % mean over subjects
-CCAw_signed = reshape(bsxfun(@times,CCAw,signcorr2),NUM_FAC(2),currdim(1),currdim(2),[]);
-D(1).prep(1).PCA(1).CCAw_signed = CCAw_signed;
-D(1).prep(1).PCA(1).CCAw_gavg_signed = CCAw_gavg_signed;
+CCAw_gavg = bsxfun(@times,CCAw_gavg,signcorr2);
+CCAw_gavg_rs = reshape(CCAw_gavg,NUM_FAC(2),currdim(1),currdim(2),[]); % mean over subjects
+
+D(1).prep(1).PCA(1).CCAw = reshape(CCAw,NUM_FAC(2),currdim(1),currdim(2),[]);
+D(1).prep(1).PCA(1).CCAw_gavg_signed = CCAw_gavg_rs;
 
 % plot - spatiotemporal maxima
 for cc = 1:NUM_FAC(2)
-    dat=squeeze(CCAw_gavg_signed(cc,:,:));
+    dat=squeeze(CCAw_gavg_rs(cc,:,:));
     topo = topotime_3D(dat,S);
     thresh = [nanmean(topo(:))-2*nanstd(topo(:)),nanmean(topo(:))+2*nanstd(topo(:))];
 

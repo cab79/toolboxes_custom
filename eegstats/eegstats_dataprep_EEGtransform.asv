@@ -58,7 +58,6 @@ for d = 1:length(D)
             Sf.select_freq = S.prep.select.freq;
             Sf.freq_bands = S.prep.freq_bands;
             Sf.freq_pnts = S.prep.freq_pnts;
-            Sf.savepth = S.prep.path.outputs;
 
             % PLS
             Y={};
