@@ -193,6 +193,11 @@ for d = 1:length(subjects)
             % Temporary storage for time-frequency data
             tf_data_temp = cell(num_channels, num_trials, length(freq_bands_select));
             time_vectors = cell(num_channels, num_trials, length(freq_bands_select));
+
+
+            if S.prep.calc.eeg.TF.remove_ERP
+                temp.data = temp.data - mean(temp.data, 3);
+            end
             
             % Parallel pool setup
             if isempty(gcp('nocreate'))
@@ -208,6 +213,7 @@ for d = 1:length(subjects)
             
                 for trial = 1:num_trials
                     trial_data = squeeze(temp.data(ch, :, trial)); % Data for single trial
+
                     
                     % Add zero padding
                     padded_data = zeros(1, num_timepoints + 2 * padding_length);

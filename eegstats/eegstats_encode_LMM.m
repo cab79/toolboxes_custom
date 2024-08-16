@@ -115,15 +115,15 @@ for s = 1:length(Y)
 
         % residuals
         resid = residuals(lmm,'ResidualType','Standardized');
-%         try
-%             M.model(i).samples(s).hnorm=kstest(resid);
-%             M.model(i).samples(s).skew=skewness(resid);
-%             M.model(i).samples(s).kurt=kurtosis(resid);
-%         catch
-%             M.model(i).samples(s).hnorm=NaN;
-%             M.model(i).samples(s).skew=NaN;
-%             M.model(i).samples(s).kurt=NaN;
-%         end
+        %try
+            M.model(i).samples(s).hnorm=kstest(resid);
+            M.model(i).samples(s).skew=skewness(resid);
+            M.model(i).samples(s).kurt=kurtosis(resid);
+        % catch
+        %     M.model(i).samples(s).hnorm=NaN;
+        %     M.model(i).samples(s).skew=NaN;
+        %     M.model(i).samples(s).kurt=NaN;
+        % end
         if S.encode.save_residuals
 %             resid = bsxfun(@times,resid,Y(s).data_std); % don't re-scale
             M.model(i).samples(s).resid=resid;

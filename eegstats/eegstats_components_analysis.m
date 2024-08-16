@@ -922,6 +922,7 @@ CCAw_gavg_signed = reshape(bsxfun(@times,CCAw_gavg,signcorr2),NUM_FAC(2),currdim
 CCAw_signed = reshape(bsxfun(@times,CCAw,signcorr2),NUM_FAC(2),currdim(1),currdim(2),[]);
 D(1).prep(1).PCA(1).CCAw_signed = CCAw_signed;
 D(1).prep(1).PCA(1).CCAw_gavg_signed = CCAw_gavg_signed;
+D.prep.grpdata = bsxfun(@times,D.prep.grpdata',signcorr2)';
 
 % plot - spatiotemporal maxima
 for cc = 1:NUM_FAC(2)

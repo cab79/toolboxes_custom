@@ -207,6 +207,15 @@ for d = 1:nD % subject
                 D(d).model(i).psi(ii).cov = cell(ddim(1:end-1)');
                 D(d).model(i).psi(ii).cov(sinz) = arrayfun(@(X) X.psi{ii}, M.model(i).samples, 'UniformOutput', 0);
             end
+
+            D(d).model(i).ktest = nan(ddim(1:end-1)');
+            D(d).model(i).skew = nan(ddim(1:end-1)');
+            D(d).model(i).kurt = nan(ddim(1:end-1)');
+            %try
+                D(d).model(i).ktest(sinz) = vertcat([M.model(i).samples(:).hnorm]');
+                D(d).model(i).skew(sinz) = vertcat([M.model(i).samples(:).skew]');
+                D(d).model(i).kurt(sinz) = vertcat([M.model(i).samples(:).kurt]');
+           % end
         end
         
         % BRR models only
