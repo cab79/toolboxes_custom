@@ -209,13 +209,15 @@ for d = 1:nD % subject
             end
 
             D(d).model(i).ktest = nan(ddim(1:end-1)');
+            D(d).model(i).swtest = nan(ddim(1:end-1)');
             D(d).model(i).skew = nan(ddim(1:end-1)');
             D(d).model(i).kurt = nan(ddim(1:end-1)');
-            %try
+            try
                 D(d).model(i).ktest(sinz) = vertcat([M.model(i).samples(:).hnorm]');
+                D(d).model(i).swtest(sinz) = vertcat([M.model(i).samples(:).swtest]');
                 D(d).model(i).skew(sinz) = vertcat([M.model(i).samples(:).skew]');
                 D(d).model(i).kurt(sinz) = vertcat([M.model(i).samples(:).kurt]');
-           % end
+            end
         end
         
         % BRR models only

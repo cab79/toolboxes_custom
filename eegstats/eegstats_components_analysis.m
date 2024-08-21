@@ -920,9 +920,13 @@ CCAw_gavg = nanmean(CCAw,3);
 signcorr2 = sign(regress(gavg',CCAw_gavg'));
 CCAw_gavg_signed = reshape(bsxfun(@times,CCAw_gavg,signcorr2),NUM_FAC(2),currdim(1),currdim(2),[]); % mean over subjects
 CCAw_signed = reshape(bsxfun(@times,CCAw,signcorr2),NUM_FAC(2),currdim(1),currdim(2),[]);
+CCAw_gavg = reshape(CCAw_gavg,NUM_FAC(2),currdim(1),currdim(2),[]); % mean over subjects
+CCAw = reshape(CCAw,NUM_FAC(2),currdim(1),currdim(2),[]);
 D(1).prep(1).PCA(1).CCAw_signed = CCAw_signed;
 D(1).prep(1).PCA(1).CCAw_gavg_signed = CCAw_gavg_signed;
-D.prep.grpdata = bsxfun(@times,D.prep.grpdata',signcorr2)';
+D(1).prep(1).PCA(1).CCAw = CCAw;
+D(1).prep(1).PCA(1).CCAw_gavg = CCAw_gavg;
+D.prep.grpdata_signed_from_CCAw = bsxfun(@times,D.prep.grpdata',signcorr2)';
 
 % plot - spatiotemporal maxima
 for cc = 1:NUM_FAC(2)
@@ -1022,7 +1026,7 @@ for plotN=1:2
         signcorr = sign(regress(gavg',chantimecorravg'));
         chantimecorrsub = bsxfun(@times,chantimecorrsub,signcorr);
         chantimecorr = bsxfun(@times,chantimecorr,signcorr);
-        D.prep.grpdata = bsxfun(@times,grpdata,signcorr');
+        D.prep.grpdata_signed_from_chantimecorr = bsxfun(@times,grpdata,signcorr');
     end
     
     D.prep.PCA(pt).chantimecorrsub = chantimecorrsub;

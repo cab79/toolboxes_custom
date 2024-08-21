@@ -14,8 +14,13 @@ else
 end
 
 disp('loading data table')
-Ddtab = load(S.diag.path.dtab_inputs);
+if isstruct(S.diag.path.dtab_inputs)
+    Ddtab.D = S.diag.path.dtab_inputs;
+else
+    Ddtab = load(S.diag.path.dtab_inputs);
+end
 dtab = Ddtab.D.prep.dtab;
+              
 
 % set paths
 S.path.code = {
@@ -101,6 +106,7 @@ for d=1:length(D)
                 load(D(d).model(i).fitted_vol_file);
             else
                 disp([save_pref num2str(d) ', model ' num2str(i) ', loading fitted file'])
+                fitted=[];
                 load(D(d).model(i).fitted_file);
                 if ~exist('fitted_vol','var')
                     disp([save_pref num2str(d) ', model ' num2str(i) ', creating fitted image'])
@@ -222,6 +228,36 @@ for d=1:length(D)
                             xlabel(S.diag.pred{pd})
                         end
                         sname=fullfile(S.diag.path.outputs, [save_pref num2str(d) ', model_' num2str(i) '_con_' num2str(c) '_' types{tp} '_resid' S.diag.pred{pd} '.png']);
+                        saveas(f,sname);
+
+                        % input and fitted response by predictor
+                        f=figure('units','normalized','outerposition',[0 0 1 1]);
+                        for ci = 1:nc
+                            Y=D(d).model(i).con(c).clus(ci).(['input_' types{tp}])';
+                            
+                            % boxplot
+                            subplot(pi(1),pi(2),ci)
+                            boxplot(Y,X);
+                            set(gca,'fontsize',fsize)
+                            title({['clus ' num2str(ci)]})
+                            ylabel('input')
+                            xlabel(S.diag.pred{pd})
+                        end
+                        sname=fullfile(S.diag.path.outputs, [save_pref num2str(d) ', model_' num2str(i) '_con_' num2str(c) '_' types{tp} '_input' S.diag.pred{pd} '.png']);
+                        saveas(f,sname);
+                        f=figure('units','normalized','outerposition',[0 0 1 1]);
+                        for ci = 1:nc
+                            Y=D(d).model(i).con(c).clus(ci).(['fitted_' types{tp}])';
+                            
+                            % boxplot
+                            subplot(pi(1),pi(2),ci)
+                            boxplot(Y,X);
+                            set(gca,'fontsize',fsize)
+                            title({['clus ' num2str(ci)]})
+                            ylabel('fitted')
+                            xlabel(S.diag.pred{pd})
+                        end
+                        sname=fullfile(S.diag.path.outputs, [save_pref num2str(d) ', model_' num2str(i) '_con_' num2str(c) '_' types{tp} '_fitted' S.diag.pred{pd} '.png']);
                         saveas(f,sname);
                     end
                 end

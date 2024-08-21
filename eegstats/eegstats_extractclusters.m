@@ -54,7 +54,11 @@ for d=1:length(D)
     C = S.clus.connected_clusters.connectivity;
     
     disp('loading data table')
-    Ddtab = load(S.clus.path.dtab_inputs);
+    if isstruct(S.clus.path.dtab_inputs)
+        Ddtab.D = S.clus.path.dtab_inputs;
+    else
+        Ddtab = load(S.clus.path.dtab_inputs);
+    end
                 
     %% create/load input volume
     for i=1:length(D(d).model)
@@ -569,15 +573,20 @@ for d=1:length(D)
                             
                             % coefficient image
                             coeff_img=spm_read_vols(spm_vol(D(d).model(i).coeff(co).b_img_file));
-                            % add random image
-                            for u = 1:length(U)
-                                subname = U{u};
-                                idx = find(strcmp({D.model(i).random(:).Level},subname) & strcmp({D.model(i).random(:).Name},S.clus.summary_coeffs(inp_ind,3)));
-                                random_img=D(d).model(i).random(idx).b;
-                                combined_img = coeff_img+random_img;
-                                combined_img = combined_img(:);
 
-                                D(d).model(i).coeff(co).clus(ci).coeff_mean(u,1)=nanmean(combined_img(cii));
+                            if isfield(D.model(i).random,'Level')
+                                % add random image
+                                for u = 1:length(U)
+                                    subname = U{u};
+                                    idx = find(strcmp({D.model(i).random(:).Level},subname) & strcmp({D.model(i).random(:).Name},S.clus.summary_coeffs(inp_ind,3)));
+                                    random_img=D(d).model(i).random(idx).b;
+                                    combined_img = coeff_img+random_img;
+                                    combined_img = combined_img(:);
+    
+                                    D(d).model(i).coeff(co).clus(ci).coeff_mean(u,1)=nanmean(combined_img(cii));
+                                end
+                            else
+                                 D(d).model(i).coeff(co).clus(ci).coeff_mean=nanmean(coeff_img(cii));
                             end
 
                         end
@@ -586,6 +595,7 @@ for d=1:length(D)
                 end
                 
                 if ismember('fitted',S.clus.summary_data)
+                    fitted=[];
                     
                     clear input_vol
                     D(d).model(i).fitted_vol_file = strrep(D(d).model(i).fitted_file,'.mat','_vol.mat');
