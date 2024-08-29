@@ -32,6 +32,7 @@ switch S.prep.output.format
             prep.dtab = vertcat(prep.dtab,D(d).prep.dtab);
             prep.grpdata{d} = D(d).prep.data;
         end
+
         dim(3)=height(prep.dtab);
         D=struct;
         D.prep=prep;
@@ -42,6 +43,15 @@ switch S.prep.output.format
         D.prep = rmfield(D.prep,'grpdata');
         D.prep.grpdata{1} = vertcat(temp{:}); 
         clear grpdata temp
+
+        % select subjects
+        if isfield(S.prep.output,'select') && ~isempty(S.prep.output.select)
+            idx = D.prep.dtab.(S.prep.output.select)==1;
+            D.prep.dtab = D.prep.dtab(idx,:);
+            D.prep.grpdata{1} = D.prep.grpdata{1}(idx,:);
+            D.prep.dim(3) = length(D.prep.grpdata{1});
+            D.prep.(S.prep.output.select) = idx;
+        end
         
     case 'subject'
         %% outputs: change grouped to subject data

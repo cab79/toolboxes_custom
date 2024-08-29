@@ -1681,7 +1681,7 @@ if test_collinearity_PCAcov_only
     var_names=D.prep.dtab.Properties.VariableNames(endsWith(D.prep.dtab.Properties.VariableNames,S.prep.calc.pred.PCA_cov{1}));
 else
     var_names = D.prep.dtab.Properties.VariableNames;
-    var_names = setdiff(var_names,{'ID','group','test','train','eventTypes'},'stable');
+    var_names = setdiff(var_names,{'ID','group','test','train','eventTypes','Include'},'stable');
 end
 vt = vartype('numeric');
 numericvar_names=D.prep.dtab(:,vt).Properties.VariableNames;

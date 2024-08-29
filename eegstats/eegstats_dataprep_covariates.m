@@ -47,6 +47,11 @@ for d = 1:length(D)
                         CVs(ci),...
                         D(d).prep.other,...
                         D(d).prep.dtab.tnums');
+                case 'subjects'
+                    pred_out = subject_covariate(...
+                        CVs(ci),...
+                        D(d).prep.subname{:},...
+                        D(d).prep.dtab.tnums');
             end
             repl=find(ismember(pred_out.Properties.VariableNames,D(d).prep.dtab.Properties.VariableNames));
             if ~isempty(repl)
@@ -58,8 +63,6 @@ for d = 1:length(D)
             end
             % add pred_out to dtab
             D(d).prep.dtab=[D(d).prep.dtab pred_out];
-            % currently unused:
-            CVs(ci).level; % subject, trial
         end
     end
 
@@ -95,6 +98,21 @@ end
 
 
 %% SUBFUNCTIONS
+function pred = subject_covariate(cv,subname,tnums)
+if ~any(diff(tnums)>1)
+    error('tnums is probably wrong')
+end
+pred=table;
+% get data
+T2 = readtable(cv.input);
+T2.Properties.VariableNames{'SubjectID'} = 'ID';
+if ~isempty(cv.def)
+    for ci = 1:length(cv.def)
+        cvdat=T2.(cv.def{ci})(ismember(T2.ID,subname));
+        pred.(cv.def{ci})=repmat(cvdat,length(tnums),1);
+    end
+end
+
 function pred = trial_covariate(cv,subname,tnums)
 % currently works with design info files from CORE study (SCIn outputs)
 if ~any(diff(tnums)>1)

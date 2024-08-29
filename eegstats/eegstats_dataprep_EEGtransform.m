@@ -24,9 +24,31 @@ for d = 1:length(D)
         %% use existing data or calculate instead?
         if isfield(S.prep.calc.eeg.pca,'use_existing_data') && ~isempty(S.prep.calc.eeg.pca.use_existing_data)
             Dy = load(S.prep.calc.eeg.pca.use_existing_data,'D');
-            D.prep.PCA = Dy.D.prep.PCA;
+
+            if ~isfield(Dy.D.prep,'Y')
+                % Reformat to Y
+                Sr=struct;
+                Sr.prep.path.inputs = ''; % empty to feed in last D (in workspace)
+                Sr.prep.path.outputs = '';
+                Sr.prep.output.format = 'Y';
+                Sr.prep.calc.eeg.zscore = 0; % transform to z-score over trials (unit variance) so that statistical coefficients are normalised
+                Sr.prep.output.save = 0; % save data to disk or not
+                Sr.prep.sname=''; % savename
+                Dy.D = eegstats_dataprep_reformat(Sr,Dy.D);
+            end
+
+            if isfield(D.prep,'PCA')
+                D.prep.PCA = Dy.D.prep.PCA;
+            end
+            if isfield(D.prep,'TF_PCA')
+                D.prep.TF_PCA = Dy.D.prep.TF_PCA;
+            end
+
             D.prep.Y = Dy.D.prep.Y;
             D.prep.dim = Dy.D.prep.dim;
+            if isfield(D.prep,'grpdata')
+                D.prep = rmfield(D.prep,'grpdata');
+            end
         else
         
             %% inputs for PLS/CCA

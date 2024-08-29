@@ -188,7 +188,8 @@ for pt = 1:length(S.type)
                     for u=1:length(U)
                         % unscaling improves correlation results
                         scores_unscaled = O(o).scores(:,rep{u},u).*repmat(O(o).sigma{u},length(rep{u}),1)';
-                        data_pred = scores_unscaled'*pinv(O(o).W(1:NUM_FAC(1),:,u))';
+                        % data_pred = scores_unscaled'*pinv(O(o).W(1:NUM_FAC(1),:,u))';
+                        data_pred = scores_unscaled'*O(o).W(1:NUM_FAC(1),:,u);
                         % uncentering has no effect on correlation results,
                         % but we do it anyway
                         data_pred_uncentred = data_pred + repmat(O(o).mu{u},length(rep{u}),1);
@@ -445,7 +446,8 @@ for pt = 1:length(S.type)
                                 for ri = 1:nr
                                     
                                     % reconstructed PCs
-                                    PCpred = squeeze(CV_mdata_test{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u))'*pinv(squeeze(CV_W{cv,ri}(:,1:ncCCA,u)));
+                                    % PCpred = squeeze(CV_mdata_test{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u))'*pinv(squeeze(CV_W{cv,ri}(:,1:ncCCA,u)));
+                                    PCpred = squeeze(CV_mdata_test{cv,ri}(1:ncCCA,ismember(find(test(CVsample,cv)),rep{u}),u))'*squeeze(CV_W{cv,ri}(:,1:ncCCA,u))';
     
                                     % test data
                                     testind = test(CVsample,cv);
@@ -464,7 +466,8 @@ for pt = 1:length(S.type)
                                     % unscale the PCA scores to see if this
                                     % improves it
                                     PCpred_PCunscaled = PCpred.*repmat(O(o).sigma{u}(1,1:ncomp(nc)),sum(ismember(find(test(CVsample,cv)),rep{u})),1);
-                                    data_pred_PCunscaled = PCpred_PCunscaled*pinv(O(o).W(1:ncomp(nc),:,u))';
+                                    % data_pred_PCunscaled = PCpred_PCunscaled*pinv(O(o).W(1:ncomp(nc),:,u))';
+                                    data_pred_PCunscaled = PCpred_PCunscaled*O(o).W(1:ncomp(nc),:,u);
     
     %                                 % test it - improved
     %                                 corr(data_test(:),data_pred_PCunscaled(:),'type','Spearman')
@@ -1851,8 +1854,10 @@ switch PCAmethod
                             ncomp,reg,r(ri),S);
 
                         for nc = 1:size(CV_mdataX,1) % for each component
-                            Xpred = CV_mdataX(1:nc,:)'*pinv(CV_Xweights(:,1:nc));
-                            Ypred = CV_mdataY(1:nc,:)'*pinv(CV_Yweights(:,1:nc));
+                            % Xpred = CV_mdataX(1:nc,:)'*pinv(CV_Xweights(:,1:nc));
+                            % Ypred = CV_mdataY(1:nc,:)'*pinv(CV_Yweights(:,1:nc));
+                            Xpred = CV_mdataX(1:nc,:)'*CV_Xweights(:,1:nc)';
+                            Ypred = CV_mdataY(1:nc,:)'*CV_Yweights(:,1:nc)';
                             RMSECV{ym}(ri,nc,cv,1,i)=sqrt(mean(bsxfun(@minus,Xscore{i}(testidx,:),Xpred).^2,'all'));
                             RMSECV{ym}(ri,nc,cv,2,i)=sqrt(mean(bsxfun(@minus,Yscore{ym}{i}(testidx,:),Ypred).^2,'all'));
                         end

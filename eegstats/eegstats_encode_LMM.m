@@ -116,8 +116,16 @@ for s = 1:length(Y)
         % residuals
         resid = residuals(lmm,'ResidualType','Standardized');
         try
-            M.model(i).samples(s).hnorm=kstest(resid);
-            M.model(i).samples(s).swtest = swtest(resid, 0.05);
+            if length(resid)>=50
+                M.model(i).samples(s).hnorm=kstest(resid);
+            else
+                M.model(i).samples(s).hnorm=NaN;
+            end
+            if length(resid)<50
+                M.model(i).samples(s).swtest = swtest(resid, 0.05);
+            else
+                M.model(i).samples(s).swtest=NaN;
+            end
             M.model(i).samples(s).skew=skewness(resid) / (std(resid) / sqrt(length(resid)));
             M.model(i).samples(s).kurt=kurtosis(resid) / (std(resid) / sqrt(length(resid)));
         catch

@@ -25,7 +25,10 @@ end
 cum_nc=0; % cumulative chunk number
 cvalid = []; % accumulate c indices that contain data
 NumWorkers = [];
+S.ID={};
 for d = 1:length(D)
+    
+    S.ID{d} = unique(D(d).prep.dtab.ID,'stable');
     
     % NEW select whether to load the data Y from D or from a separate file
     % containing Y (if Y is too large to keep in memory entirely)
