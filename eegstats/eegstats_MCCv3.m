@@ -1,4 +1,4 @@
-function D=eegstats_MCCv2(S,varargin)
+function D=eegstats_MCCv3(S,varargin)
 dbstop if error
 
 %% find D saved from createimages function
@@ -78,12 +78,12 @@ for d=1:length(D)
                 VM    = D(d).model(i).mask_img_file;
             end
                 
-            if S.MCC.estimate %&& (S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF')) && (~isfield(D(d).model(i),'smooth') || isempty(D(d).model(i).smooth))
+            if S.MCC.reestimate || (S.MCC.estimate && (S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF')) && (~isfield(D(d).model(i),'smooth') || isempty(D(d).model(i).smooth)))
                 D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');
                 D(d).model(i).resid_vol_dir = strrep(D(d).model(i).resid_vol_file,'.mat','_dir');
 
                 if ~exist(D(d).model(i).resid_vol_dir,'dir') || length(dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'))) ~= length(D.model(i).fixeddesign)
-                    mkdir(D(d).model(i).resid_vol_dir)
+                    % mkdir(D(d).model(i).resid_vol_dir)
                     
                     if exist(D(d).model(i).resid_vol_file,'file')
                         disp(['MCC: for model ' num2str(i) ', loading resid vol file'])
@@ -185,94 +185,102 @@ for d=1:length(D)
                         resid_empty = nan(dim_resid(1:end-1));
                     end
 
-                    % % Initialize parallel pool if not already running
-                    % if isempty(gcp('nocreate'))
-                    %     parpool;  % Start parallel pool with default settings
-                    % end
+                    % Initialize variables and structures
+                    pcc = 0;  % Progress counter
+                    headsize = 200; % mm
+                    timeres = 1;
+                    desired_fwhm = S.MCC.desired_fwhm;  % Desired smoothing in mm, mm, ms
+                    use_resid_vol = exist('resid_vol', 'var');  % Flag for using resid_vol
                     
-                    % Save as multiple volumes using parallel processing
-                    pcc = 0;
-                    % disp(['writing resid volumes']);
-                    
-                    % Precompute filenames and store them in a cell array for parallel access
-                    resid_files = cell(szR, 1);
-                    for tr = 1:szR
-                        resid_files{tr} = fullfile(D(d).model(i).resid_vol_dir, sprintf('resid%06d.nii', tr));
-                    end
-
-                    if exist('resid_vol', 'var')
-                        use_resid_vol=1;
+                    % Determine voxel size for smoothing
+                    if use_resid_vol
+                        szhead = size(mask_img, 1:3);  % Assume resid_vol has consistent dimensions
                     else
-                        use_resid_vol=0;
+                        szhead = size(mask_img);
+                    end
+                    voxel_size = [headsize / szhead(1), headsize / szhead(2), timeres]; % in mm, mm, ms 
+                    fwhm_voxels = desired_fwhm ./ voxel_size;
+                    
+                    % Initialize 4D array for storing residuals if using method 2
+                    if ~use_resid_vol
+                        resid_vol = zeros([szhead, szR]);
                     end
                     
-                    % Parallel loop to write each volume
+                    % Precompute sample indices once for all methods
+                    if ~isempty(vr) || S.MCC.load_resid_as_matfile
+                        sidx = find(~isnan(D(d).model(i).s(:)))'; % sample indices within image
+                        if length(sidx) ~= maxs % check
+                            error('wrong number of samples in resid data');
+                        end
+                    end
+                    
+                    
+                    
+                    % Loop through each sample (no need for parallel processing if only storing in 4D array)
+                    
                     for tr = 1:szR
                         % Monitor progress
                         pc = floor(tr * 100 / szR);
                         if pcc < pc
                             pcc = pc;
-                            disp(['writing resid volumes: ' num2str(pc) '%']);
+                            disp(['processing resid volumes: ' num2str(pc) '%, time: ' num2str(toc) 's']);
+                            tic
                         end
                     
-                        % Create a copy of the V structure for this iteration to avoid conflicts
-                        V_local = V;  % Create a local copy of V
-                        V_local.fname = resid_files{tr};  % Set filename for each volume
-                        
-                        % Method
+                        % Initialize residual image for current iteration
+                        resid = resid_empty;
+                    
+                        % Method 1: Use precomputed residual volumes (resid_vol)
                         if use_resid_vol
-                            % TURNED THIS OFF TEMPORARILY:
                             if ndim_resid == 4
-                                spm_write_vol(V_local, resid_vol(:, :, :, tr));  % Use local copy V_local
+                                resid = resid_vol(:, :, :, tr);  % Use data directly from resid_vol
                             elseif ndim_resid == 3
-                                spm_write_vol(V_local, resid_vol(:, :, tr));  % Use local copy V_local
+                                resid = resid_vol(:, :, tr);  % Use data directly from resid_vol
                             end
+                    
+                            % Apply smoothing
+                            resid_smooth = zeros(size(resid));
+                            spm_smooth(resid, resid_smooth, fwhm_voxels);
+                            resid = resid_smooth .* double(mask_img); % Mask it
+                            resid(isnan(resid)) = 0; % No NaN for smoothness function
+                    
+                            % Update resid_vol with smoothed data
+                            resid_vol(:, :, :, tr) = resid;  % Store the smoothed volume
+                    
+                        % Method 2: Directly use residuals and store in 4D array
                         elseif ~isempty(vr) && ndims(vr.resid) == 2
-                            % SOURCE DATA from condor: create empty NaN image template and its indices; copy it; add indices of all samples within
-                            % image N as lookup matrix; find indices of rows of
-                            % resid (from resid_samples) corresponding to image N
-                            % indices (intersect indices?); load each in turn and index into the empty image template. 
-                            resid = resid_empty;
-                            if tr == 1 
-                                sidx = find(~isnan(D(d).model(i).s(:)))'; % sample indices within image
-                                if length(sidx) ~= maxs % check
-                                    error('wrong number of samples in resid data');
-                                end
-                            end
-                            resid(sidx) = vr.resid(tr, :); % 
-                            
+                            resid(sidx) = vr.resid(tr, :); % Load residuals into image
+
+                            % resid_vol = reshape(vr.resid',[size(resid) size(vr.resid,1)]);
+                            % tic
+                            % resid_vol = topotime_3D(resid_vol, S);
+                            % toc
+                    
                             % If topotime data
                             if ndims(resid) == 2
                                 resid = topotime_3D(resid, S);
                             end
                     
-                            % Smooth
-                            headsize = 200; % mm
-                            timeres = 1;
-                            szhead = size(resid);
-                            voxel_size = [headsize / szhead(1), headsize / szhead(2), timeres]; % in mm, mm, ms 
-                            desired_fwhm = [8 8 0];  % Desired smoothing in mm, mm, ms
-                            fwhm_voxels = desired_fwhm ./ voxel_size;
+                            % Apply smoothing
                             resid_smooth = zeros(size(resid));
                             spm_smooth(resid, resid_smooth, fwhm_voxels);
-                            
                             resid = resid_smooth .* double(mask_img); % Mask it
-                            resid(isnan(resid)) = 0; % Must be no NaN for smoothness function
-                            
-                            % Write image
-                            spm_write_vol(V_local, resid .* double(mask_img));  % Use local copy V_local
-                        elseif S.MCC.load_resid_as_matfile % MATFILE VERSION
-                            % SOURCE DATA from condor
-                            resid = resid_empty;
-                            if tr == 1 
-                                sidx = find(~isnan(D(d).model(i).s(:)))'; % sample indices within image
-                                if length(sidx) ~= maxs % check
-                                    error('wrong number of samples in resid data');
+                            resid(isnan(resid)) = 0; % No NaN for smoothness function
+                    
+                            % Store in 4D array
+                            resid_vol(:, :, :, tr) = resid;  % Store the processed volume
+                    
+                        % Method 3: Load residuals from MATFILE (large datasets)
+                        elseif S.MCC.load_resid_as_matfile
+
+                            if tr==1
+                                % Define directory for saving residual files for Method 3
+                                resid_vol_dir = fullfile(D(d).model(i).resid_vol_dir);
+                                if ~exist(resid_vol_dir, 'dir')
+                                    mkdir(resid_vol_dir);
                                 end
                             end
-
-                            % For now, chunk into two halves. Later,
-                            % chunking size can be a setting.
+                            % Determine chunk to load based on current tr
                             chunk_checkpoints = [1, ceil(szR / 2)];
                             if ismember(tr, chunk_checkpoints)
                                 if tr == 1
@@ -284,21 +292,27 @@ for d=1:length(D)
                                     tr_sub = ceil(szR / 2) - 1;
                                 end
                             end
-
-                            resid(sidx) = tempmat(tr - tr_sub, :); % 
-
+                    
+                            resid(sidx) = tempmat(tr - tr_sub, :); % Load residuals into image
+                    
                             % If topotime data
                             if ndims(resid) == 2
                                 resid = topotime_3D(resid, S);
                             end
-
-                            resid = resid .* double(mask_img); % Mask it
-                            resid(isnan(resid)) = 0; % Must be no NaN for smoothness function
-
-                            % Write image
-                            spm_write_vol(V_local, resid .* double(mask_img));  % Use local copy V_local
+                    
+                            % Apply smoothing
+                            resid_smooth = zeros(size(resid));
+                            spm_smooth(resid, resid_smooth, fwhm_voxels);
+                            resid = resid_smooth .* double(mask_img); % Mask it
+                            resid(isnan(resid)) = 0; % No NaN for smoothness function
+                    
+                            % Write image to disk
+                            V_local = V;  % Create a local copy of V structure
+                            V_local.fname = fullfile(resid_vol_dir, sprintf('resid%06d.nii', tr));  % Set filename
+                            spm_write_vol(V_local, resid);  % Write smoothed data to file
                         end
                     end
+
 
                     
                     % % save as multiple volumes
@@ -398,11 +412,11 @@ for d=1:length(D)
                     % 
                     % end
                 end
-                clear resid_vol 
                 clear vr vrmat tempmat
-                fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
-                resid_vol = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
-                
+                if ~exist('resid_vol', 'var')
+                    fnames = dir(fullfile(D(d).model(i).resid_vol_dir,'*.nii'));
+                    resid_vol = fullfile(D(d).model(i).resid_vol_dir,{fnames.name});
+                end
                 
                 % smoothness estimation
                 disp('MCC: smoothness estimation')

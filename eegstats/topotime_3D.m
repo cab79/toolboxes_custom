@@ -96,50 +96,80 @@ else
 end
         
 % convert
-if exist('files','var')
+if exist('files', 'var')
     % create and save images
-    V=spm_vol(S.img.file.SPMimg);
+    V = spm_vol(S.img.file.SPMimg);
     for f = 1:length(files)
-        loadname = fullfile(files(f).folder,files(f).name);
+        loadname = fullfile(files(f).folder, files(f).name);
         Y = load(loadname);
         fieldname = fieldnames(Y);
         Y = Y.(fieldname{1});
-        YI=[];
+        YI = [];
         %str = ['topotime: creating image ' loadname]; 
         for i = trialind
-        %fprintf('%-s : %i / %i',str,i,trialind(end));
+            %fprintf('%-s : %i / %i',str,i,trialind(end));
             for j = timeind % for each timepoint
-                YY = NaN(n,n);
+                YY = NaN(n, n);
 
-                if isfield(S.img,'interp_method') && strcmp(S.img.interp_method,'gdatav4')
-                    switch length(dim)
-                        case 2
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:), xi, yi);
-                            YI(:,:)     = YY';
-                        case 3
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j), xi, yi);
-                            YI(:,:, j)  = YY';
-                        case 4
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j,i), xi, yi);
-                            YI(:,:,j,i) = YY';
-                        otherwise
-                            error('Invalid output file');
+                if isfield(S.img, 'interp_method')
+                    if strcmp(S.img.interp_method, 'gdatav4')
+                        switch length(dim)
+                            case 2
+                                YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:), xi, yi);
+                                YI(:,:) = YY';
+                            case 3
+                                YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:,j), xi, yi);
+                                YI(:,:, j) = YY';
+                            case 4
+                                YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:,j,i), xi, yi);
+                                YI(:,:,j,i) = YY';
+                            otherwise
+                                error('Invalid output file');
+                        end
+                    elseif strcmp(S.img.interp_method, 'scatteredInterpolant')
+                        % Use scatteredInterpolant method
+                        F = scatteredInterpolant(sel(:,1), sel(:,2), Y(:,j), 'linear', 'none');
+                        switch length(dim)
+                            case 2
+                                YY(sub2ind([n n], x, y)) = F(x, y);
+                                YI(:,:) = YY';
+                            case 3
+                                YY(sub2ind([n n], x, y)) = F(x, y);
+                                YI(:,:, j) = YY';
+                            case 4
+                                F.Values = Y(:,j,i); % Update values for 4D case
+                                YY(sub2ind([n n], x, y)) = F(x, y);
+                                YI(:,:,j,i) = YY';
+                            otherwise
+                                error('Invalid output file');
+                        end
+                    else
+                        % Default to griddata if no specific method is set
+                        switch length(dim)
+                            case 2
+                                YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:)), x, y, 'linear');
+                                YI(:,:) = YY';
+                            case 3
+                                YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j)), x, y, 'linear');
+                                YI(:,:, j) = YY';
+                            case 4
+                                YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j,i)), x, y, 'linear');
+                                YI(:,:,j,i) = YY';
+                            otherwise
+                                error('Invalid output file');
+                        end
                     end
-
                 else
-                    % do it the SPM way
+                    % Default to griddata if interp_method is not specified
                     switch length(dim)
                         case 2
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
-                                double(Y(:)), x, y,'linear');
-                            YI(:,:)     = YY';
+                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:)), x, y, 'linear');
+                            YI(:,:) = YY';
                         case 3
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
-                                double(Y(:,j)), x, y,'linear');
-                            YI(:,:, j)  = YY';
+                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j)), x, y, 'linear');
+                            YI(:,:, j) = YY';
                         case 4
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
-                                double(Y(:,j,i)), x, y,'linear');
+                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j,i)), x, y, 'linear');
                             YI(:,:,j,i) = YY';
                         otherwise
                             error('Invalid output file');
@@ -149,64 +179,81 @@ if exist('files','var')
         end
         % save images
         %fprintf('%-s : %s',str,'...saving images');
-        outYI(f).name = fullfile(files(f).folder,strrep(files(f).name,'.mat','.nii'));
+        outYI(f).name = fullfile(files(f).folder, strrep(files(f).name, '.mat', '.nii'));
         V.fname = outYI(f).name;
         V.dim = size(YI);
-        spm_write_vol(V,YI);
+        spm_write_vol(V, YI);
         %fprintf('%-s : %s \n',str,'...done');
     end
-    YI=outYI;
+    YI = outYI;
 else
     % just create image but don't save
-    YI=[];
+    YI = [];
     %str = ['topotime: creating image']; 
     for i = trialind
         %fprintf('%-s : %i / %i',str,i,trialind(end));
         for j = timeind % for each timepoint
-            YY = NaN(n,n);
+            YY = NaN(n, n);
 
-            if isfield(S.img,'interp_method') && strcmp(S.img.interp_method,'gdatav4')
-                switch length(dim)
-                    case 2
-                        YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:), xi, yi);
-                        YI(:,:)     = YY';
-                    case 3
-                        YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j), xi, yi);
-                        YI(:,:, j)  = YY';
-                        
-                        
-%                         Zi  = gdatav4(sel(:,1),sel(:,2),Y(:,j), xi, yi);
-% 
-%                         for i=1:n
-%                             for j=1:n
-%                                 if (inpolygon(xi(i,j),yi(i,j),S.img.bbox(:,1),S.img.bbox(:,2))==0 | inpolygon(xi(i,j),yi(i,j),S.img.bbox_inner(:,1),S.img.bbox_inner(:,2)))
-%                                     Zi(i,j)=NaN;
-%                                 end;
-% 
-%                             end;
-%                         end;
-                        
-                    case 4
-                        YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1),sel(:,2),Y(:,j,i), xi, yi);
-                        YI(:,:,j,i) = YY';
-                    otherwise
-                        error('Invalid output file');
+            if isfield(S.img, 'interp_method')
+                if strcmp(S.img.interp_method, 'gdatav4')
+                    switch length(dim)
+                        case 2
+                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:), xi, yi);
+                            YI(:,:) = YY';
+                        case 3
+                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:,j), xi, yi);
+                            YI(:,:, j) = YY';
+                        case 4
+                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:,j,i), xi, yi);
+                            YI(:,:,j,i) = YY';
+                        otherwise
+                            error('Invalid output file');
+                    end
+                elseif strcmp(S.img.interp_method, 'scatteredInterpolant')
+                    % Use scatteredInterpolant method
+                    F = scatteredInterpolant(sel(:,1), sel(:,2), Y(:,j), 'linear', 'none');
+                    switch length(dim)
+                        case 2
+                            YY(sub2ind([n n], x, y)) = F(x, y);
+                            YI(:,:) = YY';
+                        case 3
+                            YY(sub2ind([n n], x, y)) = F(x, y);
+                            YI(:,:, j) = YY';
+                        case 4
+                            F.Values = Y(:,j,i); % Update values for 4D case
+                            YY(sub2ind([n n], x, y)) = F(x, y);
+                            YI(:,:,j,i) = YY';
+                        otherwise
+                            error('Invalid output file');
+                    end
+                else
+                    % Default to griddata if no specific method is set
+                    switch length(dim)
+                        case 2
+                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:)), x, y, 'linear');
+                            YI(:,:) = YY';
+                        case 3
+                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j)), x, y, 'linear');
+                            YI(:,:, j) = YY';
+                        case 4
+                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j,i)), x, y, 'linear');
+                            YI(:,:,j,i) = YY';
+                        otherwise
+                            error('Invalid output file');
+                    end
                 end
-
             else
-                % do it the SPM way
+                % Default to griddata if interp_method is not specified
                 switch length(dim)
                     case 2
-                        YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
-                            double(Y(:)), x, y,'linear');
-                        YI(:,:)     = YY';
+                        YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:)), x, y, 'linear');
+                        YI(:,:) = YY';
                     case 3
-                        YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
-                            double(Y(:,j)), x, y,'linear');
-                        YI(:,:, j)  = YY';
+                        YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j)), x, y, 'linear');
+                        YI(:,:, j) = YY';
                     case 4
-                        YY(sub2ind([n n], x, y)) = griddata(Cel(:,1),Cel(:,2),...
-                            double(Y(:,j,i)), x, y,'linear');
+                        YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j,i)), x, y, 'linear');
                         YI(:,:,j,i) = YY';
                     otherwise
                         error('Invalid output file');
@@ -218,18 +265,18 @@ else
     
     % create mask
     switch length(dim)
-        case {2,3}
-            YI_mask = ~isnan(YI) & (YI~=0);
+        case {2, 3}
+            YI_mask = ~isnan(YI) & (YI ~= 0);
         case 4
-            YI_mask = ~isnan(YI(:,:,:,1)) & (YI(:,:,:,1)~=0);
+            YI_mask = ~isnan(YI(:,:,:,1)) & (YI(:,:,:,1) ~= 0);
     end
     
-%         % save example eD
-%         V=spm_vol(S.file.SPMimg);
-%         outYI.name = fullfile(pwd,'test.nii');
-%         V.fname = outYI.name;
-%         V.dim = size(YI);
-%         spm_write_vol(V,YI);
+    % % save example eD
+    % V=spm_vol(S.file.SPMimg);
+    % outYI.name = fullfile(pwd, 'test.nii');
+    % V.fname = outYI.name;
+    % V.dim = size(YI);
+    % spm_write_vol(V, YI);
 end
 
 

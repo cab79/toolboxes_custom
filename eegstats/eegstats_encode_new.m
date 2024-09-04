@@ -141,13 +141,16 @@ for d = 1:length(D)
         tempY(:,iszero) = [];
         chunk_info.sample_index_nonzero=nonzero;
 
+        if ~isfield(S.encode,'variables')
+            S.encode.variables = D(d).prep(np).dtab.Properties.VariableNames;
+        end
         if ~strcmp(S.encode.parallel.option,'condor')
             % otherwise, condor input files should not contain tables,
             % so reduce file sizes
             for s = 1:size(tempY,2)
                 temp = array2table(tempY(:,s),'VariableNames',{'data'});
                 Y(s).dtab = horzcat(D(d).prep(np).dtab,temp);
-                Y(s).dtab = Y(s).dtab(:,ismember(Y(s).dtab.Properties.VariableNames,vertcat(S.encode.variables,{'data'})));
+                Y(s).dtab = Y(s).dtab(:,ismember(Y(s).dtab.Properties.VariableNames,vertcat(S.encode.variables',{'data'})));
             end
         else
             dtab = D(d).prep(np).dtab(:,ismember(D(d).prep(np).dtab.Properties.VariableNames,S.encode.variables));
@@ -195,7 +198,7 @@ if strcmp(S.encode.parallel.option,'condor')
 elseif strcmp(S.encode.parallel.option,'local') || strcmp(S.encode.parallel.option,'none')
     
     % run all samples if not run within previous loop
-    if isempty(S.encode.path.inputsY && model_run==0)
+    if isempty(S.encode.path.inputsY) && model_run==0
         C = run_model(C,S,NumWorkers);
     end
     
