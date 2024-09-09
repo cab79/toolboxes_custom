@@ -97,6 +97,11 @@ for d=1:length(D)
                             vrmat = matfile(D(d).model(i).resid_file);
                         else
                             vr = load(D(d).model(i).resid_file);
+                            % TEMPORARY CODE - REMOVE
+                            try
+                                vr.resid=vr.fitted;
+                                vr = rmfield(vr,'fitted');
+                            end
                         end
                         
                         % if not source data from condor, i.e. a resid file
@@ -463,9 +468,11 @@ for d=1:length(D)
                 else
                     DF = D(d).model(i).con(c).DF;
                     if strcmp (S.MCC.DF_type,'residualP')
-                        DF(2) = Ve-size(D(d).model(i).fixeddesign,2);
+                        DF(2) = size(D(d).model(i).fixeddesign,1)-size(D(d).model(i).fixeddesign,2);
                     elseif strcmp (S.MCC.DF_type,'residualPR')
-                        DF(2) = Ve-size(D(d).model(i).fixeddesign,2)-size(D(d).model(i).randomdesign,2);
+                        DF(2) = size(D(d).model(i).fixeddesign,1)-size(D(d).model(i).fixeddesign,2)-size(D(d).model(i).randomdesign,2);
+                    elseif strcmp (S.MCC.DF_type,'halfway')
+                        DF(2) = (size(D(d).model(i).fixeddesign,1)-size(D(d).model(i).fixeddesign,2) + DF(2)) / 2;
                     end
                     p_img = spm_read_vols(spm_vol(D(d).model(i).con(c).p_img_file));
                     szR = length(D(d).model(i).fixeddesign);
@@ -482,6 +489,27 @@ for d=1:length(D)
                         D(d).model(i).con(c).MCC.FWHM = FWHM;
                         D(d).model(i).con(c).MCC.VRpv = VRpv;
                         D(d).model(i).con(c).MCC.R = R;
+
+                        % calculate smoothness without any adjustment for
+                        % DF, for reference
+                        [FWHM_noDF,VRpv_noDF,R_noDF] = smoothness_df_correct(...
+                            D(d).model(i).smooth.L,...
+                            D(d).model(i).smooth.Ve,...
+                            D(d).model(i).smooth.ssq,...
+                            D(d).model(i).smooth.Dx,...
+                            D(d).model(i).smooth.Ix,...
+                            D(d).model(i).smooth.Iy,...
+                            D(d).model(i).smooth.Iz,...
+                            VM,[szR szR]);
+                        D(d).model(i).con(c).MCC.FWHM_noDF = FWHM_noDF;
+                        D(d).model(i).con(c).MCC.VRpv_noDF = VRpv_noDF;
+                        D(d).model(i).con(c).MCC.R_noDF = R_noDF;
+
+                        % ensure resel count is between 1 and num voxels
+                        nv = nansum(mask_img(:)); % Number of voxels in mask (e.g. SPM.xVol.S)
+                        % R:  Resel count, e.g. SPM.xVol.R(4).
+                        minR = min(max(1,R(4)),nv);
+                        D(d).model(i).con(c).MCC.minR = minR;
                     end
                     
                     
@@ -489,21 +517,18 @@ for d=1:length(D)
                     % imgZ: Z-score image to enhance
                     if isfield(D(d).model(i).con(c),'T')
                         T_img = spm_read_vols(spm_vol(D(d).model(i).con(c).T_img_file));
-                        Z_img = img_t2z(T_img, DF(2), 1);
+                        Z_img = img_t2z(T_img, DF(2), S.MCC.tails);
                     elseif isfield(D(d).model(i).con(c),'F')
                         F_img = spm_read_vols(spm_vol(D(d).model(i).con(c).F_img_file));
                         if any(F_img(:)<0)
                             F_img(F_img(:)<0)=0;
                         end
-                        Z_img = img_f2z(F_img, DF(1), DF(2), 1);
+                        Z_img = img_f2z(F_img, DF(1), DF(2), S.MCC.tails);
                     else
                         error('Statistical parameter type not supported');
                     end
                     
                     if S.MCC.use_pTFCE
-                        nv = nansum(mask_img(:)); % Number of voxels in mask (e.g. SPM.xVol.S)
-                        % R:  Resel count, e.g. SPM.xVol.R(4).
-                        minR = max(1,R(4));
                         [pTFCE_Z, pTFCE_p] = pTFCE(Z_img,mask_img,minR,nv);
                         pTFCE_Z(mask_img==0 | isnan(mask_img))=NaN;
                         pTFCE_p(mask_img==0 | isnan(mask_img))=NaN;
@@ -517,7 +542,8 @@ for d=1:length(D)
                     switch S.MCC.method
                         case 'FWE_RF'
                             % FWE corrected critical height threshold at specified significance level
-                            u = spm_uc_RF(S.MCC.thresh,DF,'Z',R(4),1);
+                            u = spm_uc_RF(S.MCC.thresh,DF,'Z',minR,1);
+                            D(d).model(i).con(c).MCC.zthresh = u;
                             switch length(zsize)
                                 case 2
                                     MCCmask_img = reshape(Z_img>=u,zsize(1),zsize(2));
@@ -530,6 +556,11 @@ for d=1:length(D)
                                 [fdr_p] = FDR(p_img(:),S.MCC.thresh);
                             elseif strcmp(S.MCC.FDR_type,'nonpara')
                                 [~,fdr_p] = FDR(p_img(:),S.MCC.thresh);
+                            elseif strcmp(S.MCC.FDR_type,'twostep')
+                                % currently only implements two-sided test 
+                                mask_img0=mask_img(:);
+                                mask_img0(isnan(mask_img0))=0;
+                                [~,~,fdr_p,~] = FDR2(p_img(:),ones(size(p_img(:))),find(mask_img0),S.MCC.thresh,0); % pval,sgn,maskvtx,rate,tail
                             end
                             psize=size(p_img);
                             switch length(psize)
@@ -604,7 +635,11 @@ for d=1:length(D)
             xlab = 'contrast';
             ylab = 'Z values';
             try
-                f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl);
+                if exist('u','var')
+                    f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl,[1.96 u]);
+                else
+                    f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl,[1.96]);
+                end
                 saveas(f,fullfile(S.MCC.path.inputs,['Z_values_model' num2str(i) '.png']))
             catch
                 disp(['no significant effects for model ' num2str(i)])
@@ -686,13 +721,13 @@ for d=1:length(D)
         xlab = 'models compared';
         ylab = 'likelihood ratios';
         try
-            jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl)
+            jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl,[1.645])
         catch
             disp(['no significant effects for model comp ' num2str(i)])
         end
         ylab = 'log likelihood ratios';
         try
-            jitterplot(figname,plotdatX,log(plotdatY),xlab,ylab,xtl)
+            jitterplot(figname,plotdatX,log(plotdatY),xlab,ylab,xtl,[1.645])
         catch
             disp(['no significant effects for model comp ' num2str(i)])
         end
@@ -711,7 +746,7 @@ for p = 1:size(S.path.code,1)
     end
 end
 
-function f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl)
+function f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl,thresh)
 plotdatX=-plotdatX;
 plotdatX(plotdatX==0)=NaN;
 f=figure('name',figname);
@@ -720,7 +755,9 @@ hold on
 s=scatter(plotdatX(:), plotdatY(:),10,'k','filled', 'jitter','on', 'jitterAmount',0.3);
 s.MarkerFaceAlpha=0.5;
 if strcmp(ylab,'Z values')
-    line(minmax,[1.645 1.645],'Color','red','LineStyle','--') % threshold for one-tailed z score, uncorrected
+    for t = 1:length(thresh)
+        line(minmax,[thresh(t) thresh(t)],'Color','red','LineStyle','--') 
+    end
 end
 hold off
 xlim(minmax)

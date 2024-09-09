@@ -574,7 +574,7 @@ for d=1:length(D)
                             % coefficient image
                             coeff_img=spm_read_vols(spm_vol(D(d).model(i).coeff(co).b_img_file));
 
-                            if isfield(D.model(i).random,'Level')
+                            if isfield(D.model(i).random,'Level') && ~isempty(S.clus.summary_coeffs{inp_ind,3})
                                 % add random image
                                 for u = 1:length(U)
                                     subname = U{u};

@@ -1,5 +1,4 @@
 
-function [YI,YI_mask]=topotime_3D(Y,S)
 % create 3D topo-over-time image and mask from chan x time 2D array
 % code from spm_eeg_convert2images
 % Y = chan x time x trials/contrasts (3D), chan x time (2D), or chan (1D) in rows.
@@ -15,270 +14,185 @@ function [YI,YI_mask]=topotime_3D(Y,S)
     % S.img.imgsize = 32;
     % S.img.interp_method = 'gdatav4';
 
-if isstruct(Y)
-    try
-        files = Y;
-        Y = load(fullfile(files(1).folder,files(1).name));
-        fieldname = fieldnames(Y);
-        Y = Y.(fieldname{1});
-    catch
-        error('input to topotime_3D must be either a double array or a cell array of filenames')
-    end
-end
-
-% inputs
-try S.img;
-catch
-    S.img = S.MCC;
-end
-
-% data sizes
-chanind = 1:size(Y,1); % index of chans
-timeind = 1:size(Y,2); % index of timepoints
-trialind = 1:size(Y,3); % index of trials
-n = S.img.imgsize; % dimension (32 is default in SPM)
-
-
-% example data to check topos are correct
-% eD = SPMdata.fttimelock.avg;
-
-% get chan locations
-if isfield(S.img.file,'coord')
-    temp = load(S.img.file.coord);
-    c2d = temp.(S.img.file.coord_struct);
-    if isfield(S.img,'chanswap') && ~isempty(S.img.chanswap)
-        for i = 1:length(S.img.chanswap)
-            c2d(1,S.img.chanswap{i}(1))=c2d(1,S.img.chanswap{i}(2));
+function [YI, YI_mask] = topotime_3D_v2(Y, S)
+    % Handle input type (Y can be a structure with filenames or a matrix)
+    if isstruct(Y)
+        try
+            files = Y;
+            Y = load(fullfile(files(1).folder, files(1).name));
+            fieldname = fieldnames(Y);
+            Y = Y.(fieldname{1});
+        catch
+            error('Input to topotime_3D must be either a double array or a cell array of filenames');
         end
     end
-    sel = c2d(:,S.img.chansel);
-    sel=sel';
     
-    % create grid - this part is modified from spm_eeg_locate_channels.m
-    [x,y] = meshgrid(1:n, 1:n);
-    Cel  = scale_coor(sel', n);
-    ch = convhull(Cel(:, 1), Cel(:, 2));
-    
-    %% NEW
-    if isfield(S.img,'bbox') && isfield(S.img,'bbox_inner')
-        MINS = min(S.img.bbox);
-        MAXS = max(S.img.bbox);
-        xi=linspace(MINS(1,1),MAXS(1,1),n);
-        yi=linspace(MINS(1,2),MAXS(1,2),n);
-        [xi,yi] = meshgrid(xi,yi);
-        
-        % indices to keep
-        Ik = find(inpolygon(xi, yi, S.img.bbox(:,1), S.img.bbox(:,2)));
-        % indices to make NaN
-        Ir = find(inpolygon(xi,yi,S.img.bbox_inner(:,1),S.img.bbox_inner(:,2)));
-        Ic = setdiff(Ik,Ir);
-        xi = xi(Ic); yi = yi(Ic);
-    else
-        % indices to keep
-        Ic = find(inpolygon(x, y, Cel(ch, 1), Cel(ch, 2)));
+    % Assign img structure if not already present
+    try S.img; 
+    catch
+        S.img = S.MCC;
     end
-    x = x(Ic); y = y(Ic);
 
-    
-elseif isfield(S.img.file,'SPMimg')
-    SPMdata = spm_eeg_load(fullfile(S.img.path.SPMdata,S.img.file.SPMdata)); % example, for chan 2D coords only
-    [Cel, x, y] = spm_eeg_locate_channels(SPMdata, n, chanind);
-end
+    % Data sizes
+    chanind = 1:size(Y,1);  % index of channels
+    timeind = 1:size(Y,2);  % index of timepoints
+    trialind = 1:size(Y,3); % index of trials
+    n = S.img.imgsize;      % dimension (32 is default in SPM)
 
-% create N.dat
-%dat = file_array('', [n n length(timeind)], 'FLOAT32-LE'); 
-%cdat       = dat;
-dimi = [n n length(timeind)];
-if length(trialind)>1
-    dim   = [dimi ones(1, 3-length(dimi)) length(trialind)];
-else
-    dim   = [dimi ones(1, 3-length(dimi))];
-end
+    % Get channel locations
+    if isfield(S.img.file, 'coord')
+        temp = load(S.img.file.coord);
+        c2d = temp.(S.img.file.coord_struct);
         
-% convert
-if exist('files', 'var')
-    % create and save images
-    V = spm_vol(S.img.file.SPMimg);
-    for f = 1:length(files)
-        loadname = fullfile(files(f).folder, files(f).name);
-        Y = load(loadname);
-        fieldname = fieldnames(Y);
-        Y = Y.(fieldname{1});
-        YI = [];
-        %str = ['topotime: creating image ' loadname]; 
-        for i = trialind
-            %fprintf('%-s : %i / %i',str,i,trialind(end));
-            for j = timeind % for each timepoint
-                YY = NaN(n, n);
+        % Handle channel swaps if needed
+        if isfield(S.img, 'chanswap') && ~isempty(S.img.chanswap)
+            for i = 1:length(S.img.chanswap)
+                c2d(1, S.img.chanswap{i}(1)) = c2d(1, S.img.chanswap{i}(2));
+            end
+        end
 
-                if isfield(S.img, 'interp_method')
-                    if strcmp(S.img.interp_method, 'gdatav4')
-                        switch length(dim)
-                            case 2
-                                YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:), xi, yi);
-                                YI(:,:) = YY';
-                            case 3
-                                YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:,j), xi, yi);
-                                YI(:,:, j) = YY';
-                            case 4
-                                YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:,j,i), xi, yi);
-                                YI(:,:,j,i) = YY';
-                            otherwise
-                                error('Invalid output file');
-                        end
-                    elseif strcmp(S.img.interp_method, 'scatteredInterpolant')
-                        % Use scatteredInterpolant method
-                        F = scatteredInterpolant(sel(:,1), sel(:,2), Y(:,j), 'linear', 'none');
-                        switch length(dim)
-                            case 2
-                                YY(sub2ind([n n], x, y)) = F(x, y);
-                                YI(:,:) = YY';
-                            case 3
-                                YY(sub2ind([n n], x, y)) = F(x, y);
-                                YI(:,:, j) = YY';
-                            case 4
-                                F.Values = Y(:,j,i); % Update values for 4D case
-                                YY(sub2ind([n n], x, y)) = F(x, y);
-                                YI(:,:,j,i) = YY';
-                            otherwise
-                                error('Invalid output file');
-                        end
-                    else
-                        % Default to griddata if no specific method is set
-                        switch length(dim)
-                            case 2
-                                YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:)), x, y, 'linear');
-                                YI(:,:) = YY';
-                            case 3
-                                YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j)), x, y, 'linear');
-                                YI(:,:, j) = YY';
-                            case 4
-                                YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j,i)), x, y, 'linear');
-                                YI(:,:,j,i) = YY';
-                            otherwise
-                                error('Invalid output file');
-                        end
-                    end
-                else
-                    % Default to griddata if interp_method is not specified
-                    switch length(dim)
-                        case 2
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:)), x, y, 'linear');
-                            YI(:,:) = YY';
-                        case 3
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j)), x, y, 'linear');
-                            YI(:,:, j) = YY';
-                        case 4
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j,i)), x, y, 'linear');
-                            YI(:,:,j,i) = YY';
-                        otherwise
-                            error('Invalid output file');
+        % Create Cel from selected channels and scale coordinates
+        sel = c2d(:, S.img.chansel);
+        sel=sel';
+        Cel = scale_coor(sel', n); % Scale coordinates, 'n' is the grid size
+        
+        % Create grid
+        [x, y] = meshgrid(1:n, 1:n);
+        ch = convhull(Cel(:, 1), Cel(:, 2));
+
+        %% NEW - Bounding box handling
+        if isfield(S.img, 'bbox') && isfield(S.img, 'bbox_inner')
+            MINS = min(S.img.bbox);
+            MAXS = max(S.img.bbox);
+            xi = linspace(MINS(1,1), MAXS(1,1), n);
+            yi = linspace(MINS(1,2), MAXS(1,2), n);
+            [xi, yi] = meshgrid(xi, yi);
+            
+            % indices to keep
+            Ik = find(inpolygon(xi, yi, S.img.bbox(:,1), S.img.bbox(:,2)));
+            % indices to make NaN
+            Ir = find(inpolygon(xi, yi, S.img.bbox_inner(:,1), S.img.bbox_inner(:,2)));
+            Ic = setdiff(Ik, Ir);
+            xi = xi(Ic); yi = yi(Ic);
+        else
+            % Default case: indices to keep based on the convex hull
+            Ic = find(inpolygon(x, y, Cel(ch, 1), Cel(ch, 2)));
+        end
+        x = x(Ic); y = y(Ic);
+
+    elseif isfield(S.img.file, 'SPMimg')
+        SPMdata = spm_eeg_load(fullfile(S.img.path.SPMdata, S.img.file.SPMdata)); 
+        [Cel, x, y] = spm_eeg_locate_channels(SPMdata, n, chanind);
+    end
+    
+    % Preallocate memory for YI (output image)
+    dimi = [n, n, length(timeind)];
+    if length(trialind) > 1
+        dim = [dimi, length(trialind)];
+    else
+        dim = [dimi];
+    end
+    YI = NaN(dim);
+    
+    % Select interpolation method based on S.img.interp_method
+    if ~isfield(S.img,'interp_method')
+        S.img.interp_method = 'griddata';
+    end
+    switch S.img.interp_method
+        case 'gdatav4'
+            for i = trialind
+                for j = timeind
+                    YY = NaN(n, n);  % Reset YY for each timepoint
+                    if length(dim) == 3
+                        YY(sub2ind([n n], x, y)) = gdatav4(Cel(:,1), Cel(:,2), Y(:,j), xi, yi);
+                        YI(:,:,j) = YY';
+                    elseif length(dim) == 4
+                        YY(sub2ind([n n], x, y)) = gdatav4(Cel(:,1), Cel(:,2), Y(:,j,i), xi, yi);
+                        YI(:,:,j,i) = YY';
                     end
                 end
             end
-        end
-        % save images
-        %fprintf('%-s : %s',str,'...saving images');
-        outYI(f).name = fullfile(files(f).folder, strrep(files(f).name, '.mat', '.nii'));
-        V.fname = outYI(f).name;
-        V.dim = size(YI);
-        spm_write_vol(V, YI);
-        %fprintf('%-s : %s \n',str,'...done');
-    end
-    YI = outYI;
-else
-    % just create image but don't save
-    YI = [];
-    %str = ['topotime: creating image']; 
-    for i = trialind
-        %fprintf('%-s : %i / %i',str,i,trialind(end));
-        for j = timeind % for each timepoint
-            YY = NaN(n, n);
+            
+        case 'scatteredInterpolant'
+            % Create interpolant once with coordinates Cel(:,1), Cel(:,2)
+            F = scatteredInterpolant(Cel(:, 1), Cel(:, 2), zeros(size(Cel, 1), 1), 'linear', 'none');
+            
+            for i = trialind
+                for j = timeind
+                    YY = NaN(n, n);  % Reset YY for each timepoint
+                    
+                    % Update the interpolant's values with current Y data
+                    if length(dim) == 3
+                        F.Values = Y(:, j);
+                    elseif length(dim) == 4
+                        F.Values = Y(:, j, i);
+                    end
+                    
+                    % Perform the interpolation and fill YY
+                    YY(sub2ind([n n], x, y)) = F(x, y);
 
-            if isfield(S.img, 'interp_method')
-                if strcmp(S.img.interp_method, 'gdatav4')
-                    switch length(dim)
-                        case 2
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:), xi, yi);
-                            YI(:,:) = YY';
-                        case 3
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:,j), xi, yi);
-                            YI(:,:, j) = YY';
-                        case 4
-                            YY(sub2ind([n n], x, y)) = gdatav4(sel(:,1), sel(:,2), Y(:,j,i), xi, yi);
-                            YI(:,:,j,i) = YY';
-                        otherwise
-                            error('Invalid output file');
-                    end
-                elseif strcmp(S.img.interp_method, 'scatteredInterpolant')
-                    % Use scatteredInterpolant method
-                    F = scatteredInterpolant(sel(:,1), sel(:,2), Y(:,j), 'linear', 'none');
-                    switch length(dim)
-                        case 2
-                            YY(sub2ind([n n], x, y)) = F(x, y);
-                            YI(:,:) = YY';
-                        case 3
-                            YY(sub2ind([n n], x, y)) = F(x, y);
-                            YI(:,:, j) = YY';
-                        case 4
-                            F.Values = Y(:,j,i); % Update values for 4D case
-                            YY(sub2ind([n n], x, y)) = F(x, y);
-                            YI(:,:,j,i) = YY';
-                        otherwise
-                            error('Invalid output file');
-                    end
-                else
-                    % Default to griddata if no specific method is set
-                    switch length(dim)
-                        case 2
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:)), x, y, 'linear');
-                            YI(:,:) = YY';
-                        case 3
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j)), x, y, 'linear');
-                            YI(:,:, j) = YY';
-                        case 4
-                            YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j,i)), x, y, 'linear');
-                            YI(:,:,j,i) = YY';
-                        otherwise
-                            error('Invalid output file');
+                    % Store the result in the output matrix YI
+                    if length(dim) == 3
+                        YI(:, :, j) = YY';
+                    else
+                        YI(:, :, j, i) = YY';
                     end
                 end
-            else
-                % Default to griddata if interp_method is not specified
-                switch length(dim)
-                    case 2
-                        YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:)), x, y, 'linear');
-                        YI(:,:) = YY';
-                    case 3
+            end
+            
+        otherwise  % Default to griddata if no specific method is set
+            for i = trialind
+                for j = timeind
+                    YY = NaN(n, n);  % Reset YY for each timepoint
+                    if length(dim) == 3
                         YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j)), x, y, 'linear');
-                        YI(:,:, j) = YY';
-                    case 4
+                        YI(:,:,j) = YY';
+                    elseif length(dim) == 4
                         YY(sub2ind([n n], x, y)) = griddata(Cel(:,1), Cel(:,2), double(Y(:,j,i)), x, y, 'linear');
                         YI(:,:,j,i) = YY';
-                    otherwise
-                        error('Invalid output file');
+                    end
                 end
             end
-        end
-    end
-    %fprintf('%-s : %s \n',str,'...done');
-    
-    % create mask
-    switch length(dim)
-        case {2, 3}
-            YI_mask = ~isnan(YI) & (YI ~= 0);
-        case 4
-            YI_mask = ~isnan(YI(:,:,:,1)) & (YI(:,:,:,1) ~= 0);
     end
     
-    % % save example eD
-    % V=spm_vol(S.file.SPMimg);
-    % outYI.name = fullfile(pwd, 'test.nii');
-    % V.fname = outYI.name;
-    % V.dim = size(YI);
-    % spm_write_vol(V, YI);
-end
+    % If input was a structure (files), save the results as images
+    if exist('files', 'var')
+        V = spm_vol(S.img.file.SPMimg);
+        for f = 1:length(files)
+            loadname = fullfile(files(f).folder, files(f).name);
+            Y = load(loadname);
+            fieldname = fieldnames(Y);
+            Y = Y.(fieldname{1});
 
+            for i = trialind
+                for j = timeind
+                    YY = NaN(n, n);  % Reset YY for each timepoint
+                    if strcmp(S.img.interp_method, 'scatteredInterpolant')
+                        F.Values = Y(:, j); % Update values for current data
+                        YY(sub2ind([n n], x, y)) = F(x, y);
+                    else
+                        YY(sub2ind([n n], x, y)) = gdatav4(Cel(:, 1), Cel(:, 2), Y(:, j), xi, yi);
+                    end
+                    YI(:,:,j) = YY';
+                end
+            end
+
+            % Save the results as images
+            outYI(f).name = fullfile(files(f).folder, strrep(files(f).name, '.mat', '.nii'));
+            V.fname = outYI(f).name;
+            V.dim = size(YI);
+            spm_write_vol(V, YI);
+        end
+        YI = outYI;
+    end
+
+    % Create the mask
+    if length(dim) == 3
+        YI_mask = ~isnan(YI) & (YI ~= 0);
+    elseif length(dim) == 4
+        YI_mask = ~isnan(YI(:,:,:,1)) & (YI(:,:,:,1) ~= 0);
+    end
+end
 
 %==========================================================================
 % scale_coor - SPM subfunction from spm_eeg_locate_channels.m
@@ -305,3 +219,5 @@ Cel(2,:) = Cel(2,:) + dy/2;
 
 % 2D coordinates in voxel-space (incl. badchannels)
 Cel = round(Cel)';
+
+end

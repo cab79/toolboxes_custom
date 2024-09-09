@@ -239,29 +239,13 @@ function NumWorkers = set_workers(S)
 if strcmp(S.encode.parallel.option,'condor')
     NumWorkers = 0;
 elseif strcmp(S.encode.parallel.option,'local')
-    
-    % Set the desired number of workers
-    if ~isfield(S.encode.parallel,'Nworkers')
-        clusterInfo = parcluster;
-        maxNumWorkers = clusterInfo.NumWorkers;
-        desiredNumWorkers = maxNumWorkers; 
-    else
-        desiredNumWorkers = S.encode.parallel.Nworkers; 
-    end
-    
-    % Parallel processing
-    checkp = gcp('nocreate');  % Check if a parallel pool already exists
+    % parallel processing
+    checkp = gcp('nocreate');
     if isempty(checkp)
-        myPool = parpool(desiredNumWorkers);  % Create a new pool with the specified number of workers
+        myPool = parpool;
         NumWorkers = myPool.NumWorkers;
     else
-        NumWorkers = checkp.NumWorkers;  % Use the existing pool
-        if NumWorkers ~= desiredNumWorkers
-            % If the existing pool has a different number of workers, delete it and create a new one
-            delete(gcp);
-            myPool = parpool(desiredNumWorkers);  % Create a new pool with the specified number of workers
-            NumWorkers = myPool.NumWorkers;
-        end
+        NumWorkers = checkp.NumWorkers;
     end
 
 else
