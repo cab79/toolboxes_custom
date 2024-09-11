@@ -29,6 +29,13 @@ else
     save_pref = 'group_';
 end
 
+if ~isfield(S.img,'desired_fwhm')
+    S.img.desired_fwhm = [0 0 0];  % Desired smoothing in mm, mm, ms
+end
+if ~isfield(S.img,'headsize')
+    S.img.headsize = 200;
+end
+
 for d=1:length(D)
     % get model and contrast indices
     if isempty(S.img.model.index)
@@ -114,6 +121,7 @@ for d=1:length(D)
                     else
                         [b_img, mask_img] = topotime_3D(D(d).model(i).coeff(b).b,S);
                     end
+                    b_img = smooth_images(b_img,mask_img,S.img.desired_fwhm,S.img.headsize,1);
                     %b_img = topotime_3D(D(d).model(i).coeff(b).b,S);
                     V = makeV;
                 else
@@ -131,41 +139,44 @@ for d=1:length(D)
             end
             
             %% random effects - assumes full random slopes model
-            randmat = D(d).model(i).random;
-            rm_dim = ndims(randmat);
-            D(d).model(i).random = struct;
-            rU = unique(D(d).model(i).randomnames.Name);
-            for b = 1:length(rU)
-                [U,~,Ui] = unique(D(d).model(i).randomnames.Level,'stable');
-                for u = 1:length(U)
-                    idx = find(Ui==u & strcmp(D(d).model(i).randomnames.Name,rU{b}));
-                    if length(idx)>1; error('wrong random count'); end
-                    % create
-                    if ~isempty(S.img.file.coord)
-                        if ~isempty(S.img.mask_img)
-                            [r_img] = topotime_3D(randmat(:,:,idx),S);
-                        else
-                            [r_img, mask_img] = topotime_3D(randmat(:,:,idx),S);
-                        end
-                        V = makeV;
-                    else
-                        if rm_dim==3 % sensor
-                            r_img=randmat(:,:,idx);
+            if isfield(D(d).model(i),'random')
+                randmat = D(d).model(i).random;
+                rm_dim = ndims(randmat);
+                D(d).model(i).random = struct;
+                rU = unique(D(d).model(i).randomnames.Name);
+                for b = 1:length(rU)
+                    [U,~,Ui] = unique(D(d).model(i).randomnames.Level,'stable');
+                    for u = 1:length(U)
+                        idx = find(Ui==u & strcmp(D(d).model(i).randomnames.Name,rU{b}));
+                        if length(idx)>1; error('wrong random count'); end
+                        % create
+                        if ~isempty(S.img.file.coord)
+                            if ~isempty(S.img.mask_img)
+                                [r_img] = topotime_3D(randmat(:,:,idx),S);
+                            else
+                                [r_img, mask_img] = topotime_3D(randmat(:,:,idx),S);
+                            end
+                            r_img = smooth_images(r_img,mask_img,S.img.desired_fwhm,S.img.headsize,1);
                             V = makeV;
-                        elseif rm_dim==4 % source
-                            r_img=randmat(:,:,:,idx);
-                            V = makeV3; % assume MNI volumne
+                        else
+                            if rm_dim==3 % sensor
+                                r_img=randmat(:,:,idx);
+                                V = makeV;
+                            elseif rm_dim==4 % source
+                                r_img=randmat(:,:,:,idx);
+                                V = makeV3; % assume MNI volumne
+                            end
                         end
+                        % add to file
+                        D(d).model(i).random(idx).Level = D(d).model(i).randomnames.Level{idx};
+                        D(d).model(i).random(idx).Name = D(d).model(i).randomnames.Name{idx};
+                        D(d).model(i).random(idx).b = r_img;
+                        % save images
+                        D(d).model(i).random(idx).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_randcoeff_' num2str(b) '_' num2str(u) '.nii']);
+                        V.fname = D(d).model(i).random(idx).b_img_file;
+                        V.dim(1:length(size(mask_img))) = size(mask_img);
+                        spm_write_vol(V,r_img.*mask_img);
                     end
-                    % add to file
-                    D(d).model(i).random(idx).Level = D(d).model(i).randomnames.Level{idx};
-                    D(d).model(i).random(idx).Name = D(d).model(i).randomnames.Name{idx};
-                    D(d).model(i).random(idx).b = r_img;
-                    % save images
-                    D(d).model(i).random(idx).b_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_randcoeff_' num2str(b) '_' num2str(u) '.nii']);
-                    V.fname = D(d).model(i).random(idx).b_img_file;
-                    V.dim(1:length(size(mask_img))) = size(mask_img);
-                    spm_write_vol(V,r_img.*mask_img);
                 end
             end
             
@@ -203,6 +214,8 @@ for d=1:length(D)
                         F_img=D(d).model(i).con(c).F;
                         p_img=D(d).model(i).con(c).p;
                     end
+                    F_img = smooth_images(F_img,mask_img,S.img.desired_fwhm,S.img.headsize,1);
+                    p_img = smooth_images(p_img,mask_img,S.img.desired_fwhm,S.img.headsize,1);
                     V.dim(1:length(size(mask_img))) = size(mask_img);
                     % save images
                     D(d).model(i).con(c).F_img_file = fullfile(S.img.path.outputs, [save_pref num2str(d) '_model_' num2str(i) '_con_' num2str(c) '_F.nii']);
@@ -244,6 +257,8 @@ for d=1:length(D)
                 p_img=D(d).model_comp(i).pval;
                 LR_p_img=D(d).model_comp(i).LR_p;
             end
+            p_img = smooth_images(p_img,mask_img,S.img.desired_fwhm,S.img.headsize,1);
+            LR_img = smooth_images(LR_img,mask_img,S.img.desired_fwhm,S.img.headsize,1);
             
             % save
             V.dim(1:length(size(mask_img))) = size(mask_img);
@@ -297,3 +312,20 @@ V.mat = [-2,0,0,92;0,2,0,-128;0,0,2,-74;0,0,0,1];
 V.n = [1,1];
 V.descrip = '';
 % V.private
+
+function image_smooth = smooth_images(image,mask_img,desired_fwhm,headsize,timeres)
+
+if ~any(desired_fwhm>0)
+    image_smooth = image;
+end
+
+% Determine voxel size for smoothing
+szhead = size(mask_img);
+voxel_size = [headsize / szhead(1), headsize / szhead(2), timeres]; % in mm, mm, ms 
+fwhm_voxels = desired_fwhm ./ voxel_size;
+
+% Apply smoothing
+image_smooth = zeros(size(image));
+spm_smooth(image, image_smooth, fwhm_voxels);
+image_smooth = image_smooth .* double(mask_img); % Mask it
+image_smooth(isnan(image_smooth)) = 0; % No NaN for smoothness function
