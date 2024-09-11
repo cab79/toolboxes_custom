@@ -25,10 +25,14 @@ end
 cum_nc=0; % cumulative chunk number
 cvalid = []; % accumulate c indices that contain data
 NumWorkers = [];
+
+% this needs creating first so all IDs exist in every Condor output file
 S.ID={};
 for d = 1:length(D)
-    
     S.ID{d} = unique(D(d).prep.dtab.ID,'stable');
+end
+
+for d = 1:length(D)
     
     % NEW select whether to load the data Y from D or from a separate file
     % containing Y (if Y is too large to keep in memory entirely)
@@ -175,11 +179,12 @@ for d = 1:length(D)
             C(c).chunk_info=chunk_info;
         end
         
+        model_run = 0;
         %if ~isempty(S.encode.path.inputsY)
-            model_run = 1;
             cum_nc=cum_nc+1;
             % run on a certain number of chunks and clear memory
             if cum_nc==NumWorkers
+                model_run = 1;
                 disp(['running model on ' num2str(NumWorkers) 'workers'])
                 Csub(1:NumWorkers) = C(cvalid(end-NumWorkers+1:end));
                 C(cvalid(end-NumWorkers+1:end)) = run_model(Csub,S,NumWorkers,save_pref);
@@ -198,8 +203,11 @@ if strcmp(S.encode.parallel.option,'condor')
 elseif strcmp(S.encode.parallel.option,'local') || strcmp(S.encode.parallel.option,'none')
     
     % run all samples if not run within previous loop
-    if isempty(S.encode.path.inputsY) && model_run==0
-        C = run_model(C,S,NumWorkers);
+    if model_run==0
+        %C = run_model(C,S,min(length(C),NumWorkers),save_pref);
+        indices = find(~cellfun(@isempty, {C.Y}));
+        Csub = C(indices);
+        C(indices) = run_model(Csub,S,length(indices),save_pref);
     end
     
     save('temp.mat','S','C') % save in case this next function goes wrong!

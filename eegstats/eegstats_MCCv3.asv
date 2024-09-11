@@ -600,7 +600,7 @@ for d=1:length(D)
                                 mask_img0(isnan(mask_img0))=0;
                                 [~,~,fdr_p,~] = FDR2(p_img(:),ones(size(p_img(:))),find(mask_img0),S.MCC.thresh,0); % pval,sgn,maskvtx,rate,tail
                             end
-                            corrZ(c) = norminv(1 - fdr_p); % corrected threshold
+                            corrZ(c) = norminv(1 - fdr_p/S.MCC.tails); % corrected threshold
                             psize=size(p_img);
                             switch length(psize)
                                 case 1
@@ -789,19 +789,18 @@ f=figure('name',figname);
 minmax = -[size(plotdatX,2)+0.5,0.5];
 hold on
 s=scatter(plotdatX(:), plotdatY(:),10,'k','filled', 'jitter','on', 'jitterAmount',0.3);
-% s=scatter(plotdatX(:), plotdatY(:),10,'k','filled');
 s.MarkerFaceAlpha=0.5;
-%if strcmp(ylab,'Z values')
+if strcmp(ylab,'Z values')
     colors = {'red','green'};
     % uncorrected
     line(minmax,[thresh(1) thresh(1)],'Color',colors{1},'LineStyle','--') 
     for t = 2:length(thresh)
-        if ~isnan(thresh(t)) && ~isinf(thresh(t))
-            minmaxt = -[(t-1)+0.5,0.5];
-            line(minmaxt,[thresh(t) thresh(t)],'Color',colors{2},'LineStyle','--') 
+        if ~isnan(thresh(t))
+            minmaxt = -[size(plotdatX,2)+0.5,0.5];
+            line(minmax,[thresh(t) thresh(t)],'Color',colors{2},'LineStyle','--') 
         end
     end
-%end
+end
 hold off
 xlim(minmax)
 xticks(-size(plotdatX,2):-1)
