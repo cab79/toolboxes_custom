@@ -278,7 +278,25 @@ for d=1:length(D)
                     
                             % Apply smoothing
                             resid_smooth = zeros(size(resid));
-                            spm_smooth(resid, resid_smooth, fwhm_voxels);
+                            if isfield(S.MCC,'fwhm_freq_pnts') && ~isempty(S.MCC.fwhm_freq_pnts)
+                                % smooth within frequency bands separately
+                                cumPnts = cumsum(S.MCC.fwhm_freq_pnts);
+                                for f = 1:length(S.MCC.fwhm_freq_pnts)
+                                    if f == 1
+                                        startIndex = 1;
+                                    else
+                                        startIndex = cumPnts(f-1) + 1;
+                                    end
+                                    endIndex = cumPnts(f);
+                                    indices = startIndex:endIndex;
+                                    resid_temp = resid(:,:,indices,:);
+                                    resid_smooth_temp = zeros(size(resid_temp));
+                                    spm_smooth(resid_temp, resid_smooth_temp, fwhm_voxels);
+                                    resid_smooth(:,:,indices,:) = resid_smooth_temp;
+                                end
+                            else
+                                spm_smooth(resid, resid_smooth, fwhm_voxels);
+                            end
                             resid = resid_smooth .* double(mask_img); % Mask it
                             resid(isnan(resid)) = 0; % No NaN for smoothness function
                     
@@ -305,7 +323,25 @@ for d=1:length(D)
                     
                             % Apply smoothing
                             resid_smooth = zeros(size(resid));
-                            spm_smooth(resid, resid_smooth, fwhm_voxels);
+                            if isfield(S.MCC,'fwhm_freq_pnts') && ~isempty(S.MCC.fwhm_freq_pnts)
+                                % smooth within frequency bands separately
+                                cumPnts = cumsum(S.MCC.fwhm_freq_pnts);
+                                for f = 1:length(S.MCC.fwhm_freq_pnts)
+                                    if f == 1
+                                        startIndex = 1;
+                                    else
+                                        startIndex = cumPnts(f-1) + 1;
+                                    end
+                                    endIndex = cumPnts(f);
+                                    indices = startIndex:endIndex;
+                                    resid_temp = resid(:,:,indices,:);
+                                    resid_smooth_temp = zeros(size(resid_temp));
+                                    spm_smooth(resid_temp, resid_smooth_temp, fwhm_voxels);
+                                    resid_smooth(:,:,indices,:) = resid_smooth_temp;
+                                end
+                            else
+                                spm_smooth(resid, resid_smooth, fwhm_voxels);
+                            end
                             resid = resid_smooth .* double(mask_img); % Mask it
                             resid(isnan(resid)) = 0; % No NaN for smoothness function
                     
@@ -344,7 +380,25 @@ for d=1:length(D)
                     
                             % Apply smoothing
                             resid_smooth = zeros(size(resid));
-                            spm_smooth(resid, resid_smooth, fwhm_voxels);
+                            if isfield(S.MCC,'fwhm_freq_pnts') && ~isempty(S.MCC.fwhm_freq_pnts)
+                                % smooth within frequency bands separately
+                                cumPnts = cumsum(S.MCC.fwhm_freq_pnts);
+                                for f = 1:length(S.MCC.fwhm_freq_pnts)
+                                    if f == 1
+                                        startIndex = 1;
+                                    else
+                                        startIndex = cumPnts(f-1) + 1;
+                                    end
+                                    endIndex = cumPnts(f);
+                                    indices = startIndex:endIndex;
+                                    resid_temp = resid(:,:,indices,:);
+                                    resid_smooth_temp = zeros(size(resid_temp));
+                                    spm_smooth(resid_temp, resid_smooth_temp, fwhm_voxels);
+                                    resid_smooth(:,:,indices,:) = resid_smooth_temp;
+                                end
+                            else
+                                spm_smooth(resid, resid_smooth, fwhm_voxels);
+                            end
                             resid = resid_smooth .* double(mask_img); % Mask it
                             resid(isnan(resid)) = 0; % No NaN for smoothness function
                     
@@ -555,13 +609,14 @@ for d=1:length(D)
                     % imgZ: Z-score image to enhance
                     if isfield(D(d).model(i).con(c),'T')
                         T_img = spm_read_vols(spm_vol(D(d).model(i).con(c).T_img_file));
+                        % this might be wrong - see: https://github.com/spisakt/pTFCE/issues/9
                         Z_img = img_t2z(T_img, DF(2), S.MCC.tails);
                     elseif isfield(D(d).model(i).con(c),'F')
                         F_img = spm_read_vols(spm_vol(D(d).model(i).con(c).F_img_file));
                         if any(F_img(:)<0)
                             F_img(F_img(:)<0)=0;
                         end
-                        Z_img = img_f2z(F_img, DF(1), DF(2), S.MCC.tails);
+                        Z_img = img_f2z(F_img, DF(1), DF(2), 1);
                     else
                         error('Statistical parameter type not supported');
                     end

@@ -81,15 +81,18 @@ for d = 1:nD % subject
     for i = 1:LM
         % Common across models
         D(d).model(i).def = M.model(i).samples(1).def;
+        if ismember(S.encode.method, {'LMM'})
+            D(d).model(i).fixeddesign = M.model(i).samples(1).fixeddesign;
+        end
 
         % For both LM and LMM
         if ismember(S.encode.method, {'LM', 'LMM'})
             % Compile common outputs for LM and LMM models
-            D(d).model(i).r2_ord = nan(ddim(1:end-1)');
-            D(d).model(i).r2_ord(sinz) = vertcat([M.model(i).samples(:).r2_ord]');
-            
             D(d).model(i).logl = nan(ddim(1:end-1)');
             D(d).model(i).logl(sinz) = vertcat([M.model(i).samples(:).logl]');
+
+            D(d).model(i).r2_ord = nan(ddim(1:end-1)');
+            D(d).model(i).r2_ord(sinz) = vertcat([M.model(i).samples(:).r2_ord]');
             
             D(d).model(i).r2_adj = nan(ddim(1:end-1)');
             D(d).model(i).r2_adj(sinz) = vertcat([M.model(i).samples(:).r2_adj]');
@@ -133,6 +136,9 @@ for d = 1:nD % subject
         % LMM-specific fields (random effects, covariance matrices)
         if strcmp(S.encode.method, 'LMM')
             D(d).model(i).pred = M.model(i).samples(1).pred;
+
+            D(d).model(i).s = nan(ddim(1:end-1)');
+            D(d).model(i).s(sinz) = vertcat([M.model(i).samples(:).mse]');
             
             D(d).model(i).randomdesign = M.model(i).samples(1).randomdesign;
             D(d).model(i).randomnames = M.model(i).samples(1).RandomNames;
@@ -156,13 +162,99 @@ for d = 1:nD % subject
             end
             
             % Random effects
-            D(d).model(i).random = nan([prod(ddim(1:end-1)') height(D(d).model(i).randomnames)]);
-            D(d).model(i).random(sinz, :) = vertcat([M.model(i).samples(:).r]');
-            D(d).model(i).random = reshape(D(d).model(i).random, [ddim(1:end-1)' height(D(d).model(i).randomnames)]);
+            try
+                D(d).model(i).random = nan([prod(ddim(1:end-1)') height(D(d).model(i).randomnames)]);
+                D(d).model(i).random(sinz, :) = vertcat([M.model(i).samples(:).r]');
+                D(d).model(i).random = reshape(D(d).model(i).random, [ddim(1:end-1)' height(D(d).model(i).randomnames)]);
+            catch % in case dimension are inconsistent, save as cell
+                D(d).model(i).random = {M.model(i).samples(:).r};
+            end
+            
             
             % Covariance matrices
             D(d).model(i).coeffcov = cell(ddim(1:end-1)');
             D(d).model(i).coeffcov(sinz) = arrayfun(@(X) X.coeffcov, M.model(i).samples, 'UniformOutput', 0);
+            for ii = 1:length(M.model(i).samples(1).psi)
+                D(d).model(i).psi(ii).cov = cell(ddim(1:end-1)');
+                D(d).model(i).psi(ii).cov(sinz) = arrayfun(@(X) X.psi{ii}, M.model(i).samples, 'UniformOutput', 0);
+            end
+        end
+
+        % BRR models only
+        if strcmp(S.encode.method, 'BRR')
+
+            D(d).model(i).waic = nan(ddim(1:end-1)');
+            D(d).model(i).waic(sinz) = vertcat([M.model(i).samples(:).waic]');
+            D(d).model(i).ktest = nan(ddim(1:end-1)');
+            D(d).model(i).ktest(sinz) = vertcat([M.model(i).samples(:).ktest_normality]');
+            
+            for ii = 1:length(M.model(i).samples(1).CoefficientNames)
+
+                D(d).model(i).coeff(ii).name = M.model(i).samples(1).CoefficientNames{ii};
+                
+                D(d).model(i).coeff(ii).b = nan(ddim(1:end-1)');
+                D(d).model(i).coeff(ii).b(sinz) = arrayfun(@(X) X.b(ii), M.model(i).samples);
+
+                D(d).model(i).coeff(ii).t = nan(ddim(1:end-1)');
+                D(d).model(i).coeff(ii).t(sinz) = arrayfun(@(X) X.t(ii), M.model(i).samples);
+                
+                D(d).model(i).coeff(ii).p = nan(ddim(1:end-1)');
+                D(d).model(i).coeff(ii).p(sinz) = arrayfun(@(X) X.p(ii), M.model(i).samples);
+                
+                D(d).model(i).coeff(ii).df = nan(ddim(1:end-1)');
+                D(d).model(i).coeff(ii).df(sinz) = arrayfun(@(X) X.df, M.model(i).samples);
+            end
+        end
+
+        % HBM-specific fields
+        if strcmp(S.encode.method, 'HBM')
+            
+            % % Group-level betas
+            % D(d).model(i).group_betas = nan(ddim(1:end-1)');
+            % D(d).model(i).group_betas(sinz) = vertcat([M.model(i).samples(:).group_betas]');
+
+            % items per model/coefficient
+            for ii = 1:length(M.model(i).samples(1).CoefficientNames)
+                D(d).model(i).coeff(ii).name = M.model(i).samples(1).CoefficientNames{ii};
+                
+                % Group-level betas
+                D(d).model(i).coeff(ii).group_betas = nan([ddim(1:end-1)']);
+                D(d).model(i).coeff(ii).group_betas(sinz) = arrayfun(@(X) X.group_betas(ii), M.model(i).samples);
+            
+                % Credible intervals for group-level betas
+                cred_intervals = arrayfun(@(X) X.cred_intervals(:, ii), M.model(i).samples, 'UniformOutput', false);
+                cred_intervals = reshape([cred_intervals{:}], 2, []);
+                D(d).model(i).coeff(ii).cred_intervals = squeeze(nan([2 ddim(1:end-1)']));
+                D(d).model(i).coeff(ii).cred_intervals(:, sinz) = cred_intervals;
+            
+                % Bayesian p-values
+                D(d).model(i).coeff(ii).bayesian_p_values = nan([ddim(1:end-1)']);
+                D(d).model(i).coeff(ii).bayesian_p_values(sinz) = arrayfun(@(X) X.bayesian_p_values(ii), M.model(i).samples);
+            
+                % Individual betas
+                individual_betas = arrayfun(@(X) X.individual_betas(:, ii), M.model(i).samples, 'UniformOutput', false);
+                individual_betas = reshape([individual_betas{:}], [], length(M.model(i).samples));
+                D(d).model(i).coeff(ii).individual_betas = squeeze(nan([ddim(1:end-1)' size(M.model(i).samples(1).individual_betas, 1)]));
+                D(d).model(i).coeff(ii).individual_betas(sinz, :) = individual_betas';
+            
+                % Credible intervals for individual betas
+                cred_intervals_individual = arrayfun(@(X) X.cred_intervals_individual(:, :, ii), M.model(i).samples, 'UniformOutput', false);
+                cred_intervals_individual = reshape([cred_intervals_individual{:}], 2, [], length(M.model(i).samples));
+                D(d).model(i).coeff(ii).cred_intervals_individual = squeeze(nan([2 ddim(1:end-1)' size(M.model(i).samples(1).individual_betas, 1)]));
+                D(d).model(i).coeff(ii).cred_intervals_individual(:, sinz, :) = permute(cred_intervals_individual, [1, 3, 2]);
+            end
+
+            
+            % LOO and standard error
+            D(d).model(i).loo = nan(ddim(1:end-1)');
+            D(d).model(i).loo(sinz) = vertcat([M.model(i).samples(:).loo]');
+            
+            D(d).model(i).loo_se = nan(ddim(1:end-1)');
+            D(d).model(i).loo_se(sinz) = vertcat([M.model(i).samples(:).loo_se]');
+            
+            % Normality test results (standardized)
+            D(d).model(i).ktest = nan(ddim(1:end-1)');
+            D(d).model(i).ktest(sinz) = vertcat([M.model(i).samples(:).ktest_normality]');
         end
 
         % filenames for resid, fitted, input
@@ -259,12 +351,19 @@ for d = 1:nD % subject
         for i = 1:MC
             D(d).model_comp(i).pair = M.model_comp(i).samples(1).pair;
             
-            if strcmp(S.encode.method, 'LMM')
+            if ismember(S.encode.method, {'LMM','LM'})
                 D(d).model_comp(i).pval = nan(ddim(1:end-1)');
                 D(d).model_comp(i).pval(sinz) = vertcat([M.model_comp(i).samples(:).pval]');
                 
                 D(d).model_comp(i).LR = nan(ddim(1:end-1)');
                 D(d).model_comp(i).LR(sinz) = vertcat([M.model_comp(i).samples(:).LRStat]');
+            
+            elseif strcmp(S.encode.method, 'HBM')
+                D(d).model_comp(i).elpd_diff = nan(ddim(1:end-1)');
+                D(d).model_comp(i).elpd_diff(sinz) = vertcat([M.model_comp(i).samples(:).elpd_diff]');
+                
+                D(d).model_comp(i).elpd_diff_se = nan(ddim(1:end-1)');
+                D(d).model_comp(i).elpd_diff_se(sinz) = vertcat([M.model_comp(i).samples(:).elpd_diff_se]');
             end
         end
     end

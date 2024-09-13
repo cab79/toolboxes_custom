@@ -60,48 +60,31 @@ for d = 1:length(D)
     else
         save_pref = 'group_';
     end
-%     if strcmp(S.encode.memory_option,'disk')
-%         LM=length(S.encode.model);
-%         for i=1:LM
-%             if S.encode.save_residuals
-%                 disp(['creating resid file, model ' num2str(i)])
-%                 m = matfile(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_resid_mi' num2str(i) '_' S.encode.sname '.mat']),'Writable',true);  
-%                 for nc = 1:n_chunks_d
-%                     si = chunksize*(nc-1)+1 : min(chunksize*nc,lenY);
-%                     if length(dim)==4
-%                         m.resid(1:dim(1),1:dim(2),1:dim(3),si)=nan([reshape(dim(1:end-1),1,[]) length(si)]);
-%                     elseif length(dim)==4
-%                         m.resid(1:dim(1),1:dim(2),si)=nan([reshape(dim(1:end-1),1,[]) length(si)]);
-%                     end
-%                 end
-%                 %save(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_resid_mi' num2str(i) '_' S.encode.sname '.mat']),'resid','-v7.3');
-%             end
-%             % fitted
-%             if S.encode.save_fitted
-%                 disp(['creating fitted file, model ' num2str(i)])
-%                 m = matfile(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_fitted_mi' num2str(i) '_' S.encode.sname '.mat']),'fitted','-v7.3');
-%                 for ti = dim(end):-1:1
-%                     if length(dim)==4
-%                         m.fitted(1:dim(1),1:dim(2),1:dim(3),ti)=nan(reshape(dim(1:end-1),1,[]));
-%                     elseif length(dim)==4
-%                         m.fitted(1:dim(1),1:dim(2),ti)=nan(reshape(dim(1:end-1),1,[]));
-%                     end
-%                 end
-%             end
-%             % input
-%             if S.encode.save_input
-%                 disp(['creating input file, model ' num2str(i)])
-%                 m = matfile(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_input_mi' num2str(i) '_' S.encode.sname '.mat']),'input','-v7.3');
-%                 for ti = dim(end):-1:1
-%                     if length(dim)==4
-%                         m.input(1:dim(1),1:dim(2),1:dim(3),ti)=nan(reshape(dim(1:end-1),1,[]));
-%                     elseif length(dim)==4
-%                         m.input(1:dim(1),1:dim(2),ti)=nan(reshape(dim(1:end-1),1,[]));
-%                     end
-%                 end
-%             end
-%         end
-%     end
+
+    % must remove mat files if they already exist
+    if strcmp(S.encode.memory_option,'disk')
+        LM=length(S.encode.model);
+        for i=1:LM
+            if S.encode.save_residuals
+                disp(['deleting resid file, model ' num2str(i)])
+                try
+                    delete(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_resid_mi' num2str(i) '_' S.encode.sname '.mat']));  
+                end
+            end
+            if S.encode.save_fitted
+                disp(['deleting fitted file, model ' num2str(i)])
+                try
+                    delete(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_fitted_mi' num2str(i) '_' S.encode.sname '.mat']));  
+                end
+            end
+            if S.encode.save_input
+                disp(['deleting input file, model ' num2str(i)])
+                try
+                    delete(fullfile(S.encode.path.outputs,[save_pref num2str(d) '_input_mi' num2str(i) '_' S.encode.sname '.mat']));
+                end
+            end
+        end
+    end
     
     for nc = 1:n_chunks_d
         si = chunksize*(nc-1)+1 : min(chunksize*nc,lenY);
