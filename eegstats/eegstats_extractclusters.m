@@ -59,6 +59,22 @@ for d=1:length(D)
     else
         Ddtab = load(S.clus.path.dtab_inputs);
     end
+
+    if ~isfield(Ddtab.D(1).prep,'Y')
+        Sr=struct;
+        Sr.prep.output.format = 'Y';
+        Sr.prep.calc.eeg.zscore = 0; % transform to z-score over trials (unit variance) so that statistical coefficients are normalised
+        Sr.prep.output.save = 0; % save data to disk or not
+        Ddtab.D = eegstats_dataprep_reformat(Sr,Ddtab.D);
+    end
+
+    if length(Ddtab.D)>1
+        Sr=struct;
+        Sr.prep.output.format = 'groupY';
+        Sr.prep.calc.eeg.zscore = 0; % transform to z-score over trials (unit variance) so that statistical coefficients are normalised
+        Sr.prep.output.save = 0; % save data to disk or not
+        Ddtab.D = eegstats_dataprep_reformat(Sr,Ddtab.D);
+    end
                 
     %% create/load input volume
     for i=1:length(D(d).model)
@@ -69,8 +85,9 @@ for d=1:length(D)
             break;
         end
     end
-    
+
     if ~exist('input_vol','var')
+
         datadim = Ddtab.D.prep.dim;
         samples=struct;
         disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
@@ -85,33 +102,45 @@ for d=1:length(D)
         end
         input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
 
-        % chunk it to reduce memory load
-        if S.clus.save_vols_chunksize
-            chunksize = S.clus.save_vols_chunksize;
-        else 
-            chunksize = size(input_scaled_mat,3);
-        end
-        n_chunks = max(1,ceil(size(input_scaled_mat,3)/chunksize));
-        input_vol=nan(S.img.imgsize,S.img.imgsize,size(input_scaled_mat,2),size(input_scaled_mat,3));
-        D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
-        save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
-        clear input_vol;
-        m = matfile(D(d).model(i).input_vol_file,'Writable',true);
-        for nc = 1:n_chunks
-            si = chunksize*(nc-1)+1 : min(chunksize*nc,size(input_scaled_mat,3));
-            disp(['Cluster: for model ' num2str(i) ', creating input vol, chunk ' (num2str(nc))])
-            m.input_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(input_scaled_mat,2),si)=topotime_3D(input_scaled_mat(:,:,si),S);
-        end
-        load(D(d).model(i).input_vol_file);
-        clear input_scaled input_scaled_mat
-        if ~S.clus.save_vols
-            delete(D(d).model(i).input_vol_file,'input_vol','-v7.3');
+        if S.clus.save_vols
+            % chunk it to reduce memory load
+            if S.clus.save_vols_chunksize
+                chunksize = S.clus.save_vols_chunksize;
+            else 
+                chunksize = size(input_scaled_mat,3);
+            end
+            n_chunks = max(1,ceil(size(input_scaled_mat,3)/chunksize));
+            input_vol=nan(S.img.imgsize,S.img.imgsize,size(input_scaled_mat,2),size(input_scaled_mat,3));
+            D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
+            save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
+            clear input_vol;
+            m = matfile(D(d).model(i).input_vol_file,'Writable',true);
+            for nc = 1:n_chunks
+                si = chunksize*(nc-1)+1 : min(chunksize*nc,size(input_scaled_mat,3));
+                disp(['Cluster: for model ' num2str(i) ', creating input vol, chunk ' (num2str(nc))])
+                m.input_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(input_scaled_mat,2),si)=topotime_3D(input_scaled_mat(:,:,si),S);
+            end
+            load(D(d).model(i).input_vol_file);
+            clear input_scaled input_scaled_mat
+            % if ~S.clus.save_vols
+            %     delete(D(d).model(i).input_vol_file,'input_vol','-v7.3');
+            % end
+        else
+            disp('Cluster: Creating input vol')
+            input_vol=topotime_3D(input_scaled_mat,S);
         end
     end
 
     sz=size(input_vol);
     input_vol=reshape(input_vol,[],size(input_vol,4));
+
+    % create input_avg file
     input_avg=reshape(mean(input_vol,2),sz(1),sz(2),sz(3));
+    for i = S.clus.model.index
+        % no need to save one per model, but it make the coding simpler!
+        D(d).model(i).input_vol_avg_file = strrep(D(d).model(i).input_file,'.mat','_vol_avg.mat');
+        save(D(d).model(i).input_vol_avg_file,'input_avg','-v7.3');
+    end
         
     if S.clus.model.index
         for i = S.clus.model.index

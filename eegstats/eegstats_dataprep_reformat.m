@@ -83,6 +83,9 @@ switch S.prep.output.format
         %% create Y structure using for encoding models
         for d=1:length(D)
             for ip = 1:length(D(d).prep)
+                if ~isfield(D(d).prep(ip),'grpdata')
+                    D(d).prep(ip).grpdata = D(d).prep(ip).data;
+                end
                 if iscell(D(d).prep(ip).grpdata)
                     D(d).prep(ip).grpdata = D(d).prep(ip).grpdata{:};
                 end
@@ -102,10 +105,111 @@ switch S.prep.output.format
                     end
                 end
             end
+            if isfield(D(d).prep,'grpdata') % don't need EEG data in both formats
+                D(d).prep = rmfield(D(d).prep,'grpdata'); % save memory
+            end
+            if isfield(D(d).prep,'data') % don't need EEG data in both formats
+                D(d).prep = rmfield(D(d).prep,'data'); % save memory
+            end
         end
-        if isfield(D.prep,'grpdata') % don't need EEG data in both formats
-            D.prep = rmfield(D.prep,'grpdata'); % save memory
+        
+    case 'grpdata'
+    %% Convert from Y structure back to grpdata matrix
+
+    for d = 1:length(D)
+        % Check if D(d).prep.Y exists
+        if isfield(D(d).prep, 'Y')
+            numY = length(D(d).prep.Y);
+
+            % Initialize grpdata matrix
+            numTrials = height(D(d).prep.dtab);
+            grpdata = zeros(numTrials, numY);
+
+            for s = 1:numY
+                % Get data from Y(s).dtab.data
+                grpdata(:, s) = D(d).prep.Y(s).dtab.data;
+
+                % If data was z-scored, reverse the z-scoring
+                if isfield(D(d).prep.Y(s), 'data_mean') && isfield(D(d).prep.Y(s), 'data_std')
+                    grpdata(:, s) = grpdata(:, s) * D(d).prep.Y(s).data_std + D(d).prep.Y(s).data_mean;
+                end
+            end
+
+            % Assign grpdata to D(d).prep.grpdata
+            D(d).prep.grpdata = grpdata;
+
+            % Optionally, remove Y structure to save memory
+            if isfield(S.prep.output, 'removeY') && S.prep.output.removeY
+                D(d).prep = rmfield(D(d).prep, 'Y');
+            end
+        else
+            error('Y structure not found in D(%d).prep', d);
         end
+    end
+
+    case 'groupY'
+        %% outputs: change subject Y data to grouped Y data
+
+        if length(D)==1
+            error('Data already grouped, or there is only one subject')
+        end
+
+        % Initialize new D structure
+        prep = struct;
+
+        % Concatenate dtab
+        prep.dtab = D(1).prep.dtab;
+        for d = 2:length(D)
+            prep.dtab = vertcat(prep.dtab, D(d).prep.dtab);
+        end
+
+        % Set dim
+        dim = D(1).prep.dim;
+        dim(3) = height(prep.dtab);
+
+        % Number of Y elements (samples)
+        numY = length(D(1).prep.Y);
+
+        % For each Y (sample)
+        for s = 1:numY
+            % Initialize D.prep.Y(s).dtab
+            prep.Y(s).dtab = table;
+
+            % Initialize data variables
+            data = [];
+
+            % For each subject
+            for d = 1:length(D)
+                % Append data
+                data = [data; D(d).prep.Y(s).dtab.data];
+            end
+
+            % Assign concatenated data
+            prep.Y(s).dtab.data = data;
+
+            % Handle data_mean and data_std if they exist
+            if isfield(D(1).prep.Y(s), 'data_mean') && isfield(D(1).prep.Y(s), 'data_std')
+                % Recompute data_mean and data_std from the concatenated data
+                prep.Y(s).data_mean = nanmean(data);
+                prep.Y(s).data_std = nanstd(data);
+            end
+        end
+
+        D = struct;
+        D.prep = prep;
+        D.prep.dim = dim;
+
+        % select subjects if specified
+        if isfield(S.prep.output,'select') && ~isempty(S.prep.output.select)
+            idx = D.prep.dtab.(S.prep.output.select)==1;
+            D.prep.dtab = D.prep.dtab(idx,:);
+            for s = 1:numY
+                D.prep.Y(s).dtab.data = D.prep.Y(s).dtab.data(idx,:);
+            end
+            D.prep.dim(3) = height(D.prep.dtab);
+            D.prep.(S.prep.output.select) = idx;
+        end
+
     case 'swapY'
         %% swap over Y variables with specified dtab variables
 

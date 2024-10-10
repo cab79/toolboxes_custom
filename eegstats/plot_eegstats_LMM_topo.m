@@ -17,41 +17,50 @@ load(fullfile(S.path.stats_load,'D.mat'),'D');
 cd(S.path.stats_load)
 
 if S.plot_erp || S.plot_input 
-    disp('loading data table')
-    Ddtab = load(S.path.dtab_inputs);
-    dtab = Ddtab.D.prep.dtab;
-    datadim = Ddtab.D.prep.dim;
-    
-    % build input
-    samples=struct;
-    for s = 1:length(Ddtab.D.prep.Y)
-        input=Ddtab.D.prep.Y(s).dtab.data;
+
+    nempty = find(~cellfun(@isempty,{D.model(:).input_vol_avg_file}));
+    if exist(D.model(nempty(1)).input_vol_avg_file,'file')
+        load(D.model(nempty(1)).input_vol_avg_file);
+        erp=input_avg;
+
+    else
+        disp('loading data table')
+        Ddtab = load(S.path.dtab_inputs);
+        
+        dtab = Ddtab.D.prep.dtab;
+        datadim = Ddtab.D.prep.dim;
+        
+        % build input
+        samples=struct;
+        for s = 1:length(Ddtab.D.prep.Y)
+            input=Ddtab.D.prep.Y(s).dtab.data;
+            if S.plot_input
+                samples(s).input=input;
+            end
+            if S.plot_erp
+                if isfield(Ddtab.D.prep.Y(s),'data_std')
+                    input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-scale
+                else
+                    input_scaled = input;
+                end
+                samples(s).input_scaled=input_scaled;
+            end
+        end
         if S.plot_input
-            samples(s).input=input;
+            input_mat = reshape(vertcat([samples(:).input]'),datadim(1),datadim(2),[]);
+            input_chanavg = mean(input_mat,3);
+            input_avg = topotime_3D(input_chanavg,S);
+            clear input input_mat input_chanavg
         end
         if S.plot_erp
-            if isfield(Ddtab.D.prep.Y(s),'data_std')
-                input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-scale
-            else
-                input_scaled = input;
-            end
-            samples(s).input_scaled=input_scaled;
+            input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
+            input_scaled_chanavg = mean(input_scaled_mat,3);
+            erp = topotime_3D(input_scaled_chanavg,S);
+            save(fullfile(S.path.stats_load,'grand_avg_ERP_rescaled.mat'),'erp');
+            clear input_scaled input_scaled_mat input_scaled_chanavg
         end
+        clear samples Ddtab dtab
     end
-    if S.plot_input
-        input_mat = reshape(vertcat([samples(:).input]'),datadim(1),datadim(2),[]);
-        input_chanavg = mean(input_mat,3);
-        input_avg = topotime_3D(input_chanavg,S);
-        clear input input_mat input_chanavg
-    end
-    if S.plot_erp
-        input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
-        input_scaled_chanavg = mean(input_scaled_mat,3);
-        erp = topotime_3D(input_scaled_chanavg,S);
-        save(fullfile(S.path.stats_load,'grand_avg_ERP_rescaled.mat'),'erp');
-        clear input_scaled input_scaled_mat input_scaled_chanavg
-    end
-    clear samples Ddtab dtab
 end
 
 % use model comp image as mask?

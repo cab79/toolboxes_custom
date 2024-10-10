@@ -277,28 +277,30 @@ for d=1:length(D)
                             end
                     
                             % Apply smoothing
-                            resid_smooth = zeros(size(resid));
-                            if isfield(S.MCC,'fwhm_freq_pnts') && ~isempty(S.MCC.fwhm_freq_pnts)
-                                % smooth within frequency bands separately
-                                cumPnts = cumsum(S.MCC.fwhm_freq_pnts);
-                                for f = 1:length(S.MCC.fwhm_freq_pnts)
-                                    if f == 1
-                                        startIndex = 1;
-                                    else
-                                        startIndex = cumPnts(f-1) + 1;
+                            if any(fwhm_voxels)
+                                resid_smooth = zeros(size(resid));
+                                if isfield(S.MCC,'fwhm_freq_pnts') && ~isempty(S.MCC.fwhm_freq_pnts)
+                                    % smooth within frequency bands separately
+                                    cumPnts = cumsum(S.MCC.fwhm_freq_pnts);
+                                    for f = 1:length(S.MCC.fwhm_freq_pnts)
+                                        if f == 1
+                                            startIndex = 1;
+                                        else
+                                            startIndex = cumPnts(f-1) + 1;
+                                        end
+                                        endIndex = cumPnts(f);
+                                        indices = startIndex:endIndex;
+                                        resid_temp = resid(:,:,indices,:);
+                                        resid_smooth_temp = zeros(size(resid_temp));
+                                        spm_smooth(resid_temp, resid_smooth_temp, fwhm_voxels);
+                                        resid_smooth(:,:,indices,:) = resid_smooth_temp;
                                     end
-                                    endIndex = cumPnts(f);
-                                    indices = startIndex:endIndex;
-                                    resid_temp = resid(:,:,indices,:);
-                                    resid_smooth_temp = zeros(size(resid_temp));
-                                    spm_smooth(resid_temp, resid_smooth_temp, fwhm_voxels);
-                                    resid_smooth(:,:,indices,:) = resid_smooth_temp;
+                                else
+                                    spm_smooth(resid, resid_smooth, fwhm_voxels);
                                 end
-                            else
-                                spm_smooth(resid, resid_smooth, fwhm_voxels);
+                                resid = resid_smooth .* double(mask_img); % Mask it
+                                resid(isnan(resid)) = 0; % No NaN for smoothness function
                             end
-                            resid = resid_smooth .* double(mask_img); % Mask it
-                            resid(isnan(resid)) = 0; % No NaN for smoothness function
                     
                             % Update resid_vol with smoothed data
                             resid_vol(:, :, :, tr) = resid;  % Store the smoothed volume
@@ -322,28 +324,30 @@ for d=1:length(D)
                             end
                     
                             % Apply smoothing
-                            resid_smooth = zeros(size(resid));
-                            if isfield(S.MCC,'fwhm_freq_pnts') && ~isempty(S.MCC.fwhm_freq_pnts)
-                                % smooth within frequency bands separately
-                                cumPnts = cumsum(S.MCC.fwhm_freq_pnts);
-                                for f = 1:length(S.MCC.fwhm_freq_pnts)
-                                    if f == 1
-                                        startIndex = 1;
-                                    else
-                                        startIndex = cumPnts(f-1) + 1;
+                            if any(fwhm_voxels)
+                                resid_smooth = zeros(size(resid));
+                                if isfield(S.MCC,'fwhm_freq_pnts') && ~isempty(S.MCC.fwhm_freq_pnts)
+                                    % smooth within frequency bands separately
+                                    cumPnts = cumsum(S.MCC.fwhm_freq_pnts);
+                                    for f = 1:length(S.MCC.fwhm_freq_pnts)
+                                        if f == 1
+                                            startIndex = 1;
+                                        else
+                                            startIndex = cumPnts(f-1) + 1;
+                                        end
+                                        endIndex = cumPnts(f);
+                                        indices = startIndex:endIndex;
+                                        resid_temp = resid(:,:,indices,:);
+                                        resid_smooth_temp = zeros(size(resid_temp));
+                                        spm_smooth(resid_temp, resid_smooth_temp, fwhm_voxels);
+                                        resid_smooth(:,:,indices,:) = resid_smooth_temp;
                                     end
-                                    endIndex = cumPnts(f);
-                                    indices = startIndex:endIndex;
-                                    resid_temp = resid(:,:,indices,:);
-                                    resid_smooth_temp = zeros(size(resid_temp));
-                                    spm_smooth(resid_temp, resid_smooth_temp, fwhm_voxels);
-                                    resid_smooth(:,:,indices,:) = resid_smooth_temp;
+                                else
+                                    spm_smooth(resid, resid_smooth, fwhm_voxels);
                                 end
-                            else
-                                spm_smooth(resid, resid_smooth, fwhm_voxels);
+                                resid = resid_smooth .* double(mask_img); % Mask it
+                                resid(isnan(resid)) = 0; % No NaN for smoothness function
                             end
-                            resid = resid_smooth .* double(mask_img); % Mask it
-                            resid(isnan(resid)) = 0; % No NaN for smoothness function
                     
                             % Store in 4D array
                             resid_vol(:, :, :, tr) = resid;  % Store the processed volume
@@ -606,7 +610,7 @@ for d=1:length(D)
                     
                     
                     % convert it to Z-score (from T or F)
-                    % imgZ: Z-score image to enhance
+                    % Z_img: Z-score image to enhance
                     if isfield(D(d).model(i).con(c),'T')
                         T_img = spm_read_vols(spm_vol(D(d).model(i).con(c).T_img_file));
                         % this might be wrong - see: https://github.com/spisakt/pTFCE/issues/9
@@ -677,6 +681,17 @@ for d=1:length(D)
                             end
                     end
 
+                    % cluster extent masking
+                    % pTFCE code: do connected component analysis for the whole set of threesholds
+                    cc = arrayfun(@(x) bwconncomp(bsxfun(@ge,Z_img,x),6), corrZ(c));
+                    CLUST=zeros(size(Z_img));
+                    ccc = cc(1);
+                    voxpercc = cellfun(@numel,ccc.PixelIdxList);
+                    for ci = 1:ccc.NumObjects
+                        CLUST(ind2sub(size(Z_img), ccc.PixelIdxList{ci})) = voxpercc(ci);
+                    end
+                    MCCmask_img(CLUST<S.MCC.extent_thresh) = 0;
+
                     if ~isempty(S.MCC.mask_img_post)
                         temp = spm_read_vols(spm_vol(S.MCC.mask_img_post))>0;
                         MCCmask_img=MCCmask_img.*temp;
@@ -719,9 +734,13 @@ for d=1:length(D)
                 end
 
                 % plot data
-                plotdatY(:,c) = mask_Z_img(:);
-                plotdatX(:,c) = c*double(plotdatY(:,c)>0);
+                plotdatY(:,c) = Z_img(:);
+                plotdatX(:,c) = c*double(CLUST(:)>0);
+                ClustX(:,c) = CLUST(:);
                 xtl{c} = D(d).model(i).con(c).term;
+
+                % save clus info
+                D(d).model(i).con(c).MCCclus_nvox = sum(unique(CLUST(CLUST>=S.MCC.extent_thresh)));
             end
 
             % plot
@@ -730,7 +749,8 @@ for d=1:length(D)
             ylab = 'Z values';
             uncorrz = norminv(1 - S.MCC.thresh/S.MCC.tails);
             try
-                f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl,[uncorrz, corrZ]);
+                % f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl,[uncorrz, corrZ]);
+                f=jitterplotclust(figname,plotdatX,plotdatY,xlab,ylab,xtl,[uncorrz, corrZ],ClustX,S.MCC.extent_thresh);
                 saveas(f,fullfile(S.MCC.path.inputs,['Z_values_model' num2str(i) '.png']))
             catch
                 disp(['no significant effects for model ' num2str(i)])
@@ -836,6 +856,103 @@ for p = 1:size(S.path.code,1)
         addpath(S.path.code{p,2});
     end
 end
+
+function f = jitterplotclust(figname, plotdatX, plotdatY, xlab, ylab, xtl, thresh, CLUST, cthresh)
+    % Ensure plotdatX, plotdatY, and CLUST are matrices of the same size
+    [m, n] = size(plotdatY);
+    assert(all(size(plotdatX) == [m, n]), 'plotdatX must be the same size as plotdatY');
+    assert(all(size(CLUST) == [m, n]), 'CLUST must be the same size as plotdatY');
+    
+    meanX = [];
+    meanY = [];
+    clusterSizes = [];
+    clusterIDs = []; % Store cluster IDs
+    xGroups_used = [];
+    
+    % For each column (group on the x-axis)
+    for xi = 1:n
+        % Extract xGroup value from plotdatX (assumes same value in column for valid data)
+        xGroup_col = plotdatX(:, xi);
+        % Valid indices where plotdatX and CLUST are non-zero and not NaN
+        valid_indices = (xGroup_col ~= 0) & ~isnan(xGroup_col) & (CLUST(:, xi) ~= 0) & ~isnan(CLUST(:, xi));
+        if ~any(valid_indices)
+            continue; % No valid data in this column, skip to next column
+        end
+        
+        xGroup = xGroup_col(find(valid_indices, 1)); % Get xGroup value (should be same for all valid data)
+        xGroups_used = [xGroups_used; xGroup]; % Store used xGroups
+        
+        % Get valid data for this column
+        plotdatY_col = plotdatY(valid_indices, xi);
+        CLUST_col = CLUST(valid_indices, xi);
+        
+        % Find unique clusters within this column
+        clustersInXGroup = unique(CLUST_col);
+        
+        for ci = 1:length(clustersInXGroup)
+            clusterID = clustersInXGroup(ci);
+            cluster_indices = (CLUST_col == clusterID);
+            
+            % Calculate mean of plotdatY for this cluster
+            meanYVal = mean(plotdatY_col(cluster_indices));
+            clusterSize = sum(cluster_indices);
+            
+            % Store the results
+            meanX = [meanX; -xGroup]; % Negate xGroup to match original plotting style
+            meanY = [meanY; meanYVal];
+            clusterSizes = [clusterSizes; clusterSize];
+            clusterIDs = [clusterIDs; clusterID]; % Store clusterID
+        end
+    end
+    
+    % Check if there are any data points to plot
+    if isempty(meanX)
+        warning('No data points to plot after processing.');
+        f = figure('name', figname); % Return an empty figure
+        return;
+    end
+    
+    % Normalize clusterSizes to determine marker sizes
+    maxMarkerSize = 1000; % Adjust this value as needed
+    markerSizes = (clusterSizes / max(clusterSizes)) * maxMarkerSize;
+    
+    % Determine colors based on clusterSizes and cthresh
+    numPoints = length(meanX);
+    colors = repmat([0 0 0], numPoints, 1); % Default color is black
+    red_indices = clusterSizes < cthresh;
+    colors(red_indices, :) = repmat([1 0 0], sum(red_indices), 1); % Set red color where clusterSize < cthresh
+    
+    % Plotting
+    f = figure('name', figname);
+    hold on
+    s = scatter(meanX, meanY, markerSizes, colors, 'filled', 'jitter', 'on', 'jitterAmount', 0.3);
+    s.MarkerFaceAlpha = 0.5;
+    
+    % Add threshold lines
+    lineColors = {'red', 'green'};
+    xGroups_used = unique(xGroups_used);
+    xLimits = [-(max(xGroups_used) + 0.5), -0.5];
+    line(xLimits, [thresh(1) thresh(1)], 'Color', lineColors{1}, 'LineStyle', '--');
+    for t = 2:length(thresh)
+        if ~isnan(thresh(t)) && ~isinf(thresh(t))
+            line(xLimits, [thresh(t) thresh(t)], 'Color', lineColors{2}, 'LineStyle', '--');
+        end
+    end
+    hold off
+    
+    % Axis settings
+    xlim(xLimits)
+    xticks(sort(-xGroups_used))
+    % Map xGroups_used to indices for xtl
+    xtl_indices = xGroups_used;
+    % Ensure xtl_indices are valid indices for xtl
+    xtl_indices(xtl_indices > length(xtl)) = length(xtl);
+    xticklabels(fliplr(xtl(xtl_indices)))
+    xlabel(xlab)
+    ylabel(ylab)
+    view([90 -90])
+
+
 
 function f=jitterplot(figname,plotdatX,plotdatY,xlab,ylab,xtl,thresh)
 plotdatX=-plotdatX;
