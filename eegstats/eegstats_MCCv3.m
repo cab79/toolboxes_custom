@@ -755,7 +755,7 @@ for d=1:length(D)
             catch
                 disp(['no significant effects for model ' num2str(i)])
             end
-            clear plotdatX plotdatY xtl resid_vol
+            clear plotdatX plotdatY xtl resid_vol ClustX
         end
     end
 
