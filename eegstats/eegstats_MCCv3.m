@@ -405,12 +405,15 @@ for d=1:length(D)
                             end
                             resid = resid_smooth .* double(mask_img); % Mask it
                             resid(isnan(resid)) = 0; % No NaN for smoothness function
-                    
+
                             % Write image to disk
                             V_local = V;  % Create a local copy of V structure
                             V_local.fname = fullfile(resid_vol_dir, sprintf('resid%06d.nii', tr));  % Set filename
                             spm_write_vol(V_local, resid);  % Write smoothed data to file
+                    
                         end
+
+                        
                     end
 
 

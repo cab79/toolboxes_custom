@@ -28,6 +28,10 @@ else
     save_pref = 'group_';
 end
 
+if isfield(S.clus.path,'inputs_L1') && ~isempty(S.clus.path.inputs_L1)
+    temp=load(S.clus.path.inputs_L1,'D');
+    D_L1 = temp.D;
+end
 
 cmp=cbrewer('qual', 'Set3', S.clus.connected_clusters.ClusMaxNum, 'pchip');
 cmp=[0 0 0;cmp]; % add black as zero
@@ -77,69 +81,71 @@ for d=1:length(D)
     end
                 
     %% create/load input volume
-    for i=1:length(D(d).model)
-        D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
-        if exist(D(d).model(i).input_vol_file,'file')
-            disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
-            load(D(d).model(i).input_vol_file);
-            break;
-        end
-    end
-
-    if ~exist('input_vol','var')
-
-        datadim = Ddtab.D.prep.dim;
-        samples=struct;
-        disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
-        for s = 1:length(Ddtab.D.prep.Y)
-            input=Ddtab.D.prep.Y(s).dtab.data;
-            if isfield(Ddtab.D.prep.Y(s),'data_std')
-                input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-
-            else
-                input_scaled = input;
-            end
-            samples(s).input_scaled=input_scaled;
-        end
-        input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
-
-        if S.clus.save_vols
-            % chunk it to reduce memory load
-            if S.clus.save_vols_chunksize
-                chunksize = S.clus.save_vols_chunksize;
-            else 
-                chunksize = size(input_scaled_mat,3);
-            end
-            n_chunks = max(1,ceil(size(input_scaled_mat,3)/chunksize));
-            input_vol=nan(S.img.imgsize,S.img.imgsize,size(input_scaled_mat,2),size(input_scaled_mat,3));
+    if ismember('input',S.clus.summary_data)
+        for i=1:length(D(d).model)
             D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
-            save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
-            clear input_vol;
-            m = matfile(D(d).model(i).input_vol_file,'Writable',true);
-            for nc = 1:n_chunks
-                si = chunksize*(nc-1)+1 : min(chunksize*nc,size(input_scaled_mat,3));
-                disp(['Cluster: for model ' num2str(i) ', creating input vol, chunk ' (num2str(nc))])
-                m.input_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(input_scaled_mat,2),si)=topotime_3D(input_scaled_mat(:,:,si),S);
+            if exist(D(d).model(i).input_vol_file,'file')
+                disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
+                load(D(d).model(i).input_vol_file);
+                break;
             end
-            load(D(d).model(i).input_vol_file);
-            clear input_scaled input_scaled_mat
-            % if ~S.clus.save_vols
-            %     delete(D(d).model(i).input_vol_file,'input_vol','-v7.3');
-            % end
-        else
-            disp('Cluster: Creating input vol')
-            input_vol=topotime_3D(input_scaled_mat,S);
         end
-    end
-
-    sz=size(input_vol);
-    input_vol=reshape(input_vol,[],size(input_vol,4));
-
-    % create input_avg file
-    input_avg=reshape(mean(input_vol,2),sz(1),sz(2),sz(3));
-    for i = S.clus.model.index
-        % no need to save one per model, but it make the coding simpler!
-        D(d).model(i).input_vol_avg_file = strrep(D(d).model(i).input_file,'.mat','_vol_avg.mat');
-        save(D(d).model(i).input_vol_avg_file,'input_avg','-v7.3');
+    
+        if ~exist('input_vol','var')
+    
+            datadim = Ddtab.D.prep.dim;
+            samples=struct;
+            disp([save_pref num2str(d) ', model ' num2str(i) ', creating input image'])
+            for s = 1:length(Ddtab.D.prep.Y)
+                input=Ddtab.D.prep.Y(s).dtab.data;
+                if isfield(Ddtab.D.prep.Y(s),'data_std')
+                    input_scaled = bsxfun(@plus,bsxfun(@times,input,Ddtab.D.prep.Y(s).data_std),Ddtab.D.prep.Y(s).data_mean); % re-
+                else
+                    input_scaled = input;
+                end
+                samples(s).input_scaled=input_scaled;
+            end
+            input_scaled_mat = reshape(vertcat([samples(:).input_scaled]'),datadim(1),datadim(2),[]);
+    
+            if S.clus.save_vols
+                % chunk it to reduce memory load
+                if S.clus.save_vols_chunksize
+                    chunksize = S.clus.save_vols_chunksize;
+                else 
+                    chunksize = size(input_scaled_mat,3);
+                end
+                n_chunks = max(1,ceil(size(input_scaled_mat,3)/chunksize));
+                input_vol=nan(S.img.imgsize,S.img.imgsize,size(input_scaled_mat,2),size(input_scaled_mat,3));
+                D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
+                save(D(d).model(i).input_vol_file,'input_vol','-v7.3');
+                clear input_vol;
+                m = matfile(D(d).model(i).input_vol_file,'Writable',true);
+                for nc = 1:n_chunks
+                    si = chunksize*(nc-1)+1 : min(chunksize*nc,size(input_scaled_mat,3));
+                    disp(['Cluster: for model ' num2str(i) ', creating input vol, chunk ' (num2str(nc))])
+                    m.input_vol(1:S.img.imgsize,1:S.img.imgsize,1:size(input_scaled_mat,2),si)=topotime_3D(input_scaled_mat(:,:,si),S);
+                end
+                load(D(d).model(i).input_vol_file);
+                clear input_scaled input_scaled_mat
+                % if ~S.clus.save_vols
+                %     delete(D(d).model(i).input_vol_file,'input_vol','-v7.3');
+                % end
+            else
+                disp('Cluster: Creating input vol')
+                input_vol=topotime_3D(input_scaled_mat,S);
+            end
+        end
+    
+        sz=size(input_vol);
+        input_vol=reshape(input_vol,[],size(input_vol,4));
+    
+        % create input_avg file
+        input_avg=reshape(mean(input_vol,2),sz(1),sz(2),sz(3));
+        for i = S.clus.model.index
+            % no need to save one per model, but it make the coding simpler!
+            D(d).model(i).input_vol_avg_file = strrep(D(d).model(i).input_file,'.mat','_vol_avg.mat');
+            save(D(d).model(i).input_vol_avg_file,'input_avg','-v7.3');
+        end
     end
         
     if S.clus.model.index
@@ -485,8 +491,7 @@ for d=1:length(D)
             end
 
             %% summarise EEG data within clusters
-            types = S.clus.summary_types;
-            if ~isempty(types)
+            if ~isempty(S.clus.summary_data)
                 disp(['summary stats for ' save_pref num2str(d) ', model ' num2str(i)]) 
                 
                 % participant indices
@@ -501,6 +506,7 @@ for d=1:length(D)
                 
                 if ismember('input',S.clus.summary_data)
                 
+                    types = S.clus.summary_types;
                     for c = S.clus.model.contrast{i}
                         nc=numel(D(d).model(i).con(c).vox);
                         for ci=1:nc
@@ -591,35 +597,63 @@ for d=1:length(D)
                 
                 
                 if ismember('coeffs',S.clus.summary_data)
-                        
-                    for co = 1:length(D(d).model(i).coeff)
-                        inp_ind = find(strcmp(S.clus.summary_coeffs(:,2),D(d).model(i).coeff(co).name)); % input index
-                        if isempty(inp_ind); continue; end
-                        c = find(strcmp({D(d).model(i).con(:).term},S.clus.summary_coeffs(inp_ind,1)));
-                        nc=numel(D(d).model(i).con(c).vox);
-                        for ci=1:nc
-                            cii = D(d).model(i).con(c).vox{ci};
-                            
-                            % coefficient image
-                            coeff_img=spm_read_vols(spm_vol(D(d).model(i).coeff(co).b_img_file));
+                     
+                    if exist('D_L1','var')
+                        % first level model coeffs
 
-                            if isfield(D.model(i).random,'Level') && ~isempty(S.clus.summary_coeffs{inp_ind,3})
-                                % add random image
+                        for co = 1:length(D(d).model(i).coeff)
+                            inp_ind = find(strcmp(S.clus.summary_coeffs(:,1),D(d).model(i).coeff(co).name)); % input index
+                            if isempty(inp_ind); continue; end
+                            c = find(strcmp({D(d).model(i).con(:).term},S.clus.summary_coeffs(inp_ind,1)));
+                            nc=numel(D(d).model(i).con(c).vox);
+                            for ci=1:nc
+                                cii = D(d).model(i).con(c).vox{ci};
+                               
+                                U=D(d).ID; % ensures ppts are in the same order as the 2nd level model
                                 for u = 1:length(U)
                                     subname = U{u};
-                                    idx = find(strcmp({D.model(i).random(:).Level},subname) & strcmp({D.model(i).random(:).Name},S.clus.summary_coeffs(inp_ind,3)));
-                                    random_img=D(d).model(i).random(idx).b;
-                                    combined_img = coeff_img+random_img;
-                                    combined_img = combined_img(:);
-    
-                                    D(d).model(i).coeff(co).clus(ci).coeff_mean(u,1)=nanmean(combined_img(cii));
-                                end
-                            else
-                                 D(d).model(i).coeff(co).clus(ci).coeff_mean=nanmean(coeff_img(cii));
-                            end
+                                    Didx = find(ismember([D_L1(:).ID],U{u}));
+                                    Cidx = find(ismember({D_L1(Didx).model.coeff(:).name},S.clus.summary_coeffs_L1));
 
+                                    % coeff median
+                                    coeff_img = topotime_3D(D_L1(Didx).model.coeff(Cidx).b,S);
+                                    D(d).model(i).coeff(co).clus(ci).coeff_median(u,1)=nanmedian(coeff_img(cii));
+
+                                end
+    
+                            end
+                            
                         end
-                        
+                    else
+                        % LMM model
+                        for co = 1:length(D(d).model(i).coeff)
+                            inp_ind = find(strcmp(S.clus.summary_coeffs(:,2),D(d).model(i).coeff(co).name)); % input index
+                            if isempty(inp_ind); continue; end
+                            c = find(strcmp({D(d).model(i).con(:).term},S.clus.summary_coeffs(inp_ind,1)));
+                            nc=numel(D(d).model(i).con(c).vox);
+                            for ci=1:nc
+                                cii = D(d).model(i).con(c).vox{ci};
+                                
+                                coeff_img=spm_read_vols(spm_vol(D(d).model(i).coeff(co).b_img_file));
+                                
+                                if isfield(D.model(i).random,'Level') && ~isempty(S.clus.summary_coeffs{inp_ind,3})
+                                    % add random image
+                                    for u = 1:length(U)
+                                        subname = U{u};
+                                        idx = find(strcmp({D.model(i).random(:).Level},subname) & strcmp({D.model(i).random(:).Name},S.clus.summary_coeffs(inp_ind,3)));
+                                        random_img=D(d).model(i).random(idx).b;
+                                        combined_img = coeff_img+random_img;
+                                        combined_img = combined_img(:);
+        
+                                        D(d).model(i).coeff(co).clus(ci).coeff_median(u,1)=nanmedian(combined_img(cii));
+                                    end
+                                else
+                                     D(d).model(i).coeff(co).clus(ci).coeff_median=nanmedian(coeff_img(cii));
+                                end
+    
+                            end
+                            
+                        end
                     end
                 end
                 
