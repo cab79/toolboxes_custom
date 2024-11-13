@@ -602,7 +602,14 @@ for d=1:length(D)
                         % first level model coeffs
 
                         for co = 1:length(D(d).model(i).coeff)
-                            inp_ind = find(strcmp(S.clus.summary_coeffs(:,1),D(d).model(i).coeff(co).name)); % input index
+
+                            D(d).model(i).coeff(co).clus=[];     
+    
+                            if size(S.clus.summary_coeffs,2)==1
+                                inp_ind = find(strcmp(S.clus.summary_coeffs(:,1),D(d).model(i).coeff(co).name)); % input index
+                            else
+                                inp_ind = find(strcmp(S.clus.summary_coeffs(:,2),D(d).model(i).coeff(co).name)); % input index
+                            end
                             if isempty(inp_ind); continue; end
                             c = find(strcmp({D(d).model(i).con(:).term},S.clus.summary_coeffs(inp_ind,1)));
                             nc=numel(D(d).model(i).con(c).vox);
@@ -617,7 +624,7 @@ for d=1:length(D)
 
                                     % coeff median
                                     coeff_img = topotime_3D(D_L1(Didx).model.coeff(Cidx).b,S);
-                                    D(d).model(i).coeff(co).clus(ci).coeff_median(u,1)=nanmedian(coeff_img(cii));
+                                    D(d).model(i).con(c).clus(ci).coeff_median(u,1)=nanmedian(coeff_img(cii));
 
                                 end
     
@@ -645,10 +652,10 @@ for d=1:length(D)
                                         combined_img = coeff_img+random_img;
                                         combined_img = combined_img(:);
         
-                                        D(d).model(i).coeff(co).clus(ci).coeff_median(u,1)=nanmedian(combined_img(cii));
+                                        D(d).model(i).con(c).clus(ci).coeff_median(u,1)=nanmedian(combined_img(cii));
                                     end
                                 else
-                                     D(d).model(i).coeff(co).clus(ci).coeff_median=nanmedian(coeff_img(cii));
+                                     D(d).model(i).con(c).clus(ci).coeff_median=nanmedian(coeff_img(cii));
                                 end
     
                             end

@@ -99,14 +99,14 @@ function eegstats_cluster_between_subjects(S, varargin)
                 % Coeff summaries (optional)
                 if ismember('coeffs', S.clusterstats.summary_data)
                     for co = 1:length(D.model(i).coeff)
-                        inp_ind = find(strcmp(S.clusterstats.summary_coeffs(:, 1), D.model(i).coeff(co).name)); % input index
+                        inp_ind = find(strcmp(S.clusterstats.summary_coeffs(:, 2), D.model(i).coeff(co).name)); % input index
                         if isempty(inp_ind); continue; end
                         con_name = S.clusterstats.summary_coeffs{inp_ind, 1};
                         c_idx = find(strcmp({D.model(i).con(:).term}, con_name));
                         if isempty(c_idx); continue; end
                         nc = numel(D.model(i).con(c_idx).vox);
                         for ci = 1:nc
-                            model_results.([strrep(con_name, ':', '_') '_clus' num2str(ci)]) = D.model(i).coeff(co).clus(ci).coeff_median;
+                            model_results.([strrep(con_name, ':', '_') '_clus' num2str(ci)]) = D.model(i).con(c_idx).clus(ci).coeff_median;
                         end
                     end
                 end
@@ -215,7 +215,49 @@ function eegstats_cluster_between_subjects(S, varargin)
             for k = 1:length(rows)
                 rectangle('Position', [cols(k) - 0.5, rows(k) - 0.5, 1, 1], 'EdgeColor', 'black', 'LineWidth', 1.5);
             end
+
+            %% New Scatter Plots for Statistically Significant Results
+            if ~isempty(rows)
+                figure; % Create a new figure for scatter plots
+                num_significant = length(rows);
+                num_cols = ceil(sqrt(num_significant));
+                num_rows = ceil(num_significant / num_cols);
+
+                for k = 1:num_significant
+                    subplot(num_rows, num_cols, k);
+                    predictor_name = predictors{cols(k)};
+                    response_variable = model_results.Properties.VariableNames{npred + rows(k)};
+
+                    % Extract data for scatter plot
+                    predictor_data = model_results.(predictor_name);
+                    response_data = model_results.(response_variable);
+
+                    % Plot scatter depending on the type of predictor (categorical or continuous)
+                    if iscategorical(predictor_data) || numel(unique(predictor_data)) < 3
+                        % If predictor is binary/categorical
+                        boxplot(response_data, predictor_data);
+                        xlabel(predictor_name);
+                        ylabel(response_variable);
+                        title(['Boxplot: ', predictor_name, ' vs ', response_variable]);
+                    else
+                        % If predictor is continuous
+                        scatter(predictor_data, response_data, 'filled');
+                        xlabel(predictor_name);
+                        ylabel(response_variable);
+                        title(['Scatter: ', predictor_name, ' vs ', response_variable]);
+                        % Add a linear fit line to visualize the relationship
+                        hold on;
+                        lm = fitlm(predictor_data, response_data);
+                        plot(lm);
+                        hold off;
+                    end
+                end
+
+                % Adjust the layout for better visualisation
+                sgtitle(['Scatter Plots for Significant Results (Model ' num2str(i) ')']);
+            end
         end
+
 
         %% Save Results for Each Model
         if S.clusterstats.save_table
