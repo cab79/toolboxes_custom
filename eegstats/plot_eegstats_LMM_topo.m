@@ -289,7 +289,13 @@ if ~isempty(S.model.index)
                 plot([0 0],[0.5,1.5],'k')
                 title('Cluster Z-values over time (ms)')
                 % add peak highlights
-                [~,locs]=findpeaks(cimg_avgmask,S.time,'MinPeakDistance',S.MinPeakDistance);
+                %[~,locs]=findpeaks(cimg_avgmask,S.time,'MinPeakDistance',S.MinPeakDistance);
+                %if isempty(locs)
+                    % use regression ERP
+                    rerp_masked = abs(squeeze(nanmedian(regress_erp,[1 2]))'.*double(cimg_avgmask>0));
+                    [~,locs]=findpeaks(rerp_masked,S.time,'MinPeakDistance',S.MinPeakDistance);
+                %end
+                
                 
                 if S.order_locs_by_extent
                     % sort by cluster extent
@@ -323,7 +329,7 @@ if ~isempty(S.model.index)
 
                 % plot image topo
                 spi=[4:6];
-                for pk=1:min([2,S.Nlocs,length(locs)])
+                for pk=1:min([3,S.Nlocs,length(locs)])
                     ax2(spi(pk))=subplot(5,6,spi(pk)); 
                     plotimg = maskimg(:,:,S.time==locs(pk)).*cimgmask0(:,:,S.time==locs(pk));
                     pcolor(plotimg), shading interp; axis off
@@ -341,9 +347,14 @@ if ~isempty(S.model.index)
                     wf = plot_clusterovertime(regress_erp,clusmask,S,cmp2,ax1(2));
                     D.model(i).con(c).clus_rerp_mip{cl}=wf;
                     title('Cluster regression ERP (coefficients)')
+
                     %%align zero for left and right
-                    ylimr = get(gca,'Ylim'); 
-                    limy=[-max(abs(ylimr)),max(abs(ylimr))];
+                    %ylimr = get(gca,'Ylim'); 
+                    limy=[-max(abs(wf)),max(abs(wf))];
+
+                    colorbar('Location','eastoutside','FontSize',S.FontSize);
+                    caxis(limy);
+
                     ylim(limy)
                     plot([0 0],limy,'k')
                     plot([S.time(1) S.time(end)],[0 0],'k-')
@@ -356,9 +367,10 @@ if ~isempty(S.model.index)
                     spi=[10:12];
                     for pk=1:min([3,S.Nlocs,length(locs)])
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
-                        plotimg = regress_erp(:,:,S.time==locs(pk));
+                        plotimg = maskimg(:,:,S.time==locs(pk)).*regress_erp(:,:,S.time==locs(pk));
                         pcolor(plotimg), shading interp; axis off
                         colormap(ax2(spi(pk)),cmp2); 
+                        caxis(limy);
                         title([num2str(locs(pk)) ' ms'])
                     end
 
@@ -372,8 +384,11 @@ if ~isempty(S.model.index)
                     D.model(i).con(c).clus_erp_mip{cl}=wf;
                     title('Cluster L1 regression ERP')
                     %%align zero for left and right
-                    yliml = get(gca,'Ylim'); 
-                    limy=[-max(abs(yliml)),max(abs(yliml))];
+                    limy=[-max(abs(wf)),max(abs(wf))];
+
+                    colorbar('Location','eastoutside','FontSize',S.FontSize);
+                    caxis(limy);
+
                     ylim(limy)
                     plot([0 0],limy,'k')
                     plot([S.time(1) S.time(end)],[0 0],'k-')
@@ -387,6 +402,7 @@ if ~isempty(S.model.index)
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
                         pcolor(L1_avg(:,:,S.time==locs(pk))), shading interp; axis off
                         colormap(ax2(spi(pk)),cmp3); 
+                        caxis(limy);
                         title([num2str(locs(pk)) ' ms'])
                     end
 
@@ -400,8 +416,11 @@ if ~isempty(S.model.index)
                     D.model(i).con(c).clus_erp_mip{cl}=wf;
                     title('Cluster maximum intensity projection')
                     %%align zero for left and right
-                    yliml = get(gca,'Ylim'); 
-                    limy=[-max(abs(yliml)),max(abs(yliml))];
+                    limy=[-max(abs(wf)),max(abs(wf))];
+
+                    colorbar('Location','eastoutside','FontSize',S.FontSize);
+                    caxis(limy);
+
                     ylim(limy)
                     plot([0 0],limy,'k')
                     plot([S.time(1) S.time(end)],[0 0],'k-')
@@ -415,6 +434,7 @@ if ~isempty(S.model.index)
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
                         pcolor(erp(:,:,S.time==locs(pk))), shading interp; axis off
                         colormap(ax2(spi(pk)),cmp3); 
+                        caxis(limy);
                         title([num2str(locs(pk)) ' ms'])
                     end
 
@@ -453,6 +473,7 @@ if ~isempty(S.model.index)
                     for pk=1:min([3,S.Nlocs,length(locs)])
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
                         pcolor(fitted_avg{i}(:,:,S.time==locs(pk))), shading interp; axis off
+                        caxis(limy);
                         title([num2str(locs(pk)) ' ms'])
                     end
                 end
@@ -471,6 +492,7 @@ if ~isempty(S.model.index)
                     for pk=1:min([3,S.Nlocs,length(locs)])
                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
                         pcolor(resid_avg{i}(:,:,S.time==locs(pk))), shading interp; axis off
+                        caxis(limy);
                         title([num2str(locs(pk)) ' ms'])
                     end
                 end
