@@ -508,6 +508,36 @@ for d = 1:length(D)
 %         end
         
     end
+
+    % remove variance / obtain residuals of variables
+    if isfield(S.prep.calc.pred,'rmPredVar') && S.prep.calc.pred.rmPredVar.on
+        
+        nvar = size(S.prep.calc.pred.rmPredVar.vars,1);
+
+        alldat = {};
+        allvnme = {};
+        for nv = 1:nvar
+            vlist = S.prep.calc.pred.rmPredVar.vars{nv};
+            vnme={};
+            for nv2 = 1:length(vlist)
+                vnme(nv2)=D(d).prep.dtab.Properties.VariableNames(endsWith(D(d).prep.dtab.Properties.VariableNames,vlist{nv2}));
+            end
+            formula = [vnme{1} '~'];
+            for v2 = 2:length(vnme)
+                formula = [formula vnme{v2} '+'];
+            end
+            formula = [formula '(1|ID)'];
+            lme = fitlme(D(d).prep.dtab,formula);
+            dat = residuals(lme);
+            % zscore again
+            alldat{nv} = array2table(zscore(dat));
+            allvnme{nv} = vnme{1};
+        end
+        for nv = 1:nvar
+            D(d).prep.dtab(:,allvnme{nv}) = alldat{nv};
+        end
+        
+    end
     
     
     if S.prep.calc.pred.test_collinearity

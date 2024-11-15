@@ -292,7 +292,8 @@ if ~isempty(S.model.index)
                 %[~,locs]=findpeaks(cimg_avgmask,S.time,'MinPeakDistance',S.MinPeakDistance);
                 %if isempty(locs)
                     % use regression ERP
-                    rerp_masked = abs(squeeze(nanmedian(regress_erp,[1 2]))'.*double(cimg_avgmask>0));
+                    csign = sign(median(regress_erp(cimgmask>0)));
+                    rerp_masked = squeeze(max(csign*regress_erp,[],[1 2]))'.*double(cimg_avgmask>0);
                     [~,locs]=findpeaks(rerp_masked,S.time,'MinPeakDistance',S.MinPeakDistance);
                 %end
                 

@@ -603,7 +603,7 @@ for d=1:length(D)
 
                         for co = 1:length(D(d).model(i).coeff)
 
-                            D(d).model(i).coeff(co).clus=[];     
+                            %D(d).model(i).coeff(co).clus=[];     
     
                             if size(S.clus.summary_coeffs,2)==1
                                 inp_ind = find(strcmp(S.clus.summary_coeffs(:,1),D(d).model(i).coeff(co).name)); % input index
@@ -612,6 +612,9 @@ for d=1:length(D)
                             end
                             if isempty(inp_ind); continue; end
                             c = find(strcmp({D(d).model(i).con(:).term},S.clus.summary_coeffs(inp_ind,1)));
+                            if ~isfield(D(d).model(i).con(c),'vox')
+                                continue
+                            end
                             nc=numel(D(d).model(i).con(c).vox);
                             for ci=1:nc
                                 cii = D(d).model(i).con(c).vox{ci};
