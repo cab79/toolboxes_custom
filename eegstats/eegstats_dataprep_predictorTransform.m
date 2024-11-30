@@ -106,6 +106,17 @@ for d = 1:length(D)
                         temp(idx) = D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})(idx)-nanmean(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})(idx))...
                             .* D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})(idx)-nanmean(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})(idx));
                     end
+                elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'*z') 
+                    % zscore per ppt
+                    ID = unique(D(d).prep.dtab.ID);
+                    temp = nan(height(D(d).prep.dtab),1);
+                    for id = 1:length(ID)
+                        idx = ismember(D(d).prep.dtab.ID,ID(id));
+                        temp(idx) = (D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})(idx)-nanmean(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})(idx)))...
+                            /nanstd(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,1})(idx))...
+                            .* (D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})(idx)-nanmean(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})(idx)))...
+                            /nanstd(D(d).prep.dtab.(S.prep.calc.pred.newvarmult{pr,2})(idx));
+                    end
                 elseif strcmp(S.prep.calc.pred.newvarmult{pr,4},'/')
                     if isnumeric(S.prep.calc.pred.newvarmult{pr,1})
                         % this is the inverse transform
@@ -575,7 +586,6 @@ for d = 1:length(D)
         title('collinearity of predictors (LMM)')
         set(ax, 'XAxisLocation', 'top');
         save(fullfile(S.prep.path.outputs,'predictor_correlations.mat'),'corrmat','var_names');
-        savefig(fig2,fullfile(S.prep.path.outputs,[S.prep.sname 'collinearity.fig']));
         
         % multicollinaerity
         coli=find(abs(corrmat)>S.prep.calc.pred.test_collinearity);
@@ -594,7 +604,7 @@ for d = 1:length(D)
         if S.prep.calc.pred.allow_collinearity==false && ~isempty(coli)
             error('collinear predictors - see above')
         end
-        
+        savefig(fig2,fullfile(S.prep.path.outputs,[S.prep.sname 'collinearity.fig']));
         
         % correlations on concatenated data
         vt = vartype('numeric');

@@ -137,7 +137,7 @@ for d = 1:length(D)
             for s = 1:size(tempY,2)
                 temp = array2table(tempY(:,s),'VariableNames',{'data'});
                 Y(s).dtab = horzcat(D(d).prep(np).dtab,temp);
-                Y(s).dtab = Y(s).dtab(:,ismember(Y(s).dtab.Properties.VariableNames,vertcat(S.encode.variables',{'data'})));
+                Y(s).dtab = Y(s).dtab(:,ismember(Y(s).dtab.Properties.VariableNames,vertcat(S.encode.variables',{'data';'train'})));
             end
         else
             dtab = D(d).prep(np).dtab(:,ismember(D(d).prep(np).dtab.Properties.VariableNames,S.encode.variables));
@@ -278,7 +278,7 @@ if strcmp(S.encode.parallel.option,'local')
         cc=cc(~isnan(cc));
         parfor (c = cc)
             disp(['running model: chunk ' num2str(c) '/' num2str(LC)])
-            C(c).M=func_model(S,C(c).Y);
+            C(c).M=func_model(S,C(c).Y,c);
             C(c).Y=[]; % save memory
         end
         if strcmp(S.encode.memory_option,'disk')

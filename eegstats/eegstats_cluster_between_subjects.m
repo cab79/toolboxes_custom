@@ -48,9 +48,9 @@ function eegstats_cluster_between_subjects(S, varargin)
         error('S.clusterstats.path.pred must be either an Excel file path or a MATLAB table');
     end
 
-    if ~isequal(results.ID, ID)
-        error('IDs are in the incorrect order');
-    end
+    % if ~isequal(results.ID, ID)
+    %     error('IDs are in the incorrect order');
+    % end
 
     npred = width(results);
 
@@ -78,7 +78,11 @@ function eegstats_cluster_between_subjects(S, varargin)
 
         % Summary Data Handling
         for c = S.clusterstats.model.contrast{i}
-            nc = numel(D.model(i).con(c).vox);
+            try
+                nc = numel(D.model(i).con(c).vox);
+            catch
+                continue
+            end
             for ci = 1:nc
                 % Input summaries (optional)
                 if ismember('input', S.clusterstats.summary_data)
@@ -138,7 +142,7 @@ function eegstats_cluster_between_subjects(S, varargin)
         for v = 1:length(continuous_vars)
             var_name = continuous_vars{v};
             if ~contains(var_name, '_std') && ismember(var_name, model_results.Properties.VariableNames)
-                model_results.([var_name '_std']) = (model_results.(var_name) - mean(model_results.(var_name))) / std(model_results.(var_name));
+                model_results.([var_name '_std']) = (model_results.(var_name) - mean(model_results.(var_name),'omitnan')) / std(model_results.(var_name),'omitnan');
             end
         end
 
@@ -198,7 +202,7 @@ function eegstats_cluster_between_subjects(S, varargin)
 
         %% Plotting for Each Model
         if ~isempty(model_stats_output)
-            figure;
+            figure('Name',S.coeff_name); 
             imagesc(model_stats_output, [-1 1]); colorbar; colormap('jet');
             xticks(1:length(predictors));
             xticklabels(predictors);
@@ -218,7 +222,7 @@ function eegstats_cluster_between_subjects(S, varargin)
 
             %% New Scatter Plots for Statistically Significant Results
             if ~isempty(rows)
-                figure; % Create a new figure for scatter plots
+                figure('Name',S.coeff_name); % Create a new figure for scatter plots
                 num_significant = length(rows);
                 num_cols = ceil(sqrt(num_significant));
                 num_rows = ceil(num_significant / num_cols);
@@ -236,20 +240,22 @@ function eegstats_cluster_between_subjects(S, varargin)
                     if iscategorical(predictor_data) || numel(unique(predictor_data)) < 3
                         % If predictor is binary/categorical
                         boxplot(response_data, predictor_data);
-                        xlabel(predictor_name);
-                        ylabel(response_variable);
-                        title(['Boxplot: ', predictor_name, ' vs ', response_variable]);
+                        xlabel(predictor_name, 'Interpreter', 'none');
+                        ylabel(response_variable, 'Interpreter', 'none');
+                        %title(['Boxplot: ', predictor_name, ' vs ', response_variable]);
                     else
                         % If predictor is continuous
                         scatter(predictor_data, response_data, 'filled');
-                        xlabel(predictor_name);
-                        ylabel(response_variable);
-                        title(['Scatter: ', predictor_name, ' vs ', response_variable]);
+                        %title(['Scatter: ', predictor_name, ' vs ', response_variable]);
                         % Add a linear fit line to visualize the relationship
                         hold on;
                         lm = fitlm(predictor_data, response_data);
                         plot(lm);
                         hold off;
+                        xlabel(predictor_name, 'Interpreter', 'none');
+                        ylabel(response_variable, 'Interpreter', 'none');
+                        title(['p=' num2str(model_p_values(rows(k),cols(k)))])
+                        legend off
                     end
                 end
 

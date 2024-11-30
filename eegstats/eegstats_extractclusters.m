@@ -1,20 +1,19 @@
-function D=eegstats_extractclusters(S,varargin)
+function [D,input_vol]=eegstats_extractclusters(S,D,input_vol)
 % Save mean or median of the EEG data for each statistic cluster (e.g. thresholded F images from MCC)
 
 dbstop if error
 close all
 
 %% find D saved from createimages or MCC functions
-if isempty(varargin)
+if isempty(D)
    % try loading the data if not supplied in varargin
    try
        load(fullfile(S.clus.path.inputs,'D.mat'),'D') 
    catch
        error('Supply a D structure or path/file of the data')
    end
-else
-    D= varargin{1};
 end
+
 
 % set paths
 S.path.code = {
@@ -31,6 +30,9 @@ end
 if isfield(S.clus.path,'inputs_L1') && ~isempty(S.clus.path.inputs_L1)
     temp=load(S.clus.path.inputs_L1,'D');
     D_L1 = temp.D;
+    if ~isfield(S,'modeln')
+        S.modeln=1;
+    end
 end
 
 cmp=cbrewer('qual', 'Set3', S.clus.connected_clusters.ClusMaxNum, 'pchip');
@@ -82,16 +84,18 @@ for d=1:length(D)
                 
     %% create/load input volume
     if ismember('input',S.clus.summary_data)
-        for i=1:length(D(d).model)
-            D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
-            if exist(D(d).model(i).input_vol_file,'file')
-                disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
-                load(D(d).model(i).input_vol_file);
-                break;
+        if ~exist('input_vol','var') || isempty(input_vol)
+            for i=1:length(D(d).model)
+                D(d).model(i).input_vol_file = strrep(D(d).model(i).input_file,'.mat','_vol.mat');
+                if exist(D(d).model(i).input_vol_file,'file')
+                    disp([save_pref num2str(d) ', model ' num2str(i) ', loading input file'])
+                    load(D(d).model(i).input_vol_file);
+                    break;
+                end
             end
         end
     
-        if ~exist('input_vol','var')
+        if ~exist('input_vol','var') || isempty(input_vol)
     
             datadim = Ddtab.D.prep.dim;
             samples=struct;
@@ -134,22 +138,29 @@ for d=1:length(D)
                 disp('Cluster: Creating input vol')
                 input_vol=topotime_3D(input_scaled_mat,S);
             end
+
+            sz=size(input_vol);
+            input_vol=reshape(input_vol,[],size(input_vol,4));
+
+            % create input_avg file
+            input_avg=reshape(mean(input_vol,2),sz(1),sz(2),sz(3));
+            for i = S.clus.model.index
+                % no need to save one per model, but it make the coding simpler!
+                D(d).model(i).input_vol_avg_file = strrep(D(d).model(i).input_file,'.mat','_vol_avg.mat');
+                save(D(d).model(i).input_vol_avg_file,'input_avg','-v7.3');
+            end
+
         end
     
-        sz=size(input_vol);
-        input_vol=reshape(input_vol,[],size(input_vol,4));
     
-        % create input_avg file
-        input_avg=reshape(mean(input_vol,2),sz(1),sz(2),sz(3));
-        for i = S.clus.model.index
-            % no need to save one per model, but it make the coding simpler!
-            D(d).model(i).input_vol_avg_file = strrep(D(d).model(i).input_file,'.mat','_vol_avg.mat');
-            save(D(d).model(i).input_vol_avg_file,'input_avg','-v7.3');
-        end
+        
     end
         
     if S.clus.model.index
         for i = S.clus.model.index
+            if ~isfield(D(d).model(i).con(1),'MCC')
+                continue
+            end
             disp(['extracting clusters for ' save_pref num2str(d) ', model ' num2str(i)])
             for c = S.clus.model.contrast{i}
                 
@@ -507,7 +518,10 @@ for d=1:length(D)
                 if ismember('input',S.clus.summary_data)
                 
                     types = S.clus.summary_types;
-                    for c = S.clus.model.contrast{i}
+                    for c = S.clus.model.contrast{i}  
+                        if ~isfield(D(d).model(i).con(c),'vox')
+                            continue
+                        end
                         nc=numel(D(d).model(i).con(c).vox);
                         for ci=1:nc
                             cii = D(d).model(i).con(c).vox{ci};
@@ -515,13 +529,23 @@ for d=1:length(D)
                                 % median value from each row (voxel), for each
                                 % observation. I.e. voxel can differ depending on the
                                 % observation (subject, trial, etc.)
-                                D(d).model(i).con(c).clus(ci).input_median=squeeze(nanmedian(input_vol(cii,:),1));
-                                for u = 1:length(U)
+                                input_median=squeeze(nanmedian(input_vol(cii,:),1));
+                                D(d).model(i).con(c).clus(ci).input_median = {};
+
+                                if isfield(S.clus,'ID')
+                                    Um=S.clus.ID;
+                                else
+                                    Um=D(d).ID; % ensures ppts are in the same order as the 2nd level model
+                                end
+
+                                for u = 1:length(Um)
+                                    Uidx = find(ismember(U,Um{u}));
+                                    D(d).model(i).con(c).clus(ci).input_median{u} = input_median(iU==Uidx);
                                     temp=[];
                                     for cind = CI'
-                                        temp(cind) = nanmedian(D(d).model(i).con(c).clus(ci).input_median(iU==u & CondInd==cind));
+                                        temp(cind) = nanmedian(D(d).model(i).con(c).clus(ci).input_median{u}(CondInd(iU==Uidx)==cind));
                                     end
-                                    D(d).model(i).con(c).clus(ci).input_median_median(u) = mean(temp);
+                                    D(d).model(i).con(c).clus(ci).input_median_median(u) = median(temp);
                                 end
                             end
 %                             if ismember('fitted',S.clus.summary_data)
@@ -538,11 +562,21 @@ for d=1:length(D)
                             if any(strcmp(types,'mean'))
                             % disp(['means for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
                             
-                                D(d).model(i).con(c).clus(ci).input_mean=squeeze(nanmean(input_vol(cii,:),1));
-                                for u = 1:length(U)
+                                input_mean=squeeze(nanmean(input_vol(cii,:),1));
+                                D(d).model(i).con(c).clus(ci).input_mean = {};
+
+                                if isfield(S.clus,'ID')
+                                    Um=S.clus.ID;
+                                else
+                                    Um=D(d).ID; % ensures ppts are in the same order as the 2nd level model
+                                end
+
+                                for u = 1:length(Um)
+                                    Uidx = find(ismember(U,Um{u}));
+                                    D(d).model(i).con(c).clus(ci).input_mean{u} = input_mean(iU==Uidx);
                                     temp=[];
                                     for cind = CI'
-                                        temp(cind) = nanmean(D(d).model(i).con(c).clus(ci).input_mean(iU==u & CondInd==cind));
+                                        temp(cind) = nanmean(D(d).model(i).con(c).clus(ci).input_mean{u}(CondInd(iU==Uidx)==cind));
                                     end
                                     D(d).model(i).con(c).clus(ci).input_mean_mean(u) = mean(temp);
                                 end
@@ -566,14 +600,26 @@ for d=1:length(D)
                                 maxind = min(size(X,2),S.clus.cluster_pca_maxclussize);
                                 Xsub=X(:,randind(1:maxind));
                                 [~,score] = pca(Xsub,'Algorithm','eig','NumComponents',1);
-                                D(d).model(i).con(c).clus(ci).input_eig=score';
-                                for u = 1:length(U)
+                                input_eig=score';
+
+                                D(d).model(i).con(c).clus(ci).input_eig = {};
+
+                                if isfield(S.clus,'ID')
+                                    Um=S.clus.ID;
+                                else
+                                    Um=D(d).ID; % ensures ppts are in the same order as the 2nd level model
+                                end
+
+                                for u = 1:length(Um)
+                                    Uidx = find(ismember(U,Um{u}));
+                                    D(d).model(i).con(c).clus(ci).input_eig{u} = input_eig(iU==Uidx);
                                     temp=[];
                                     for cind = CI'
-                                         [~,temp(cind)] = nanmean(D(d).model(i).con(c).clus(ci).input_eig(iU==u & CondInd==cind));
+                                        temp(cind) = nanmean(D(d).model(i).con(c).clus(ci).input_eig{u}(CondInd(iU==Uidx)==cind));
                                     end
                                     D(d).model(i).con(c).clus(ci).input_eig_mean(u) = mean(temp);
                                 end
+
                             end
 %                             if ismember('fitted',S.clus.summary_data)
 %                                 X=fitted_voli{i}(cii,:)';
@@ -603,7 +649,7 @@ for d=1:length(D)
 
                         for co = 1:length(D(d).model(i).coeff)
 
-                            %D(d).model(i).coeff(co).clus=[];     
+                            
     
                             if size(S.clus.summary_coeffs,2)==1
                                 inp_ind = find(strcmp(S.clus.summary_coeffs(:,1),D(d).model(i).coeff(co).name)); % input index
@@ -612,6 +658,7 @@ for d=1:length(D)
                             end
                             if isempty(inp_ind); continue; end
                             c = find(strcmp({D(d).model(i).con(:).term},S.clus.summary_coeffs(inp_ind,1)));
+                            D(d).model(i).con(c).clus=[];     
                             if ~isfield(D(d).model(i).con(c),'vox')
                                 continue
                             end
@@ -619,14 +666,18 @@ for d=1:length(D)
                             for ci=1:nc
                                 cii = D(d).model(i).con(c).vox{ci};
                                
-                                U=D(d).ID; % ensures ppts are in the same order as the 2nd level model
-                                for u = 1:length(U)
-                                    subname = U{u};
-                                    Didx = find(ismember([D_L1(:).ID],U{u}));
-                                    Cidx = find(ismember({D_L1(Didx).model.coeff(:).name},S.clus.summary_coeffs_L1));
+                                if isfield(S.clus,'ID')
+                                    Um=S.clus.ID;
+                                else
+                                    Um=D(d).ID; % ensures ppts are in the same order as the 2nd level model
+                                end
+                                for u = 1:length(Um)
+                                    subname = Um{u};
+                                    Didx = find(ismember([D_L1(:).ID],Um{u}));
+                                    Cidx = find(ismember({D_L1(Didx).model(S.modeln).coeff(:).name},S.clus.summary_coeffs_L1));
 
                                     % coeff median
-                                    coeff_img = topotime_3D(D_L1(Didx).model.coeff(Cidx).b,S);
+                                    coeff_img = topotime_3D(D_L1(Didx).model(S.modeln).coeff(Cidx).b,S);
                                     D(d).model(i).con(c).clus(ci).coeff_median(u,1)=nanmedian(coeff_img(cii));
 
                                 end

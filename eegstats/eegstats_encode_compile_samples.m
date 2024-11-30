@@ -185,6 +185,8 @@ for d = 1:nD % subject
 
             D(d).model(i).waic = nan(ddim(1:end-1)');
             D(d).model(i).waic(sinz) = vertcat([M.model(i).samples(:).waic]');
+            D(d).model(i).neglike = nan(ddim(1:end-1)');
+            D(d).model(i).neglike(sinz) = vertcat([M.model(i).samples(:).neglike]');
             D(d).model(i).ktest = nan(ddim(1:end-1)');
             D(d).model(i).ktest(sinz) = vertcat([M.model(i).samples(:).ktest_normality]');
             

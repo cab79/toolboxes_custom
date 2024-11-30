@@ -3,6 +3,11 @@ function [varargout] = eegstats_encode_BRR(varargin)
 if isempty(varargin)
     % assume Condor
     load input.mat;
+    Y=struct;
+    for s = 1:size(tempY,2)
+        temp = array2table(tempY(:,s),'VariableNames',{'data'});
+        Y(s).dtab = horzcat(dtab,temp);
+    end
 else
     % assume S,Y inputs
     S=varargin{1};
@@ -29,11 +34,17 @@ for s = 1:length(Y)
     for i = 1:LM
 
         % training data
-        train_data = Y(s).dtab.data(find(double(Y(s).dtab.train)),:);
+        if ismember('train',Y(s).dtab.Properties.VariableNames)
+            train_idx = find(double(Y(s).dtab.train));
+        else
+            train_idx = 1:height(Y(s).dtab);
+        end
+        train_data = Y(s).dtab.data(train_idx,:);
+        
         
         % predictors
         if s==1
-            [terms, groups, train_pred, categ] = pred_from_formula(S.encode.model{i},Y(s).dtab(find(double(Y(s).dtab.train)),:));
+            [terms, groups, train_pred, categ] = pred_from_formula(S.encode.model{i},Y(s).dtab(train_idx,:));
         end
         
         % fit model
@@ -56,6 +67,7 @@ for s = 1:length(Y)
         M.model(i).samples(s).mse = brr.muSigma2;
         M.model(i).samples(s).logl = brr.logl;
         M.model(i).samples(s).waic = brr.waic;
+        M.model(i).samples(s).neglike = brr.neglike;
         M.model(i).samples(s).r2_ord = brr.r2test;
 
         % df and p values

@@ -53,30 +53,45 @@ for d=1:length(D)
         V=makeV3; % assume MNI volumn
     end
 
-    % mask
-    if ~isempty(S.MCC.mask_img)
-        mask_img = double(spm_read_vols(spm_vol(S.MCC.mask_img))>0);
-        mask_img(mask_img==0) = nan;
-    else
-        try
-            mii=find(~cellfun(@isempty,{D(d).model(:).mask_img_file}));
-            mask_img = spm_read_vols(spm_vol(D(d).model(mii(1)).mask_img_file));
-        catch
-            mii=find(~cellfun(@isempty,{D(d).model_comp(:).mask_img_file}));
-            mask_img = spm_read_vols(spm_vol(D(d).model_comp(mii(1)).mask_img_file));
-        end
-    end
-    V.dim(1:length(size(mask_img))) = size(mask_img);
     
     if S.MCC.model.index
         for i = S.MCC.model.index
 
-            %- Filename of mapped mask image
+            % %- Filename of mapped mask image
+            % if ~isempty(S.MCC.mask_img)
+            % 
+            % else
+            %     VM    = D(d).model(i).mask_img_file;
+            % end
+
+            % mask
             if ~isempty(S.MCC.mask_img)
-                VM    = S.MCC.mask_img;
+                if exist(S.MCC.mask_img,'file')
+                    mask_img = double(spm_read_vols(spm_vol(S.MCC.mask_img))>0);
+                    mask_img(mask_img==0) = nan;
+                    VM    = S.MCC.mask_img;
+                else
+                    mask_img = spm_read_vols(spm_vol(D(d).model(i).mask_img_file));
+                    VM    = D(d).model(i).mask_img_file;
+                end
             else
+                mask_img = spm_read_vols(spm_vol(D(d).model(i).mask_img_file));
                 VM    = D(d).model(i).mask_img_file;
+                %try
+                    % mii=find(~cellfun(@isempty,{D(d).model(:).mask_img_file}));
+                    % mask_img = spm_read_vols(spm_vol(D(d).model(mii(1)).mask_img_file));
+                %catch
+                %    mii=find(~cellfun(@isempty,{D(d).model_comp(:).mask_img_file}));
+                %    mask_img = spm_read_vols(spm_vol(D(d).model_comp(mii(1)).mask_img_file));
+                %end
             end
+
+            % continue if nothing in mask
+            if ~any(mask_img(:))
+                continue
+            end
+
+            V.dim(1:length(size(mask_img))) = size(mask_img);
                 
             if S.MCC.reestimate || (S.MCC.estimate && (S.MCC.use_pTFCE || strcmp(S.MCC.method,'FWE_RF')) && (~isfield(D(d).model(i),'smooth') || isempty(D(d).model(i).smooth)))
                 D(d).model(i).resid_vol_file = strrep(D(d).model(i).resid_file,'.mat','_vol.mat');

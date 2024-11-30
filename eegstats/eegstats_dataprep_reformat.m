@@ -59,25 +59,82 @@ switch S.prep.output.format
         if length(D)>1
             error('data already in subject format')
         end
+
+        % E=struct;
+        % [U,iu,iU]=unique(D.prep.dtab.ID,'stable');
+        % for d=1:length(U)
+        %     tic
+        %     E(d).prep.dtab = D.prep.dtab(ismember(D.prep.dtab.ID,U{d}),:);
+        %     E(d).prep.dim = D.prep.dim;
+        %     E(d).prep.dim(3) = height(E(d).prep.dtab);
+        %     if isfield(D.prep,'Y')
+        %         for y = 1:length(D.prep.Y)
+        %             E(d).prep.Y(y).dtab = D.prep.Y(y).dtab(ismember(D.prep.dtab.ID,U{d}),:);
+        %             if isfield(D.prep.Y(y),'data_mean')
+        %                 E(d).prep.Y(y).data_mean = D.prep.Y(y).data_mean;
+        %                 E(d).prep.Y(y).data_std = D.prep.Y(y).data_std;
+        %             end
+        %         end
+        %     end
+        %     toc
+        % end
+        % D=E;
+        % clear E
         
-        E=struct;
-        [U,iu,iU]=unique(D.prep.dtab.ID,'stable');
-        for d=1:length(U)
-            E(d).prep.dtab = D.prep.dtab(ismember(D.prep.dtab.ID,U{d}),:);
-            E(d).prep.dim = D.prep.dim;
-            E(d).prep.dim(3) = height(E(d).prep.dtab);
-            if isfield(D.prep,'Y')
-                for y = 1:length(D.prep.Y)
-                    E(d).prep.Y(y).dtab = D.prep.Y(y).dtab(ismember(D.prep.dtab.ID,U{d}),:);
-                    if isfield(D.prep.Y(y),'data_mean')
-                        E(d).prep.Y(y).data_mean = D.prep.Y(y).data_mean;
-                        E(d).prep.Y(y).data_std = D.prep.Y(y).data_std;
+        % Extract unique IDs and their indices
+        [U, ~, iU] = unique(D.prep.dtab.ID, 'stable');
+        nUnique = length(U);
+        
+        % Preallocate the struct array E to improve speed
+        E(nUnique).prep = struct();
+        
+        % Precompute dimensions and set flags for fields
+        hasFieldY = isfield(D.prep, 'Y');
+        if hasFieldY
+            nY = length(D.prep.Y);
+        end
+        
+        % Create a logical index matrix in advance to avoid repeated `ismember` calls
+        ID_indices = arrayfun(@(x) iU == x, 1:nUnique, 'UniformOutput', false);
+        
+        % Extract frequently used deeply nested fields to local variables to reduce access time
+        prep_dtab = D.prep.dtab;
+        prep_dim = D.prep.dim;
+        if hasFieldY
+            prep_Y = D.prep.Y;
+        end
+        
+        % Loop through unique IDs only once
+        for d = 1:nUnique
+            tic
+            idx = ID_indices{d};  % Logical index for current ID
+            E(d).prep.dtab = prep_dtab(idx, :);  % Get the rows with matching ID
+            E(d).prep.dim = prep_dim;
+            E(d).prep.dim(3) = sum(idx);  % More efficient than height()
+        
+            % Only proceed if field 'Y' exists in D.prep
+            if hasFieldY
+                % Preallocate Y struct for efficiency
+                Eprep_Y = struct('dtab', [], 'data_mean', [], 'data_std', []);  % Create a local variable for E(d).prep.Y
+                for y = 1:nY
+                    % Extract the rows for dtab based on the logical index
+                    Eprep_Y(y).dtab = prep_Y(y).dtab(idx, :);
+                    % Copy fields data_mean and data_std if they exist
+                    if isfield(prep_Y(y), 'data_mean')
+                        Eprep_Y(y).data_mean = prep_Y(y).data_mean;
+                        Eprep_Y(y).data_std = prep_Y(y).data_std;
                     end
                 end
+                % Assign the local variable to E(d).prep.Y
+                E(d).prep.Y = Eprep_Y;
             end
+            toc
         end
-        D=E;
+        
+        % Replace the original structure D with the new struct array E
+        D = E;
         clear E
+
         
     case 'Y'
         %% create Y structure using for encoding models

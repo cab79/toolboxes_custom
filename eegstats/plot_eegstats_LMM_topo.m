@@ -20,11 +20,16 @@ if S.plot_regressionerp_L1 && isfield(S.path,'inputs_L1') && ~isempty(S.path.inp
     temp=load(S.path.inputs_L1,'D');
     D_L1 = temp.D;
 
+    if ~isfield(S,'modeln')
+        S.modeln=1;
+    end
+
+
     %coeff index
-    ci = find(strcmp({D_L1(1).model.coeff(:).name}, S.model.coeff_term_L1));
+    ci = find(strcmp({D_L1(1).model(S.modeln).coeff(:).name}, S.model.coeff_term_L1));
     allL1=[];
     for d = 1:length(D_L1)
-        allL1 = cat(3,allL1, D_L1(d).model.coeff(ci).b);
+        allL1 = cat(3,allL1, D_L1(d).model(S.modeln).coeff(ci).b);
     end
     L1_avg = mean(allL1,3);
     L1_avg = topotime_3D(L1_avg,S);
@@ -533,6 +538,8 @@ if ~isempty(S.model.index)
                 disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
                 drawnow
                 pause(1)
+
+                exportgraphics(gcf, fullfile(S.path.stats_load, ['model ' num2str(i) '_' S.model.contrast_term{ci} '_cluster' num2str(cl) '.png']), 'Resolution', 300); % Adjust resolution as needed
             end
             
         end
