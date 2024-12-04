@@ -723,6 +723,7 @@ for d = 1:length(subjects)
         if exist('select_samples','var') && ~isempty(ssamples)
             select = dsearchn(tsamples',[ssamples(1),ssamples(end)]');
             data = data(:,select(1):select(2),:);
+            total_samples{i} = total_samples{i}(select(1):select(2));
         end
         
         % trim
@@ -849,7 +850,7 @@ for d = 1:length(subjects)
         D(d).prep.other.freq=freq_bands_select;
     end
     if exist('freq_pnts','var')
-        D(d).prep.other.freq_pnts=freq_pnts;
+        D(d).prep.other.freq_pnts=total_samples;
     end
     
     %D(d).prep.tnums = tnums;

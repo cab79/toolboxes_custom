@@ -1,4 +1,4 @@
-function plot_eegstats_LMM_topo(S)
+function plot_eegstats_LMM_topo_2D(S)
 dbstop if error
 % close all
 % set paths and file names 
@@ -11,6 +11,29 @@ S.path.code = {
 
 % set paths
 set_paths(S)
+
+% frequencies
+load(S.path.erp_load,'freq_pnts');
+freq_npnts = cellfun(@length, freq_pnts);
+freq_pnts_select={};
+freq_indices={};
+for f=1:length(run_freq)
+    freq = find(ismember(freq_bands, run_freq{f}));
+    cumPnts = cumsum(freq_npnts);
+    if freq == 1
+        startIndex = 1;
+    else
+        startIndex = cumPnts(freq-1) + 1;
+    end
+    endIndex = cumPnts(freq);
+    freq_indices{f} = startIndex:endIndex;
+    freq_pnts_select{f} = freq_pnts{freq};
+end
+
+
+for f=1:length(run_freq)
+    freq_indices{f};
+end
 
 % load cluster data
 load(fullfile(S.path.stats_load,'D.mat'),'D');

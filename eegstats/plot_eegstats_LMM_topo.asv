@@ -120,10 +120,6 @@ if S.plot_erp || S.plot_input
             clear input input_mat input_chanavg Ddtab dtab
         end
     end
-
-    if isfield(S,'freq_indices')
-        erp = erp(:,:,S.freq_indices);
-    end
 end
 
 % use model comp image as mask?

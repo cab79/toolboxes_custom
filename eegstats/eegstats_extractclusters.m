@@ -1,4 +1,4 @@
-function [D,input_vol]=eegstats_extractclusters(S,D,input_vol)
+function [D,S,input_vol]=eegstats_extractclusters(S,D,input_vol)
 % Save mean or median of the EEG data for each statistic cluster (e.g. thresholded F images from MCC)
 
 dbstop if error
@@ -32,6 +32,9 @@ if isfield(S.clus.path,'inputs_L1') && ~isempty(S.clus.path.inputs_L1)
     D_L1 = temp.D;
     if ~isfield(S,'modeln')
         S.modeln=1;
+    end
+    if ~isfield(S,'freq_indices')
+        S.freq_indices = [];
     end
 end
 
@@ -81,6 +84,7 @@ for d=1:length(D)
         Sr.prep.output.save = 0; % save data to disk or not
         Ddtab.D = eegstats_dataprep_reformat(Sr,Ddtab.D);
     end
+    S.clus.path.dtab_inputs = Ddtab.D;
                 
     %% create/load input volume
     if ismember('input',S.clus.summary_data)
@@ -151,9 +155,14 @@ for d=1:length(D)
             end
 
         end
+
+        if ~isempty(S.freq_indices)
+            input_vol_add = (S.freq_indices(1)-1)*(S.img.imgsize^2);
+        else
+            input_vol_add = 0;
+        end
+
     
-    
-        
     end
         
     if S.clus.model.index
@@ -291,7 +300,7 @@ for d=1:length(D)
                     for ci=1:nc
                         cii = D(d).model(i).con(c).vox{ci};
                         disp(['PCA on ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
-                        X=input_vol(cii,:)';
+                        X=input_vol(input_vol_add+cii,:)';
                         % reduce cluster size for PCA by taking random samples
                         randind=randperm(size(X,2));
                         maxind = min(size(X,2),S.clus.cluster_pca_maxclussize);
@@ -529,7 +538,7 @@ for d=1:length(D)
                                 % median value from each row (voxel), for each
                                 % observation. I.e. voxel can differ depending on the
                                 % observation (subject, trial, etc.)
-                                input_median=squeeze(nanmedian(input_vol(cii,:),1));
+                                input_median=squeeze(nanmedian(input_vol(input_vol_add+cii,:),1));
                                 D(d).model(i).con(c).clus(ci).input_median = {};
 
                                 if isfield(S.clus,'ID')
@@ -562,7 +571,7 @@ for d=1:length(D)
                             if any(strcmp(types,'mean'))
                             % disp(['means for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
                             
-                                input_mean=squeeze(nanmean(input_vol(cii,:),1));
+                                input_mean=squeeze(nanmean(input_vol(input_vol_add+cii,:),1));
                                 D(d).model(i).con(c).clus(ci).input_mean = {};
 
                                 if isfield(S.clus,'ID')
@@ -595,7 +604,7 @@ for d=1:length(D)
                             if any(strcmp(types,'eig'))
                                 disp(['eigenvariate for ' save_pref num2str(d) ', model ' num2str(i)  ', contrast ' num2str(c) ', cluster ' num2str(ci)])
                             
-                                X=input_vol(cii,:)';
+                                X=input_vol(input_vol_add+cii,:)';
                                 randind=randperm(size(X,2));
                                 maxind = min(size(X,2),S.clus.cluster_pca_maxclussize);
                                 Xsub=X(:,randind(1:maxind));
@@ -676,8 +685,12 @@ for d=1:length(D)
                                     Didx = find(ismember([D_L1(:).ID],Um{u}));
                                     Cidx = find(ismember({D_L1(Didx).model(S.modeln).coeff(:).name},S.clus.summary_coeffs_L1));
 
+                                    if isempty(S.freq_indices)
+                                        S.freq_indices = 1:size(D_L1(Didx).model(S.modeln).coeff(Cidx).b,2);
+                                    end
+
                                     % coeff median
-                                    coeff_img = topotime_3D(D_L1(Didx).model(S.modeln).coeff(Cidx).b,S);
+                                    coeff_img = topotime_3D(D_L1(Didx).model(S.modeln).coeff(Cidx).b(:,S.freq_indices),S);
                                     D(d).model(i).con(c).clus(ci).coeff_median(u,1)=nanmedian(coeff_img(cii));
 
                                 end
