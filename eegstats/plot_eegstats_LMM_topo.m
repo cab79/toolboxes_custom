@@ -183,6 +183,9 @@ if ~isempty(S.model.index)
                 error([S.model.contrast_term{ci} ' is not a constrast term in this model'])
             end
             c = find(strcmp({D.model(i).con(:).term},S.model.contrast_term{ci}));
+            if D.model(i).con(c).MCCclus_nvox==0
+                continue
+            end
             disp('loading image file')
             if isfield(S.img.path,'swap') && ~isempty(S.img.path.swap)
                 newpath = strrep(D.model(i).con(c).MCC.([S.clus_image '_img_file']),S.img.path.swap{1},S.img.path.swap{2});
@@ -227,6 +230,9 @@ if ~isempty(S.model.index)
             c = find(strcmp({D.model(i).con(:).term},S.model.contrast_term{ci}));
             nclus = S.model.clus;
             nclus(nclus>length(D.model(i).con(c).clus))=[];
+            if D.model(i).con(c).MCCclus_nvox==0
+                continue
+            end
 
             % subplots per cluster
             for cl = nclus

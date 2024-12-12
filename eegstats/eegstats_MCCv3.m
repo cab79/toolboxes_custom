@@ -314,8 +314,8 @@ for d=1:length(D)
                                     spm_smooth(resid, resid_smooth, fwhm_voxels);
                                 end
                                 resid = resid_smooth .* double(mask_img); % Mask it
-                                resid(isnan(resid)) = 0; % No NaN for smoothness function
                             end
+                            resid(isnan(resid)) = 0; % No NaN for smoothness function
                     
                             % Update resid_vol with smoothed data
                             resid_vol(:, :, :, tr) = resid;  % Store the smoothed volume
@@ -361,8 +361,8 @@ for d=1:length(D)
                                     spm_smooth(resid, resid_smooth, fwhm_voxels);
                                 end
                                 resid = resid_smooth .* double(mask_img); % Mask it
-                                resid(isnan(resid)) = 0; % No NaN for smoothness function
                             end
+                            resid(isnan(resid)) = 0; % No NaN for smoothness function
                     
                             % Store in 4D array
                             resid_vol(:, :, :, tr) = resid;  % Store the processed volume
