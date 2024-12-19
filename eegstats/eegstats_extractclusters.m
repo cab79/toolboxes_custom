@@ -257,15 +257,15 @@ for d=1:length(D)
             pi=0; nclus={}; pimg={};
             for c = S.clus.model.contrast{i}
                 
-                if ~any(img{c}(:))
-                    nclus{c} = 0;
-                    continue
-                end
-                
                 D(d).model(i).con(c).vox = [];
                 D(d).model(i).con(c).clus = [];
                 D(d).model(i).con(c).pca = [];
                 
+                if ~any(img{c}(:))
+                    nclus{c} = 0;
+                    continue
+                end
+
                 % find clusters using connected components analysis
                 if S.clus.connected_clusters.posnegsplit
                     % break up into positive and negative polarity clusters

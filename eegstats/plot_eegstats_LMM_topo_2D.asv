@@ -184,6 +184,8 @@ if S.plot_regressionerp_L1 && isfield(S.path,'inputs_L1') && ~isempty(S.path.inp
          % upsample if needed
         if length(freq_indices{f})~=length(S.time)
             L1_avg_freq = permute(interp1(freq_pnts_select{f}, permute(L1_avg(:,:,freq_indices{f}),[3 1 2]), S.time, 'nearest', 'extrap'),[2 3 1]);
+        else
+            L1_avg_freq = L1_avg(:,:,freq_indices{f});
         end
     
         % combine into 4D TF-topo arrays
@@ -281,6 +283,8 @@ if S.plot_erp || S.plot_input
          % upsample if needed
         if length(freq_indices{f})~=length(S.time)
             ERP_freq = permute(interp1(freq_pnts_select{f}, permute(erp(:,:,freq_indices{f}),[3 1 2]), S.time, 'nearest', 'extrap'),[2 3 1]);
+        else
+            ERP_freq = erp(:,:,freq_indices{f});
         end
     
         % combine into 4D TF-topo arrays
@@ -361,86 +365,110 @@ for cl = 1:nclus
     cimgmask = cimg_4D.*clusmask;
 
     % reshape for plotting
-    clusmask = reshape(clusmask,[],size(clusmask,3));
-    cimgmask_re = reshape(cimgmask,[],size(cimgmask,3));
-    cimg_re = reshape(cimg{ci},[],size(cimg{ci},3));
+    clusmask_re = reshape(clusmask,[],size(clusmask,3),size(clusmask,4));
+    cimgmask_re = reshape(cimgmask,[],size(cimgmask,3),size(cimgmask,4));
+    cimg_re = reshape(cimg_4D,[],size(cimg_4D,3),size(cimg_4D,4));
 
-    % plot img values over time
+    % Average over topo voxels to obtain time/frequency array for the
+    % cluster.
+    % first replace zeros with nans to ensure zeros are not included in
+    % average, then add the zeros back to the averages.
     cimg_re(cimg_re==0) = nan;
     cimgmask_re(cimgmask_re==0) = nan;
-
     switch S.summarytype
         case 'mean'
-            cimg_avg = nanmean(cimg_re,1);
-            cimg_avgmask = nanmean(cimgmask_re,1);
+            cimg_avg = squeeze(nanmean(cimg_re,1))';
+            cimg_avgmask = squeeze(nanmean(cimgmask_re,1))';
         case 'median'
-            cimg_avg = nanmedian(cimg_re,1);
-            cimg_avgmask = nanmedian(cimgmask_re,1);
+            cimg_avg = squeeze(nanmedian(cimg_re,1))';
+            cimg_avgmask = squeeze(nanmedian(cimgmask_re,1))';
     end
     cimg_avg(isnan(cimg_avg)) = 0;
-    cimg_avgmask(isnan(cimg_avgmask)) = 0;
-    cimg_extent_ms{cl} = S.time([find(cimg_avgmask,1,'first'),find(cimg_avgmask,1,'last')]);
+    % cimg_avgmask(isnan(cimg_avgmask)) = 0;
     
-    % Create figure
-    figure('Name',['model ' num2str(i) ', ' S.model.contrast_term ', cluster ' num2str(cl)],'units','normalized','outerposition',[0 0 0.75 1]);
+    %% Create figure
+    % plot img values over time/frequency
+    figure('Name',['model ' num2str(S.model.index) ', ' S.model.contrast_term ', cluster ' num2str(cl)], 'units', 'normalized', 'outerposition', [0 0 0.75 1]);
     clear ax1 ax2
-    ax1(1)=subplot(5,6,[1:3]);
-    hold on
-    if S.clus_image_mask % mask the image to show only one cluster per plot 
-        p1=imagesc(ax1(1),S.time,[],cimg_avgmask); 
-    else
-        p1=imagesc(ax1(1),S.time,[],cimg_avg); 
-    end
-    set(gca, 'YTick', []);
-    xlim([S.time(1) S.time(end)])
-    if isfield(S,'clus_image_range') && ~isempty(S.clus_image_range)
-        caxis(S.clus_image_range)
-    end
-%         ax(2)=subplot(5,6,[1:3]); 
-%         p2=imagesc(ax(2),S.time,[],cimg_avgmask,'AlphaData',double(cimg_avgmask>0));
-%         linkaxes([ax(1) ax(2)]) 
-%         p2=pcolor(S.time,[1:2],repmat(cimg_avgmask,2,1));shading flat;
-%         colormap(ax(2),cbrewer('seq', 'Reds', 100, 'pchip')); 
-    colormap(ax1(1),cmp);
-    cb=colorbar('Location','eastoutside','FontSize',S.FontSize);
-    cb.Label.String='z-value';
-%                 cb.Label.Position=[0 S.clus_image_range(2)/2];
-%                 cb.Label.HorizontalAlignment='center';
-%                 cb.Label.VerticalAlignment='bottom';
-%                 cb.Label.FontSize = 8;
-    plot([0 0],[0.5,1.5],'k')
-    title('Cluster Z-values over time (ms)')
-    % add peak highlights
-    %[~,locs]=findpeaks(cimg_avgmask,S.time,'MinPeakDistance',S.MinPeakDistance);
-    %if isempty(locs)
-        % use regression ERP
-        csign = sign(median(regress_erp(cimgmask>0)));
-        rerp_masked = squeeze(max(csign*regress_erp,[],[1 2]))'.*double(cimg_avgmask>0);
-        [~,locs]=findpeaks(rerp_masked,S.time,'MinPeakDistance',S.MinPeakDistance);
-    %end
     
+    % Create the first axes (ax1)
+    ax1 = subplot(5, 6, [1:3]);
+    im1 = imagesc(ax1, S.time, 1:length(S.run_freq), flipud(cimg_avgmask)); 
+    cb = colorbar(ax1, 'Location', 'eastoutside', 'FontSize', S.FontSize);
+    cb.Label.String = 'z-value';
+    set(ax1, 'Color', 'none');
+    im1.AlphaData = ~isnan(flipud(cimg_avgmask));
+    hold all
+    
+    % Create the second axes (ax2) if the mask is disabled
+    if ~S.clus_image_mask
+        ax2 = axes('Position', get(ax1, 'Position'), 'Color', 'none'); % Align with ax1
+        im2 = imagesc(ax2, S.time, 1:length(S.run_freq), flipud(cimg_avg));
+        % im2.AlphaData = 0.5; % Set transparency for ax2
+        colormap(ax2, flipud(gray)); % Apply gray colormap to ax2
+        caxis(ax2, S.clus_image_range); % Adjust color axis for ax2 if specified
+        
+        % Link axes for consistent interaction
+        linkaxes([ax1, ax2]);
+        ax2.Visible = 'off'; % Hide ax2 ticks and labels
+        ax2.XTick = [];
+        ax2.YTick = [];
+        
+        % Use `uistack` to push ax2 behind ax1
+        uistack(ax2, 'bottom'); % Ensure ax2 is behind ax1
+    end
+    
+    % Set the colormap for ax1 (main axes)
+    colormap(ax1, cmp);
+    
+    % Adjust y-ticks and labels for ax1
+    yticks(ax1, 1:length(S.run_freq));
+    yticklabels(ax1, fliplr(S.run_freq));
+    
+    % Adjust color axis for ax1 if specified
+    if isfield(S, 'clus_image_range') && ~isempty(S.clus_image_range)
+        caxis(ax1, S.clus_image_range);
+    end
+    
+    % Add additional plot elements to ax1
+    plot(ax1, [0 0], [0.5, length(S.run_freq) + 0.5], 'k');
+    title(ax1, 'Cluster Z-values over time (ms)');
+
+    % add peak highlights
+    % get cluster extent over time
+    cimg_extent_ms{cl} = S.time([find(~isnan(median(cimg_avgmask,1,'omitnan')),1,'first'),find(~isnan(median(cimg_avgmask,1,'omitnan')),1,'last')]);
+    locs = findPeakOrPlateau(median(cimg_avgmask,1,'omitnan'),S.time,30);
+    % [~,locs]=findpeaks(median(cimg_avgmask,1,'omitnan'),S.time,'MinPeakDistance',30);
+    % if isempty(locs)
+    %     % use middle latency
+    %     locs = S.time(dsearchn(S.time',mean(cimg_extent_ms{cl})));
+    % 
+    %     % use regression ERP? - ONLY WORKS FOR ERP NOT TF
+    % end
     
     if S.order_locs_by_extent
         % sort by cluster extent
         ext=[];
         for pk=1:length(locs)
-            ext(pk) = sum(maskimg(:,:,S.time==locs(pk)).*cimgmask0(:,:,S.time==locs(pk))>0,'all');
+            ext(pk) = sum(mask_4D(:,:,S.time==locs(pk),:).*cimgmask0(:,:,S.time==locs(pk),:)>0,'all');
         end
         [~,si] = sort(ext,'descend');
         locs = locs(si);
     end
     
+    % save locations of peaks
     D.model(S.model.index).con(c).clus(cl).peaks = locs;
     D.model(S.model.index).con(c).clus(cl).extent = cimg_extent_ms{cl};
     
+    hold on
     if length(locs)==1
-        plot([locs(1) locs(1)],[0.5,1.5],'k--', 'LineWidth', 1.5)
+        plot(ax1,[locs(1) locs(1)],[0.5,length(S.run_freq) + 0.5],'k--', 'LineWidth', 1.5)
 %                     ti=[min(find(cimg_avgmask))-1,max(find(cimg_avgmask))+1];
 %                     ri=S.time([max(ti(1),1),min(ti(end),length(cimg_avgmask))]);
 %                     rectangle('Position', [ri(1), 0.5, ri(end)-ri(1), 1], 'EdgeColor', [0.1 0.1 0.1],'LineWidth',2);
     elseif length(locs)>1
         for pk = 1:min([3,S.Nlocs,length(locs)])
-            plot([locs(pk) locs(pk)],[0.5,1.5],'k--', 'LineWidth', 1.5)
+            plot(ax1,[locs(pk) locs(pk)],[0.5,length(S.run_freq) + 0.5],'k--', 'LineWidth', 1.5)
 %                         if pk<4 % only plot first 3 as rectangles
 %                             ti=[locs(pk)-S.MinPeakDistance/2,locs(pk)+S.MinPeakDistance/2];
 %                             ri=[max(ti(1),min(S.time)),min(ti(end),max(S.time))];
@@ -453,10 +481,10 @@ for cl = 1:nclus
     % plot image topo
     spi=[4:6];
     for pk=1:min([3,S.Nlocs,length(locs)])
-        ax2(spi(pk))=subplot(5,6,spi(pk)); 
-        plotimg = maskimg(:,:,S.time==locs(pk)).*cimgmask0(:,:,S.time==locs(pk));
+        ax3(spi(pk))=subplot(5,6,spi(pk)); 
+        plotimg = max(mask_4D(:,:,S.time==locs(pk),:).*cimgmask0(:,:,S.time==locs(pk),:),[],4);
         pcolor(plotimg), shading interp; axis off
-        colormap(ax2(spi(pk)),cmp); 
+        colormap(ax3(spi(pk)),cmp); 
         if isfield(S,'clus_image_range') && ~isempty(S.clus_image_range)
             caxis(S.clus_image_range)
         end
@@ -466,34 +494,46 @@ for cl = 1:nclus
     % plot regression ERP
     if S.plot_regressionerp
 
+        % plot
         ax1(2)=subplot(5,6,[7:9]);
-        wf = plot_clusterovertime(regress_erp,clusmask,S,cmp2,ax1(2));
-        D.model(S.model.index).con(c).clus_rerp_mip{cl}=wf;
-        title('Cluster regression ERP (coefficients)')
+        tf = plot_TF(regress_erp,clusmask_re,S,cmp2,ax1(2));
+        title('Cluster TF (coefficients)')
 
-        %%align zero for left and right
-        %ylimr = get(gca,'Ylim'); 
-        limy=[-max(abs(wf)),max(abs(wf))];
-
+        % set limits
+        xlim([S.time(1) S.time(end)])
+        limc=[-max(abs(tf(:))),max(abs(tf(:)))];
         colorbar('Location','eastoutside','FontSize',S.FontSize);
-        caxis(limy);
+        caxis(limc);
 
-        ylim(limy)
-        plot([0 0],limy,'k')
-        plot([S.time(1) S.time(end)],[0 0],'k-')
+        % Adjust y-ticks and labels for ax1
+        ylim([0.5, length(S.run_freq)+0.5])
+        yticks(1:length(S.run_freq));
+        yticklabels(S.run_freq);
+        
+        % Add additional plot elements to ax1
+        plot([0 0], [0.5, length(S.run_freq) + 0.5], 'k');
+
         % lines
         for pk = 1:min([3,S.Nlocs,length(locs)])
-            plot([locs(pk) locs(pk)],limy,'k--', 'LineWidth', 1.5)
+            plot([locs(pk) locs(pk)],[0.5,length(S.run_freq) + 0.5],'k--', 'LineWidth', 1.5)
         end
 
+        % MIP mask for topoplots
+        clusmask_2D = reshape(clusmask_re,size(clusmask_re,1),[]);
+        mip_mask = repmat(any(clusmask_2D,1),size(clusmask_2D,1),1);
+        mip_mask = reshape(mip_mask,size(clusmask_re));
+        mip_mask = reshape(mip_mask,size(clusmask));
+        mip_mask = mip_mask.*mask_4D;
+        mip_mask(mip_mask==0)=nan;
 
+        % topoplots
         spi=[10:12];
         for pk=1:min([3,S.Nlocs,length(locs)])
-            ax2(spi(pk))=subplot(5,6,spi(pk)); 
-            plotimg = maskimg(:,:,S.time==locs(pk)).*regress_erp(:,:,S.time==locs(pk));
+            ax3(spi(pk))=subplot(5,6,spi(pk)); 
+            plotimg = mean(mip_mask(:,:,S.time==locs(pk),:).*regress_erp(:,:,S.time==locs(pk),:),4,'omitnan');
             pcolor(plotimg), shading interp; axis off
-            colormap(ax2(spi(pk)),cmp2); 
-            caxis(limy);
+            colormap(ax3(spi(pk)),cmp2); 
+            caxis(limc);
             title([num2str(locs(pk)) ' ms'])
         end
 
@@ -502,30 +542,46 @@ for cl = 1:nclus
     % plot grand average and cluster-over-time
     if S.plot_regressionerp_L1 
 
+        % plot
         ax1(3)=subplot(5,6,[13:15]);
-        [wf,mn,mx] = plot_clusterovertime(L1_avg,clusmask,S,cmp3,ax1(3));
-        D.model(S.model.index).con(c).clus_erp_mip{cl}=wf;
-        title('Cluster L1 regression ERP')
-        %%align zero for left and right
-        limy=[-max(abs(wf)),max(abs(wf))];
+        tf = plot_TF(L1_avg_4D,clusmask_re,S,cmp3,ax1(3));
+        title('Cluster L1 TF (coefficients)')
 
+        % set limits
+        xlim([S.time(1) S.time(end)])
+        limc=[-max(abs(tf(:))),max(abs(tf(:)))];
         colorbar('Location','eastoutside','FontSize',S.FontSize);
-        caxis(limy);
+        caxis(limc);
 
-        ylim(limy)
-        plot([0 0],limy,'k')
-        plot([S.time(1) S.time(end)],[0 0],'k-')
+        % Adjust y-ticks and labels for ax1
+        ylim([0.5, length(S.run_freq)+0.5])
+        yticks(1:length(S.run_freq));
+        yticklabels(S.run_freq);
+        
+        % Add additional plot elements to ax1
+        plot([0 0], [0.5, length(S.run_freq) + 0.5], 'k');
+
         % lines
         for pk = 1:min([3,S.Nlocs,length(locs)])
-            plot([locs(pk) locs(pk)],limy,'k--', 'LineWidth', 1.5)
+            plot([locs(pk) locs(pk)],[0.5,length(S.run_freq) + 0.5],'k--', 'LineWidth', 1.5)
         end
 
+        % MIP mask for topoplots
+        clusmask_2D = reshape(clusmask_re,size(clusmask_re,1),[]);
+        mip_mask = repmat(any(clusmask_2D,1),size(clusmask_2D,1),1);
+        mip_mask = reshape(mip_mask,size(clusmask_re));
+        mip_mask = reshape(mip_mask,size(clusmask));
+        mip_mask = mip_mask.*mask_4D;
+        mip_mask(mip_mask==0)=nan;
+
+        % topoplots
         spi=[16:18];
         for pk=1:min([3,S.Nlocs,length(locs)])
-            ax2(spi(pk))=subplot(5,6,spi(pk)); 
-            pcolor(L1_avg(:,:,S.time==locs(pk))), shading interp; axis off
-            colormap(ax2(spi(pk)),cmp3); 
-            caxis(limy);
+            ax3(spi(pk))=subplot(5,6,spi(pk)); 
+            plotimg = mean(mip_mask(:,:,S.time==locs(pk),:).*L1_avg_4D(:,:,S.time==locs(pk),:),4,'omitnan');
+            pcolor(plotimg), shading interp; axis off
+            colormap(ax3(spi(pk)),cmp2); 
+            caxis(limc);
             title([num2str(locs(pk)) ' ms'])
         end
 
@@ -534,91 +590,89 @@ for cl = 1:nclus
     
     if S.plot_erp
 
+        % plot
         ax1(4)=subplot(5,6,[19:21]);
-        [wf,mn,mx] = plot_clusterovertime(erp,clusmask,S,cmp3,ax1(3));
-        D.model(S.model.index).con(c).clus_erp_mip{cl}=wf;
-        title('Cluster maximum intensity projection')
-        %%align zero for left and right
-        limy=[-max(abs(wf)),max(abs(wf))];
+        tf = plot_TF(ERP_4D,clusmask_re,S,cmp3,ax1(4));
+        title('Cluster TF MIP (log power)')
 
+        % set limits
+        xlim([S.time(1) S.time(end)])
+        limc=[-max(abs(tf(:))),max(abs(tf(:)))];
         colorbar('Location','eastoutside','FontSize',S.FontSize);
-        caxis(limy);
+        caxis(limc);
 
-        ylim(limy)
-        plot([0 0],limy,'k')
-        plot([S.time(1) S.time(end)],[0 0],'k-')
+        % Adjust y-ticks and labels for ax1
+        ylim([0.5, length(S.run_freq)+0.5])
+        yticks(1:length(S.run_freq));
+        yticklabels(S.run_freq);
+        
+        % Add additional plot elements to ax1
+        plot([0 0], [0.5, length(S.run_freq) + 0.5], 'k');
+
         % lines
         for pk = 1:min([3,S.Nlocs,length(locs)])
-            plot([locs(pk) locs(pk)],limy,'k--', 'LineWidth', 1.5)
+            plot([locs(pk) locs(pk)],[0.5,length(S.run_freq) + 0.5],'k--', 'LineWidth', 1.5)
         end
 
+        % MIP mask for topoplots
+        clusmask_2D = reshape(clusmask_re,size(clusmask_re,1),[]);
+        mip_mask = repmat(any(clusmask_2D,1),size(clusmask_2D,1),1);
+        mip_mask = reshape(mip_mask,size(clusmask_re));
+        mip_mask = reshape(mip_mask,size(clusmask));
+        mip_mask = mip_mask.*mask_4D;
+        mip_mask(mip_mask==0)=nan;
+
+        % topoplots
         spi=[22:24];
         for pk=1:min([3,S.Nlocs,length(locs)])
-            ax2(spi(pk))=subplot(5,6,spi(pk)); 
-            pcolor(erp(:,:,S.time==locs(pk))), shading interp; axis off
-            colormap(ax2(spi(pk)),cmp3); 
-            caxis(limy);
+            ax3(spi(pk))=subplot(5,6,spi(pk)); 
+            plotimg = mean(mip_mask(:,:,S.time==locs(pk),:).*ERP_4D(:,:,S.time==locs(pk),:),4,'omitnan');
+            pcolor(plotimg), shading interp; axis off
+            colormap(ax3(spi(pk)),cmp2); 
+            caxis(limc);
             title([num2str(locs(pk)) ' ms'])
         end
 
     end
-%                 if S.plot_input
-% 
-%                     ax1(3)=subplot(5,6,[13:15]);
-%                     [wf,mn,mx] = plot_clusterovertime(input_avg,clusmask,S,'b');
-%                     title('input: MIP ERP (blue) and MIP rERP (green)')
-%                     plot([0 0],[mn,mx],'k')
-%                     plot([S.time(1) S.time(end)],[0 0],'k-')
-%                     for pk = 1:min([3,S.Nlocs,length(locs)])
-%                         plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
-%                     end
-% 
-%                     spi=[16:18];
-%                     for pk=1:min([3,S.Nlocs,length(locs)])
-%                         ax2(spi(pk))=subplot(5,6,spi(pk)); 
-%                         pcolor(input_avg(:,:,S.time==locs(pk))), shading interp; axis off
-%                         title([num2str(locs(pk)) ' ms'])
-%                     end
-% 
-%                 end
-    if S.plot_fitted
 
-        ax1(5)=subplot(5,6,[19:21]);
-        [wf,mn,mx] = plot_clusterovertime(fitted_avg{i},clusmask,S,'b');
-        title('fitted: MIP ERP (blue) and MIP rERP (green)')
-        plot([0 0],[mn,mx],'k')
-        plot([S.time(1) S.time(end)],[0 0],'k-')
-        for pk = 1:min([3,S.Nlocs,length(locs)])
-            plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
-        end
-
-        spi=[22:24];
-        for pk=1:min([3,S.Nlocs,length(locs)])
-            ax2(spi(pk))=subplot(5,6,spi(pk)); 
-            pcolor(fitted_avg{i}(:,:,S.time==locs(pk))), shading interp; axis off
-            caxis(limy);
-            title([num2str(locs(pk)) ' ms'])
-        end
-    end
-    if S.plot_resid
-
-        ax1(6)=subplot(5,6,[25:27]);
-        [wf,mn,mx] = plot_clusterovertime(resid_avg{i},clusmask,S,'b');
-        title('resid: MIP ERP (blue) and MIP rERP (green)')
-        plot([0 0],[mn,mx],'k')
-        plot([S.time(1) S.time(end)],[0 0],'k-')
-        for pk = 1:min([3,S.Nlocs,length(locs)])
-            plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
-        end
-
-        spi=[28:30];
-        for pk=1:min([3,S.Nlocs,length(locs)])
-            ax2(spi(pk))=subplot(5,6,spi(pk)); 
-            pcolor(resid_avg{i}(:,:,S.time==locs(pk))), shading interp; axis off
-            caxis(limy);
-            title([num2str(locs(pk)) ' ms'])
-        end
-    end
+    % if S.plot_fitted
+    % 
+    %     ax1(5)=subplot(5,6,[19:21]);
+    %     [wf,mn,mx] = plot_clusterovertime(fitted_avg{i},clusmask,S,'b');
+    %     title('fitted: MIP ERP (blue) and MIP rERP (green)')
+    %     plot([0 0],[mn,mx],'k')
+    %     plot([S.time(1) S.time(end)],[0 0],'k-')
+    %     for pk = 1:min([3,S.Nlocs,length(locs)])
+    %         plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
+    %     end
+    % 
+    %     spi=[22:24];
+    %     for pk=1:min([3,S.Nlocs,length(locs)])
+    %         ax2(spi(pk))=subplot(5,6,spi(pk)); 
+    %         pcolor(fitted_avg{i}(:,:,S.time==locs(pk))), shading interp; axis off
+    %         caxis(limy);
+    %         title([num2str(locs(pk)) ' ms'])
+    %     end
+    % end
+    % if S.plot_resid
+    % 
+    %     ax1(6)=subplot(5,6,[25:27]);
+    %     [wf,mn,mx] = plot_clusterovertime(resid_avg{i},clusmask,S,'b');
+    %     title('resid: MIP ERP (blue) and MIP rERP (green)')
+    %     plot([0 0],[mn,mx],'k')
+    %     plot([S.time(1) S.time(end)],[0 0],'k-')
+    %     for pk = 1:min([3,S.Nlocs,length(locs)])
+    %         plot([locs(pk) locs(pk)],[mn,mx],'k--', 'LineWidth', 1.5)
+    %     end
+    % 
+    %     spi=[28:30];
+    %     for pk=1:min([3,S.Nlocs,length(locs)])
+    %         ax2(spi(pk))=subplot(5,6,spi(pk)); 
+    %         pcolor(resid_avg{i}(:,:,S.time==locs(pk))), shading interp; axis off
+    %         caxis(limy);
+    %         title([num2str(locs(pk)) ' ms'])
+    %     end
+    % end
     
     % add spacing
     for a=1:length(ax1)
@@ -626,7 +680,11 @@ for cl = 1:nclus
         ax1(a).FontSize = S.FontSize; 
     end
     if exist('ax2','var')
-        for a=1:length(ax2)
+        ax2.Position(2) = ax2.Position(2)-S.vertical_spacing;  
+        ax2.FontSize = S.FontSize; 
+    end
+    if exist('ax3','var')
+        for a=1:length(ax3)
             
             if ismember(a,4:6) mult = 1;
             elseif ismember(a,10:12) mult = 2;
@@ -636,8 +694,8 @@ for cl = 1:nclus
             end
             
             try
-                ax2(a).Position(2) = ax2(a).Position(2)-S.vertical_spacing*mult;  
-                ax2(a).FontSize = S.FontSize; 
+                ax3(a).Position(2) = ax3(a).Position(2)-S.vertical_spacing*mult;  
+                ax3(a).FontSize = S.FontSize; 
             end
         end
     end
@@ -651,12 +709,16 @@ for cl = 1:nclus
             set(ax1(a),'Position',pos);
         end
     end
-    disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
-    disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
+    if exist('ax2','var')
+        pos=get(ax1(1),'Position');
+        set(ax2,'Position',pos);
+    end
+    disp(['model ' num2str(S.model.index) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
+    disp(['model ' num2str(S.model.index) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
     drawnow
     pause(1)
 
-    exportgraphics(gcf, fullfile(S.path.stats_load, ['model ' num2str(i) '_' S.model.contrast_term '_cluster' num2str(cl) '.png']), 'Resolution', 300); % Adjust resolution as needed
+    exportgraphics(gcf, fullfile(S.path.stats_load, ['model ' num2str(S.model.index) '_' S.model.contrast_term '_cluster' num2str(cl) '.png']), 'Resolution', 300); % Adjust resolution as needed
 end    
 
     
@@ -672,24 +734,30 @@ for p = 1:size(S.path.code,1)
     end
 end
 
-function [mipmask,mn,mx] = plot_clusterovertime(avg,clusmask,S,col,ax)
-avg_re = reshape(avg,[],size(avg,3));
+function [mipmask,mn,mx] = plot_TF(avg,clusmask,S,col,ax)
+avg_re = reshape(avg,[],size(avg,3),size(avg,4));
+
+% mask for TF values in cluster only
 avgmask_re = avg_re.*clusmask;
-mip_mask = repmat(any(clusmask,2),1,size(clusmask,2));
+
+% mask for maximum intensity projection across time and frequency
+clusmask_2D = reshape(clusmask,size(clusmask,1),[]);
+mip_mask = repmat(any(clusmask_2D,2),1,size(clusmask_2D,2));
+mip_mask = reshape(mip_mask,size(avg_re));
 mip = avg_re.*mip_mask;
 
 avg_re(avg_re==0) = nan;
 avgmask_re(avgmask_re==0) = nan;
 mip(mip==0) = nan;
 
-gfp = nanstd(avg_re,[],1);
+gfp = squeeze(std(avg_re,[],1,'omitnan'));
 switch S.summarytype
-case 'mean'
-    avgmask = nanmean(avgmask_re,1);
-    mipmask = nanmean(mip,1);
-case 'median'
-    avgmask = nanmedian(avgmask_re,1);
-    mipmask = nanmedian(mip,1);
+    case 'mean'
+        avgmask = squeeze(mean(avgmask_re,1,'omitnan'))';
+        mipmask = squeeze(mean(mip,1,'omitnan'))';
+    case 'median'
+        avgmask = squeeze(median(avgmask_re,1,'omitnan'))';
+        mipmask = squeeze(median(mip,1,'omitnan'))';
 end
 gfp(isnan(gfp)) = 0;
 avgmask(isnan(avgmask)) = 0;
@@ -698,25 +766,62 @@ mipmask(isnan(mipmask)) = 0;
 % baseline correct
 if ~isempty(S.base)
     bp = dsearchn(S.time',S.base');
-    mipmask = mipmask-mean(mipmask(bp));
-end
-        
-hold on
-h=plot(S.time,mipmask,'LineWidth', 3);
-xlim([S.time(1) S.time(end)])
-
-if ischar(col) || size(col,1)==1
-    h.color = col;
-else
-    % cmap
-    cm = colormap(ax,col); 
-    maxval = max(abs(mipmask));
-    cm = interp1(linspace(-maxval,maxval,length(cm)),cm,mipmask); % map color to y values
-    cm = uint8(cm'*255); % need a 4xN uint8 array
-    cm(4,:) = 255; % last column is transparency
-    drawnow
-    set(h.Edge,'ColorBinding','interpolated','ColorData',cm)
+    mipmask = mipmask-repmat(mean(mipmask(bp,:)),size(mipmask,1),1);
 end
 
 mn = min([mipmask,avgmask]);
 mx = max([mipmask,avgmask]);
+        
+% hold on
+% h=plot(S.time,mipmask,'LineWidth', 3);
+% xlim([S.time(1) S.time(end)])
+
+% plot values over time/frequency
+hold all
+h = imagesc(ax, S.time, 1:length(S.run_freq),mipmask); 
+    
+if ischar(col) || size(col,1)==1
+    h.color = col;
+else
+    % cmap
+    colormap(ax,col); 
+    % maxval = max(abs(mipmask(:)));
+    % cm = interp1(linspace(-maxval,maxval,length(cm)),cm,mipmask); % map color to y values
+    % cm = uint8(cm'*255); % need a 4xN uint8 array
+    % cm(4,:) = 255; % last column is transparency
+    % drawnow
+    % set(h.Edge,'ColorBinding','interpolated','ColorData',cm)
+end
+
+function peakIndex = findPeakOrPlateau(data,times,MinPeakDistance)
+    
+    % Check if the data is constant (excluding NaNs)
+    validData = data(~isnan(data)); % Remove NaN values for checking
+    if isempty(validData)
+        % If all values are NaN, return NaN (or handle as you see fit)
+        peakIndex = NaN;
+        return;
+    end
+    if all(validData == validData(1))
+        % If all valid values are the same, return the middle index of the full array
+        peakIndex = times(round(length(data) / 2));
+        return;
+    end
+    
+    % Use findpeaks to detect peaks
+    [peaks, locs] = findpeaks(data,times,'MinPeakDistance',MinPeakDistance);
+    
+    if isempty(peaks)
+        % If no peaks are found, treat it as a plateau
+        % Find the start and end of the plateau
+        plateauStart = find(data == max(data), 1, 'first');
+        plateauEnd = find(data == max(data), 1, 'last');
+        
+        % Return the middle index of the plateau
+        peakIndex = timesround((plateauStart + plateauEnd) / 2);
+    else
+        % If there are peaks, return the index of the highest peak
+        [~, maxPeakIdx] = sort(peaks,'descend');
+        peakIndex = locs(maxPeakIdx);
+    end
+
