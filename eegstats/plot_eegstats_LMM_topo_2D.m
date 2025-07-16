@@ -389,6 +389,7 @@ for cl = 1:nclus
     %% Create figure
     % plot img values over time/frequency
     figure('Name',[S.model.coeff_term_L1 ', model ' num2str(S.model.index) ', ' S.model.contrast_term ', cluster ' num2str(cl)], 'units', 'normalized', 'outerposition', [0 0 0.75 1]);
+    
     clear ax1 ax2
     
     % Create the first axes (ax1)
@@ -716,6 +717,10 @@ for cl = 1:nclus
     disp(['model ' num2str(S.model.index) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
     disp(['model ' num2str(S.model.index) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
     drawnow
+
+    sgtitle([S.model.coeff_term_L1 ', cluster ' num2str(cl)])
+
+
     pause(1)
 
     exportgraphics(gcf, fullfile(S.path.stats_load, [S.model.coeff_term_L1 ', model ' num2str(S.model.index) '_' S.model.contrast_term '_cluster' num2str(cl) '.png']), 'Resolution', 300); % Adjust resolution as needed

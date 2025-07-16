@@ -510,8 +510,8 @@ else
         % Parameter correlation
         try
             Corr = tapas_Cov2Corr(Sigma);
-        catch % cab
-            Sigma = nearestPSD(Sigma);
+        catch
+            Sigma = safe_laplace_cov(H);
             Sigma = (Sigma' + Sigma)./2;
             Corr = tapas_Cov2Corr(Sigma);
         end

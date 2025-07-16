@@ -237,8 +237,8 @@ if ~isempty(S.model.index)
             % subplots per cluster
             for cl = nclus
 
-                figure('Name',['model ' num2str(i) ', ' S.model.contrast_term{ci} ', cluster ' num2str(cl)],'units','normalized','outerposition',[0 0 0.75 1]);
-                %set(gcf, 'renderer', 'opengl');
+                figure('Name',[S.model.coeff_term_L1{:} ', model ' num2str(i) ', ' S.model.contrast_term{ci} ', cluster ' num2str(cl)],'units','normalized','outerposition',[0 0 0.75 1]);
+               %set(gcf, 'renderer', 'opengl');
                 clear ax1 ax2
                 % find clusters
                 clusvox = D.model(i).con(c).vox{cl};
@@ -563,6 +563,9 @@ if ~isempty(S.model.index)
                 disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' extent: ' num2str(cimg_extent_ms{cl}) ' ms'])
                 disp(['model ' num2str(i) ', contrast ' num2str(ci) ', coeff ' num2str(coeff_idx) ', cluster ' num2str(cl) ' peaks: ' num2str(locs) ' ms'])
                 drawnow
+
+                sgtitle([S.model.coeff_term_L1{:} ', cluster ' num2str(cl)])
+                
                 pause(1)
 
                 exportgraphics(gcf, fullfile(S.path.stats_load, ['model ' num2str(i) '_' S.model.contrast_term{ci} '_cluster' num2str(cl) '.png']), 'Resolution', 300); % Adjust resolution as needed

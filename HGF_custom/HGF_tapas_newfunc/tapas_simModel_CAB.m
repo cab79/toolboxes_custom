@@ -156,6 +156,12 @@ prc_config_fun = [prc_model];%, '_config']; % CAB
 %    r.c_prc = [];
 %end
 
+if isfield(S,'use_eGBM') && S.use_eGBM==1
+    r.eGBM=1;
+else
+    r.eGBM=0;
+end
+
 % Store perceptual parameters
 prc_namep_fun = str2func('GBM_namep');
 [r.p_prc r.p_prc.p]  = prc_namep_fun(prc_struct,r.c_prc);

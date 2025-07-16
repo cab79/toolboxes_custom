@@ -19,13 +19,13 @@ for d = 1:length(D)
     tic
     if S.parallel
         parfor (ns = 1:S.numsimrep,parforArg)
-    %     for ns = 1:S.numsimrep
+        % for ns = 1:S.numsimrep
             %
-            %if S.parallel
+            % if S.parallel
             %    D_out=HGF_run(D(d),S,1);
-            %else
+            % else
                 D_out=HGF_run_nopara(D_in,S,1); % takes longer using parallel
-            %end
+            % end
             HGF(ns).sim = D_out.HGF(1).sim;
         end
     else
