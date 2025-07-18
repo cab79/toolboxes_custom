@@ -129,7 +129,13 @@ for i=1:n
 end
 
 Sigma = inv(H);
-Corr = tapas_Cov2Corr(Sigma);
+try
+    Corr = tapas_Cov2Corr(Sigma);
+catch % cab
+    Sigma = nearestPSD(Sigma);
+    Sigma = (Sigma' + Sigma)./2;
+    Corr = tapas_Cov2Corr(Sigma);
+end
 
 % Record results
 bpa.optim.H     = H;
@@ -181,4 +187,34 @@ disp('Results:');
 disp(bpa.p_prc)
 disp(bpa.p_obs)
 
+
+function Sigma_psd = nearestPSD(Sigma, tol, maxIter)
+if nargin < 2, tol = 0; end
+if nargin < 3, maxIter = 50; end
+
+for k = 1:maxIter
+    Sigma = (Sigma + Sigma.')/2;       % enforce symmetry
+    [V,D] = eig(Sigma);                % full eigendecomposition
+    
+    lam   = diag(D);                   % raw eigen-values (BEFORE clipping)
+    if min(lam) >= -tol
+        try
+            Corr = tapas_Cov2Corr(Sigma);
+            Sigma_psd = Sigma;             % already PSD within tolerance
+            return
+        catch
+            continue
+        end
+        
+    end
+    
+    % clip negative eigen-values and reconstruct
+    lam(lam < 0) = 0;
+    Sigma  = V * diag(lam) * V.';      % back-transform
+    
+    % loop continues; if still not PSD (due to round-off), repeat
 end
+
+error('nearestPSD_iter: did not converge to PSD within %d iterations', maxIter);
+
+

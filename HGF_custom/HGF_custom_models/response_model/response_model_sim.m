@@ -80,6 +80,8 @@ if any(strcmp(r.c_obs.responses, 'Ch'))
     
     % Simulate
     y(:,1) = binornd(1, prob);
+    % deterministic arg-max choice
+    % y(:,1) = prob >= 0.5;   % 1 if prob≥0.5 else 0
 end
 if any(strcmp(r.c_obs.responses, 'RT'))
 
@@ -256,8 +258,8 @@ if any(strcmp(r.c_obs.responses, 'RT'))
 
     
     % Simulate
-%     y(:,2) = logresp +sqrt(ze)*randn(n, 1); % response time plus Gaussian noise
-    y(:,2) = logresp; % response time without Gaussian noise
+    y(:,2) = logresp +sqrt(ze)*randn(n, 1); % response time plus Gaussian noise
+    % y(:,2) = logresp; % response time without Gaussian noise
 end
 
 

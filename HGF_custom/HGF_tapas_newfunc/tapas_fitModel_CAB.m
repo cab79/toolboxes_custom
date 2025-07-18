@@ -492,7 +492,17 @@ if any(isinf(H(:))) || any(isnan(H(:))) || any(eig(H)<=0)
         % Parameter covariance 
         Sigma = r.optim.T;
         % Parameter correlation
-        Corr = tapas_Cov2Corr(Sigma);
+        try
+            Corr = tapas_Cov2Corr(Sigma);
+        catch % cab
+            Sigma = nearestPSD(Sigma);
+            Sigma = (Sigma' + Sigma)./2;
+            try 
+                Corr = tapas_Cov2Corr(Sigma);
+            catch
+                Corr=[];
+            end
+        end
         % Log-model evidence ~ negative variational free energy
         LME   = -r.optim.valMin + 1/2*log(1/det(H)) + d/2*log(2*pi);
     else
@@ -513,7 +523,11 @@ else
         catch % cab
             Sigma = nearestPSD(Sigma);
             Sigma = (Sigma' + Sigma)./2;
-            Corr = tapas_Cov2Corr(Sigma);
+            try 
+                Corr = tapas_Cov2Corr(Sigma);
+            catch
+                Corr=[];
+            end
         end
         % Log-model evidence ~ negative variational free energy
         LME = -r.optim.valMin + 1/2*log(1/det(H)) + d/2*log(2*pi);
@@ -637,13 +651,32 @@ function Sigma = safe_laplace_cov(H, ridge0)
 
 
 
-function Sigma_psd = nearestPSD(Sigma)
-% Force a symmetric matrix to be positive semi-definite
-% High-level: zero out any negative eigen-values.
-Sigma      = (Sigma + Sigma.') / 2;     % ensure symmetry
-[V,D]      = eig(Sigma);                % eigen-decomposition
-d          = diag(D);
-d(d < 0)   = 0;                         % clip negative eigen-values
-Sigma_psd  = V * diag(d) * V.';         % reconstruct
-Sigma_psd  = (Sigma_psd + Sigma_psd.') / 2;  % tidy symmetry again
+function Sigma_psd = nearestPSD(Sigma, tol, maxIter)
+if nargin < 2, tol = 0; end
+if nargin < 3, maxIter = 50; end
+
+for k = 1:maxIter
+    Sigma = (Sigma + Sigma.')/2;       % enforce symmetry
+    Sigma_psd = Sigma; 
+    [V,D] = eig(Sigma);                % full eigendecomposition
+    
+    lam   = diag(D);                   % raw eigen-values (BEFORE clipping)
+    if min(lam) >= -tol
+        try
+            Corr = tapas_Cov2Corr(Sigma);
+            return
+        catch
+            continue
+        end
+        
+    end
+    
+    % clip negative eigen-values and reconstruct
+    lam(lam < 0) = 0;
+    Sigma  = V * diag(lam) * V.';      % back-transform
+    
+    % loop continues; if still not PSD (due to round-off), repeat
+end
+
+%error('nearestPSD_iter: did not converge to PSD within %d iterations', maxIter);
 
