@@ -511,16 +511,16 @@ for k=2:1:n
             end
         end
 
-        if exist('phiT','var') && phiT~=0
-            % convert xi’s into simplex weights w = softmax([xi_1 , xi_2 , 0]) ----
+        % if exist('phiT','var') && phiT~=0
+            % convert xi’s into simplex weights
             expvec = exp(xi(1,1,:));
-            w      = expvec ./ sum(expvec);    % w sums to 1, all wᵢ > 0
+            phi    = expvec ./ sum(expvec);    
             
-            % 4) final branch precisions --------------------------------------------
-            for m = 1:nModels
-                phi(1,1,m) = phiT * w(m);     % π_m  for branch m
-            end
-        end
+            % % 4) final branch precisions --------------------------------------------
+            % for m = 1:nModels
+            %     phi(1,1,m) = phiT * wphi(m);     % π_m  for branch m
+            % end
+        % end
                 
         % joint probability
         vj_phi = sum(phi(1,1,:));
