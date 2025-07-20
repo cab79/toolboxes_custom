@@ -46,6 +46,13 @@ catch
     c.abs = 1;
 end
 
+% for simulation
+try 
+    c.deterministic = S.deterministic;
+catch
+    c.deterministic=0;
+end
+
 if any(strcmp(c.responses , 'Ch'))
     % USE SOFTMAX MODEL
     

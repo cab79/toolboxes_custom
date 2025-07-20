@@ -140,6 +140,7 @@ parfor (d = 1:length(D),parforArg)
                         failed = failed+0.5;
                         disp(['subject ' D(d).subname ', HGF_run: Variational approximation invalid. Parameters are in a region where model assumptions are violated.']);
                         disp('Use plot for diagnosis: see within function'); % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
+                        break
                     else
                         fin=1;
                     end
@@ -148,6 +149,7 @@ parfor (d = 1:length(D),parforArg)
                     fin=0;
                     disp(['subject ' D(d).subname ', HGF_run: Variational approximation invalid. Parameters are in a region where model assumptions are violated.']);
                     disp('Use plot for diagnosis: see within function'); % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
+                    break
                 end
             end
         else

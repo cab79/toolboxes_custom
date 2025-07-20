@@ -196,9 +196,11 @@ elseif isfield(S,'c_prc') % e.g. when using MFX model with empirical priors
                     if failed2>0
                         idx = find(S.c_prc_orig.priormus==S.c_prc_orig.(type).ommu(2));
                         r.c_prc.priormus(idx) = r.c_prc.priormus(idx)-failed2;
+                        % r.c_prc.priorsas(idx) = r.c_prc.priorsas(idx)/(4*failed2);
                     elseif failed3>0
                         idx = find(S.c_prc_orig.priormus==S.c_prc_orig.(type).ommu(3));
                         r.c_prc.priormus(idx) = r.c_prc.priormus(idx)-failed3;
+                        % r.c_prc.priorsas(idx) = r.c_prc.priorsas(idx)/(4*failed3);
                     end
 
                 case 'AL'
@@ -219,9 +221,11 @@ elseif isfield(S,'c_prc') % e.g. when using MFX model with empirical priors
                     if failed2>0
                         idx = find(S.c_prc_orig.priormus==S.c_prc_orig.(type).ommu(2));
                         r.c_prc.priormus(idx) = r.c_prc.priormus(idx)-failed2;
+                        % r.c_prc.priorsas(idx) = r.c_prc.priorsas(idx)/(4*failed2);
                     elseif failed3>0
                         idx = find(S.c_prc_orig.priormus==S.c_prc_orig.(type).ommu(3));
                         r.c_prc.priormus(idx) = r.c_prc.priormus(idx)-failed3;
+                        % r.c_prc.priorsas(idx) = r.c_prc.priorsas(idx)/(4*failed3);
                     end
 
             end

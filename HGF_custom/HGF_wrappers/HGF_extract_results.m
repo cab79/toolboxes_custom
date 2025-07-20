@@ -50,6 +50,34 @@ for pf = 1:length(paramfields)
     end
 end
 
+%% ---------------------------------------------------------------------
+%  Convert all *_xi parameters into soft-max weights (*_phi)
+% ----------------------------------------------------------------------
+xiFields  = paramfields( endsWith(paramfields,'_xi') );   % e.g. AL_xi, PL_xi …
+nXi       = numel(xiFields);
+if nXi>0
+    for d = 1:length(param)                               % loop subjects
+        % 1) collect this subject's ξ values  (assumed scalar each)
+        xiVec = zeros(1,nXi);
+        for k = 1:nXi
+            xiVal = param(d).(xiFields{k});
+            xiVec(k) = xiVal(1);                          % take first elem if vector
+        end
+        xiVec( isnan(xiVec) ) = 0;                        % ← treat NaN as 0 ❶
+
+        % 2) soft-max 
+        expVec  = exp(xiVec);
+        phiVec  = expVec ./ sum(expVec);                  % weights sum to 1
+
+        % 3) add φ fields to tablecols
+        for k = 1:nXi
+            phiName = strrep(xiFields{k},'_xi','_phi');   % e.g. AL_phi
+            tablecols.(phiName)(d,1) = phiVec(k);
+        end
+    end
+end
+
+
 % create results table
 T = S.designtab;
 Tp = struct2table(tablecols);

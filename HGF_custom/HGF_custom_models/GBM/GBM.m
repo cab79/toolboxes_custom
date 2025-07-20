@@ -511,7 +511,7 @@ for k=2:1:n
             end
         end
 
-        % if exist('phiT','var') && phiT~=0
+        if exist('xi','var')
             % convert xi’s into simplex weights
             expvec = exp(xi(1,1,:));
             phi    = expvec ./ sum(expvec);    
@@ -520,7 +520,7 @@ for k=2:1:n
             % for m = 1:nModels
             %     phi(1,1,m) = phiT * wphi(m);     % π_m  for branch m
             % end
-        % end
+        end
                 
         % joint probability
         vj_phi = sum(phi(1,1,:));
@@ -651,7 +651,7 @@ for m=1:nModels
         if any(abs(dmu(:)) > jumpTol*rmdmu(:)) || any(abs(dpi(:)) > jumpTol*rmdpi(:))
             %disp('hgf:VarApproxInvalid: GBM Variational approximation invalid. Parameters are in a region where model assumptions are violated.');
             %disp('Use plot for diagnosis: see within function'); 
-            % plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
+            % figure; plot(abs(dpi(:))); hold on; plot(rmdpi(:),'r'); hold on; plot(jumpTol*rmdpi(:),'g')
             % plot(abs(dmu(:))); hold on; plot(rmdmu(:),'r'); hold on; plot(jumpTol*rmdmu(:),'g')
             infStates = [];
             return
